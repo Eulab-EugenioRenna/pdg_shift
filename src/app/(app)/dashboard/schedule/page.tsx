@@ -16,7 +16,6 @@ export default function SchedulePage() {
     const [churches, setChurches] = useState<RecordModel[]>([]);
     const [selectedChurch, setSelectedChurch] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
-    const [refreshKey, setRefreshKey] = useState(0);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
     const loadChurches = useCallback(async () => {
@@ -48,7 +47,8 @@ export default function SchedulePage() {
     const hasMultipleChurches = churches.length > 1;
 
     const onEventUpserted = () => {
-        setRefreshKey(prev => prev + 1);
+        // This is now handled by subscriptions, but we can keep it for other potential uses
+        // or remove if it's confirmed to be fully redundant.
     }
     
     if (isLoading) {
@@ -99,7 +99,7 @@ export default function SchedulePage() {
             </div>
 
             {selectedChurch ? (
-                <EventList key={refreshKey} churchId={selectedChurch} onEventChange={onEventUpserted} />
+                <EventList churchId={selectedChurch} />
             ) : (
                  <Card>
                     <CardHeader>

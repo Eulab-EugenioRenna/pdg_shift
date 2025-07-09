@@ -15,8 +15,9 @@ import { ManageEventDialog } from './manage-event-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceList } from './service-list';
+import { pb } from '@/lib/pocketbase';
 
-export function EventList({ churchId, onEventChange }: { churchId: string; onEventChange: () => void; }) {
+export function EventList({ churchId }: { churchId: string }) {
     const { user } = useAuth();
     const [events, setEvents] = useState<RecordModel[]>([]);
     const [churches, setChurches] = useState<RecordModel[]>([]);
@@ -31,18 +32,43 @@ export function EventList({ churchId, onEventChange }: { churchId: string; onEve
     const { toast } = useToast();
 
     useEffect(() => {
-        if (churchId) {
-            setIsLoading(true);
-            Promise.all([
-                getEvents(churchId),
-                user?.role === 'admin' ? getChurches() : Promise.resolve(user?.expand?.church || [])
-            ]).then(([eventsData, churchesData]) => {
-                setEvents(eventsData);
-                setChurches(churchesData);
-            }).finally(() => {
-                setIsLoading(false);
-            });
-        }
+        if (!churchId) return;
+
+        setIsLoading(true);
+        Promise.all([
+            getEvents(churchId),
+            user?.role === 'admin' ? getChurches() : Promise.resolve(user?.expand?.church || [])
+        ]).then(([eventsData, churchesData]) => {
+            setEvents(eventsData);
+            setChurches(churchesData);
+        }).finally(() => {
+            setIsLoading(false);
+        });
+        
+        const handleEventSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
+            if (action === 'create' && record.church === churchId) {
+                setEvents(prev => [...prev, record].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()));
+            } else if (action === 'update') {
+                setEvents(prev => {
+                    const listWithoutRecord = prev.filter(e => e.id !== record.id);
+                    // if it belongs here now (or was updated)
+                    if (record.church === churchId) {
+                        return [...listWithoutRecord, record].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
+                    }
+                    // if it no longer belongs here
+                    return listWithoutRecord;
+                });
+            } else if (action === 'delete') {
+                setEvents(prev => prev.filter(e => e.id !== record.id));
+            }
+        };
+
+        pb.collection('pdg_events').subscribe('*', handleEventSubscription);
+
+        return () => {
+            pb.collection('pdg_events').unsubscribe('*');
+        };
+
     }, [churchId, user]);
     
     useEffect(() => {
@@ -59,10 +85,7 @@ export function EventList({ churchId, onEventChange }: { churchId: string; onEve
 
 
     const handleEventUpdated = () => {
-        onEventChange();
-        // Manually refetch events after update
-        setIsLoading(true);
-        getEvents(churchId).then(setEvents).finally(() => setIsLoading(false));
+        // The subscription will handle the UI update.
     }
 
     const handleDelete = async () => {
@@ -72,9 +95,6 @@ export function EventList({ churchId, onEventChange }: { churchId: string; onEve
             await deleteEvent(eventToDelete.id);
             toast({ title: "Successo", description: "Evento eliminato." });
             setEventToDelete(null);
-            onEventChange();
-            // Manually refetch events after delete
-            setEvents(prev => prev.filter(e => e.id !== eventToDelete.id));
         } catch (error: any) {
             toast({ variant: "destructive", title: "Errore", description: error.message });
         } finally {

@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { getServicesForEvent, deleteService } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
 import { Loader2, UserCheck, PlusCircle, Trash2 } from 'lucide-react';
@@ -11,6 +10,7 @@ import { AddServiceToEventDialog } from './add-service-to-event-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ManageServiceDialog } from './manage-service-dialog';
+import { pb } from '@/lib/pocketbase';
 
 export function ServiceList({ eventId, churchId }: { eventId: string, churchId: string }) {
     const { user } = useAuth();
@@ -24,19 +24,39 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
     const [serviceToManage, setServiceToManage] = useState<RecordModel | null>(null);
     const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
 
-    const fetchServices = useCallback(() => {
+    useEffect(() => {
         setIsLoading(true);
         getServicesForEvent(eventId)
-            .then(setServices)
+            .then(data => setServices(data.sort((a,b) => a.name.localeCompare(b.name))))
             .finally(() => setIsLoading(false));
+
+        const handleServiceSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
+            if (record.event !== eventId) return;
+
+            const sortServices = (s: RecordModel[]) => s.sort((a, b) => a.name.localeCompare(b.name));
+
+            if (action === 'create') {
+                pb.collection('pdg_services').getOne(record.id, { expand: 'leader' }).then(newService => {
+                    setServices(prev => sortServices([...prev, newService]));
+                });
+            } else if (action === 'update') {
+                pb.collection('pdg_services').getOne(record.id, { expand: 'leader' }).then(updatedService => {
+                    setServices(prev => sortServices(prev.map(s => s.id === updatedService.id ? updatedService : s)));
+                });
+            } else if (action === 'delete') {
+                setServices(prev => prev.filter(s => s.id !== record.id));
+            }
+        };
+
+        pb.collection('pdg_services').subscribe('*', handleServiceSubscription);
+
+        return () => {
+            pb.collection('pdg_services').unsubscribe('*');
+        };
     }, [eventId]);
 
-    useEffect(() => {
-        fetchServices();
-    }, [fetchServices]);
-
     const handleServiceChange = () => {
-        fetchServices();
+        // The subscription will handle the UI update.
     }
     
     const handleDelete = async () => {
@@ -46,7 +66,6 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
             await deleteService(serviceToDelete.id);
             toast({ title: "Successo", description: "Servizio eliminato." });
             setServiceToDelete(null);
-            fetchServices();
         } catch (error: any) {
             toast({ variant: "destructive", title: "Errore", description: error.message });
         } finally {
