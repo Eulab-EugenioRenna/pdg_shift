@@ -13,24 +13,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { updateService, getLeaders, getUsers, getAiTeamSuggestions } from '@/app/actions';
+import { updateService, getLeaders, getUsers, getAiTeamSuggestions, getServiceTemplates } from '@/app/actions';
 import { Loader2, Wand2 } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import type { SuggestTeamOutput } from '@/ai/flows/smart-team-builder';
-
-const volunteerPool = [
-    { volunteerName: "Alice", availability: "disponibile", skills: "Cantante, accoglienza", preferences: "preferisce i servizi mattutini" },
-    { volunteerName: "Bob", availability: "disponibile", skills: "Musicista (chitarra), supporto tecnico", preferences: "disponibile per qualsiasi servizio" },
-    { volunteerName: "Charlie", availability: "non disponibile", skills: "Assistenza all'infanzia, sicurezza", preferences: "preferisce i servizi serali" },
-    { volunteerName: "Diana", availability: "disponibile", skills: "Supporto tecnico, mixer audio", preferences: "preferisce lavorare in team" },
-    { volunteerName: "Ethan", availability: "disponibile", skills: "Usciere, allestimento/smontaggio", preferences: "non gli dispiace rimanere fino a tardi" },
-    { volunteerName: "Fiona", availability: "disponibile", skills: "Cantante (voce di supporto), social media", preferences: "disponibile per servizi speciali" },
-    { volunteerName: "George", availability: "disponibile", skills: "Musicista (basso)", preferences: "preferisce i servizi mattutini" },
-    { volunteerName: "Hannah", availability: "disponibile", skills: "Musicista (batteria)", preferences: "puntuale" },
-];
 
 interface ManageServiceDialogProps {
   isOpen: boolean;
@@ -51,6 +40,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
     
     const [leaders, setLeaders] = useState<RecordModel[]>([]);
     const [allUsers, setAllUsers] = useState<RecordModel[]>([]);
+    const [serviceTemplates, setServiceTemplates] = useState<RecordModel[]>([]);
     const [dataLoading, setDataLoading] = useState(true);
 
     const [aiSuggestions, setAiSuggestions] = useState<SuggestTeamOutput | null>(null);
@@ -61,10 +51,12 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
             setDataLoading(true);
             Promise.all([
                 getLeaders(churchId),
-                getUsers(), // In a real app, this should be scoped to the church
-            ]).then(([leadersData, usersData]) => {
+                getUsers(),
+                getServiceTemplates(),
+            ]).then(([leadersData, usersData, templatesData]) => {
                 setLeaders(leadersData);
                 setAllUsers(usersData);
+                setServiceTemplates(templatesData);
             }).catch(() => {
                 toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati necessari.' });
             }).finally(() => {
@@ -92,12 +84,38 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
         }
 
         startAiTransition(async () => {
+            const serviceTemplatesMap = new Map(serviceTemplates.map((t) => [t.id, t.name]));
+            const volunteerData = allUsers
+                .filter(u => u.role === 'volontario' && u.church?.includes(churchId))
+                .map(user => {
+                    const preferences = (user.service_preferences || [])
+                        .map((id: string) => serviceTemplatesMap.get(id))
+                        .filter(Boolean)
+                        .join(', ');
+
+                    return {
+                        volunteerName: user.name,
+                        availability: "disponibile", // Placeholder until availability is tracked
+                        skills: user.skills || 'Nessuna competenza specificata',
+                        preferences: preferences || 'Nessuna preferenza specificata',
+                    };
+                });
+            
+            if (volunteerData.length === 0) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Nessun volontario',
+                    description: 'Non ci sono volontari disponibili in questa chiesa per generare suggerimenti.',
+                });
+                return;
+            }
+
             try {
                 const result = await getAiTeamSuggestions({
                     serviceName: service.name,
-                    date: new Date().toLocaleDateString('it-IT'),
+                    date: new Date(service.start_date).toLocaleDateString('it-IT'),
                     positions: openPositions,
-                    volunteerAvailability: volunteerPool, // This should be dynamic in a real app
+                    volunteerAvailability: volunteerData,
                 });
                 setAiSuggestions(result);
                  toast({ title: 'Suggerimenti Pronti!', description: "L'IA ha generato delle proposte per le posizioni aperte." });
@@ -216,7 +234,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
 
                             {positions.length > 0 && (
                                 <>
-                                    <Button type="button" variant="outline" onClick={handleGetAiSuggestions} disabled={isSuggesting} className="mt-4 w-full">
+                                    <Button type="button" variant="outline" onClick={handleGetAiSuggestions} disabled={isSuggesting || dataLoading} className="mt-4 w-full">
                                         {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
                                         Suggerisci Team con IA
                                     </Button>
