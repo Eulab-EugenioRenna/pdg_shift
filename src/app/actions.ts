@@ -3,7 +3,7 @@
 
 import { suggestVolunteers, SuggestVolunteersInput } from "@/ai/flows/smart-roster-filling";
 import { pb } from "@/lib/pocketbase";
-import type { ClientResponseError, RecordModel } from "pocketbase";
+import { ClientResponseError, type RecordModel } from "pocketbase";
 
 function getErrorMessage(error: any): string {
     if (error instanceof Error && !(error instanceof ClientResponseError)) {
