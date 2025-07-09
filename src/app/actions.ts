@@ -87,6 +87,19 @@ export async function getUsers() {
     }
 }
 
+export async function getLeaders(churchId: string) {
+    try {
+        const records = await pb.collection('pdg_users').getFullList({
+            filter: `role = "leader" && church ?~ "${churchId}"`,
+            sort: 'name',
+        });
+        return JSON.parse(JSON.stringify(records));
+    } catch (error) {
+        console.error("Error fetching leaders:", error);
+        throw new Error("Failed to fetch leaders.");
+    }
+}
+
 export async function addUserByAdmin(formData: FormData) {
      try {
         const email = formData.get('email') as string;
@@ -99,20 +112,13 @@ export async function addUserByAdmin(formData: FormData) {
         const avatarFile = formData.get('avatar') as File | null;
         if (!avatarFile || avatarFile.size === 0) {
             formData.delete('avatar');
-        }
-
-        const record = await pb.collection('pdg_users').create(formData);
-
-        if (!avatarFile || avatarFile.size === 0) {
-            const avatarResponse = await fetch('https://placehold.co/200x200.png');
+             const avatarResponse = await fetch('https://placehold.co/200x200.png');
             const avatarBlob = await avatarResponse.blob();
-            const updateFormData = new FormData();
-            updateFormData.append('avatar', avatarBlob, `${username}_avatar.png`);
-            await pb.collection('pdg_users').update(record.id, updateFormData);
+            formData.append('avatar', avatarBlob, `${username}_avatar.png`);
         }
-        
-        const finalRecord = await pb.collection('pdg_users').getOne(record.id, { expand: 'church' });
-        return JSON.parse(JSON.stringify(finalRecord));
+
+        const record = await pb.collection('pdg_users').create(formData, { expand: 'church' });
+        return JSON.parse(JSON.stringify(record));
 
     } catch (error: any) {
         console.error("Error adding user:", error);
@@ -282,6 +288,17 @@ export async function createService(formData: FormData) {
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
         console.error("Error creating service:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function updateService(id: string, formData: FormData) {
+    try {
+        const record = await pb.collection('pdg_services').update(id, formData);
+        const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader' });
+        return JSON.parse(JSON.stringify(finalRecord));
+    } catch (error: any) {
+        console.error("Error updating service:", error);
         throw new Error(getErrorMessage(error));
     }
 }

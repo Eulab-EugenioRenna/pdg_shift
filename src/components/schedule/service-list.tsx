@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { AddServiceToEventDialog } from './add-service-to-event-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { ManageServiceDialog } from './manage-service-dialog';
 
 export function ServiceList({ eventId, churchId }: { eventId: string, churchId: string }) {
     const { user } = useAuth();
@@ -18,6 +20,9 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [serviceToDelete, setServiceToDelete] = useState<RecordModel | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const [serviceToManage, setServiceToManage] = useState<RecordModel | null>(null);
+    const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
 
     const fetchServices = useCallback(() => {
         setIsLoading(true);
@@ -30,7 +35,7 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
         fetchServices();
     }, [fetchServices]);
 
-    const handleServiceAdded = () => {
+    const handleServiceChange = () => {
         fetchServices();
     }
     
@@ -67,7 +72,7 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
                         setIsOpen={setIsAddDialogOpen}
                         eventId={eventId}
                         churchId={churchId}
-                        onServiceAdded={handleServiceAdded}
+                        onServiceAdded={handleServiceChange}
                     />
                 </div>
             )}
@@ -83,7 +88,14 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
                                 <p className="text-xs text-muted-foreground flex items-center gap-2"><UserCheck className="w-3 h-3"/> Leader: {service.expand?.leader?.name || 'Non assegnato'}</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Button variant="outline" size="sm">Gestisci</Button>
+                                {user?.role === 'admin' && (
+                                    <Button variant="outline" size="sm" onClick={() => {
+                                        setServiceToManage(service);
+                                        setIsManageDialogOpen(true);
+                                    }}>
+                                        Gestisci
+                                    </Button>
+                                )}
                                 {user?.role === 'admin' && (
                                     <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setServiceToDelete(service)}>
                                         <Trash2 className="h-4 w-4" />
@@ -94,6 +106,14 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
                     ))}
                 </div>
             )}
+
+            <ManageServiceDialog
+                isOpen={isManageDialogOpen}
+                setIsOpen={setIsManageDialogOpen}
+                service={serviceToManage}
+                churchId={churchId}
+                onServiceUpdated={handleServiceChange}
+            />
 
             <AlertDialog open={!!serviceToDelete} onOpenChange={() => setServiceToDelete(null)}>
                 <AlertDialogContent>
