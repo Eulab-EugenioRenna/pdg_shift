@@ -5,7 +5,7 @@ import { getEvents, deleteEvent, getChurches } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, Calendar, Clock, MoreVertical } from 'lucide-react';
+import { Loader2, Calendar, Clock, MoreVertical, Repeat } from 'lucide-react';
 import { Button } from '../ui/button';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -23,6 +23,42 @@ interface EventListProps {
     searchTerm: string;
     dateRange?: DateRange;
 }
+
+const getNextOccurrenceDate = (event: RecordModel): Date | null => {
+    if (!event.is_recurring || event.recurring_day === null || event.recurring_day === undefined) return null;
+
+    const recurrenceStartDate = new Date(event.start_date);
+    recurrenceStartDate.setHours(0,0,0,0);
+
+    let today = new Date();
+    today.setHours(0,0,0,0);
+    
+    let fromDate = today > recurrenceStartDate ? today : recurrenceStartDate;
+
+    const recurringDay = parseInt(event.recurring_day, 10);
+    
+    let nextDate = new Date(fromDate);
+    const fromDay = fromDate.getDay();
+    
+    const daysToAdd = (recurringDay - fromDay + 7) % 7;
+    
+    nextDate.setDate(nextDate.getDate() + daysToAdd);
+
+    const originalStartTime = new Date(event.start_date);
+    const now = new Date();
+
+    if (nextDate.getTime() === today.getTime()) {
+        const nextOccurrenceWithTime = new Date(nextDate);
+        nextOccurrenceWithTime.setHours(originalStartTime.getHours(), originalStartTime.getMinutes());
+        
+        if (nextOccurrenceWithTime < now) {
+            nextDate.setDate(nextDate.getDate() + 7);
+        }
+    }
+    
+    return nextDate;
+}
+
 
 export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
     const { user } = useAuth();
@@ -91,7 +127,35 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
     }, [isEditDialogOpen]);
 
     const filteredEvents = useMemo(() => {
-        return events.filter(event => {
+        const displayEvents = events
+            .flatMap(event => {
+                if (event.is_recurring) {
+                    const nextOccurrenceDate = getNextOccurrenceDate(event);
+                    
+                    if (nextOccurrenceDate) {
+                        const originalStartDate = new Date(event.start_date);
+                        const originalEndDate = new Date(event.end_date);
+                        const duration = originalEndDate.getTime() - originalStartDate.getTime();
+                        
+                        const newStartDate = new Date(nextOccurrenceDate);
+                        newStartDate.setHours(originalStartDate.getHours(), originalStartDate.getMinutes(), originalStartDate.getSeconds());
+                        
+                        const newEndDate = new Date(newStartDate.getTime() + duration);
+
+                        return [{
+                            ...event,
+                            start_date: newStartDate.toISOString(),
+                            end_date: newEndDate.toISOString(),
+                            isRecurringInstance: true,
+                        }];
+                    }
+                    return [];
+                }
+                return [event];
+            })
+            .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+
+        return displayEvents.filter(event => {
             const matchSearch = searchTerm
                 ? event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   (event.description && event.description.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -165,11 +229,14 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
     return (
         <div className="space-y-4">
             {filteredEvents.map(event => (
-                <Card key={event.id}>
+                <Card key={event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id}>
                     <CardHeader>
                         <div className="flex justify-between items-start">
                             <div>
-                                <CardTitle>{event.name}</CardTitle>
+                                <CardTitle className="flex items-center gap-2">
+                                    {event.name} 
+                                    {event.isRecurringInstance && <Repeat className="inline h-4 w-4 text-muted-foreground" title="Evento Ricorrente" />}
+                                </CardTitle>
                                 <CardDescription>{event.description || 'Nessuna descrizione.'}</CardDescription>
                             </div>
                             {user?.role === 'admin' && (

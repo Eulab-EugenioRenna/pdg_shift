@@ -177,15 +177,17 @@ export async function createEvent(formData: FormData) {
     const startDate = formData.get('start_date') as string;
     const endDate = formData.get('end_date') as string;
     const templateId = formData.get('templateId') as string | null;
+    const isRecurring = formData.get('is_recurring') === 'true';
 
     if (!churchId || !startDate || !endDate) {
         throw new Error("Church, start date, and end date are required.");
     }
 
     try {
-        // Check for overlapping events
+        // For non-recurring events, check for overlaps on the specific date.
+        // For recurring events, this check is complex. We'll only check the first instance.
         const overlappingEvents = await pb.collection('pdg_events').getFullList({
-            filter: `church = "${churchId}" && ((start_date < "${endDate}" && end_date > "${startDate}"))`,
+            filter: `is_recurring = false && church = "${churchId}" && ((start_date < "${endDate}" && end_date > "${startDate}"))`,
         });
 
         if (overlappingEvents.length > 0) {
@@ -228,6 +230,11 @@ export async function updateEvent(id: string, formData: FormData) {
     const startDate = formData.get('start_date') as string;
     const endDate = formData.get('end_date') as string;
     const churchId = formData.get('church') as string;
+    const isRecurring = formData.get('is_recurring') === 'true';
+
+    if (!isRecurring) {
+        formData.append('recurring_day', ''); // Clear recurring day if it's no longer recurring
+    }
 
     if (!startDate || !endDate || !churchId) {
         throw new Error("Church, start date, and end date are required.");
@@ -236,7 +243,7 @@ export async function updateEvent(id: string, formData: FormData) {
     try {
         // Check for overlapping events, excluding the current one
         const overlappingEvents = await pb.collection('pdg_events').getFullList({
-            filter: `id != "${id}" && church = "${churchId}" && ((start_date < "${endDate}" && end_date > "${startDate}"))`,
+            filter: `id != "${id}" && is_recurring = false && church = "${churchId}" && ((start_date < "${endDate}" && end_date > "${startDate}"))`,
         });
 
         if (overlappingEvents.length > 0) {

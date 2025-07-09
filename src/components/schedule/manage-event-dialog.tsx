@@ -21,6 +21,7 @@ import { Calendar } from '../ui/calendar';
 import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Textarea } from '../ui/textarea';
+import { Switch } from '../ui/switch';
 
 interface ManageEventDialogProps {
     isOpen: boolean;
@@ -49,6 +50,8 @@ export function ManageEventDialog({
     const [date, setDate] = useState<Date | undefined>();
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [recurringDay, setRecurringDay] = useState('');
 
     const [eventTemplates, setEventTemplates] = useState<RecordModel[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -56,21 +59,27 @@ export function ManageEventDialog({
     const isEditMode = !!eventToEdit;
 
     const resetForm = () => {
-        setName(eventToEdit?.name || '');
-        setDescription(eventToEdit?.description || '');
-        setChurch(eventToEdit?.church || selectedChurchId);
-        
         if (eventToEdit) {
+            setName(eventToEdit.name || '');
+            setDescription(eventToEdit.description || '');
+            setChurch(eventToEdit.church || selectedChurchId);
             const startDate = parseISO(eventToEdit.start_date);
             const endDate = parseISO(eventToEdit.end_date);
             setDate(startDate);
             setStartTime(format(startDate, 'HH:mm'));
             setEndTime(format(endDate, 'HH:mm'));
+            setIsRecurring(eventToEdit.is_recurring || false);
+            setRecurringDay(eventToEdit.recurring_day?.toString() || '');
         } else {
+            setName('');
+            setDescription('');
+            setChurch(selectedChurchId);
             setDate(undefined);
             setStartTime('');
             setEndTime('');
             setSelectedTemplateId('');
+            setIsRecurring(false);
+            setRecurringDay('');
         }
     };
     
@@ -81,6 +90,7 @@ export function ManageEventDialog({
                 .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' }));
             resetForm();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, eventToEdit, selectedChurchId]);
 
     const handleTemplateChange = (templateId: string) => {
@@ -107,6 +117,11 @@ export function ManageEventDialog({
             return;
         }
 
+        if (isRecurring && !recurringDay) {
+            toast({ variant: 'destructive', title: 'Errore', description: "Seleziona un giorno per la ricorrenza." });
+            return;
+        }
+
         const startDateTime = new Date(date);
         const [startHours, startMinutes] = startTime.split(':').map(Number);
         startDateTime.setHours(startHours, startMinutes, 0, 0);
@@ -127,6 +142,10 @@ export function ManageEventDialog({
             formData.append('church', church);
             formData.append('start_date', startDateTime.toISOString());
             formData.append('end_date', endDateTime.toISOString());
+            formData.append('is_recurring', isRecurring.toString());
+            if (isRecurring) {
+                formData.append('recurring_day', recurringDay);
+            }
             
             try {
                 if (isEditMode) {
@@ -206,7 +225,7 @@ export function ManageEventDialog({
                     )}
                     
                      <div className="space-y-2">
-                        <Label htmlFor="event-date">Data</Label>
+                        <Label htmlFor="event-date">Data {isRecurring ? 'di inizio ricorrenza' : ''}</Label>
                         <Popover>
                             <PopoverTrigger asChild>
                                 <Button
@@ -230,6 +249,30 @@ export function ManageEventDialog({
                             </PopoverContent>
                         </Popover>
                     </div>
+
+                    <div className="flex items-center space-x-2 pt-2">
+                        <Switch id="is-recurring" checked={isRecurring} onCheckedChange={setIsRecurring} disabled={isPending} />
+                        <Label htmlFor="is-recurring">Evento Ricorrente</Label>
+                    </div>
+                    
+                    {isRecurring && (
+                        <div className="space-y-2">
+                            <Label htmlFor="recurring-day">Giorno della ricorrenza</Label>
+                            <Select onValueChange={setRecurringDay} value={recurringDay} required>
+                                <SelectTrigger id="recurring-day"><SelectValue placeholder="Seleziona un giorno" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="0">Domenica</SelectItem>
+                                    <SelectItem value="1">Lunedì</SelectItem>
+                                    <SelectItem value="2">Martedì</SelectItem>
+                                    <SelectItem value="3">Mercoledì</SelectItem>
+                                    <SelectItem value="4">Giovedì</SelectItem>
+                                    <SelectItem value="5">Venerdì</SelectItem>
+                                    <SelectItem value="6">Sabato</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="start-time">Orario di Inizio</Label>
