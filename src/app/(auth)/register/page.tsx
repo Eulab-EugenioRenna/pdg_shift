@@ -23,9 +23,11 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [churches, setChurches] = useState<any[]>([]);
   const [church, setChurch] = useState('');
+  const [churchesLoading, setChurchesLoading] = useState(true);
 
   useEffect(() => {
     const fetchChurches = async () => {
+      setChurchesLoading(true);
       try {
         const records = await pb.collection('pdg_church').getFullList({
           sort: 'name',
@@ -38,6 +40,8 @@ export default function RegisterPage() {
           title: 'Errore di Caricamento',
           description: "Impossibile caricare l'elenco delle chiese. Riprova più tardi.",
         });
+      } finally {
+        setChurchesLoading(false);
       }
     };
 
@@ -97,17 +101,19 @@ export default function RegisterPage() {
               </div>
                <div className="grid gap-2">
                 <Label htmlFor="church">Chiesa</Label>
-                <Select onValueChange={setChurch} value={church} required>
+                <Select onValueChange={setChurch} value={church} required disabled={churchesLoading}>
                   <SelectTrigger id="church">
-                    <SelectValue placeholder="Seleziona la tua chiesa" />
+                    <SelectValue placeholder={churchesLoading ? "caricamento ..." : "Seleziona la tua chiesa"} />
                   </SelectTrigger>
                   <SelectContent>
-                     {churches.length > 0 ? (
+                     {churchesLoading ? (
+                       <SelectItem value="loading" disabled>caricamento ...</SelectItem>
+                     ) : churches.length > 0 ? (
                       churches.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="loading" disabled>Caricamento...</SelectItem>
+                      <SelectItem value="no-churches" disabled>Nessuna chiesa disponibile.</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
@@ -122,7 +128,7 @@ export default function RegisterPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button className="w-full" type="submit" disabled={isLoading || churches.length === 0}>
+              <Button className="w-full" type="submit" disabled={isLoading || churchesLoading || churches.length === 0}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Crea account
               </Button>
