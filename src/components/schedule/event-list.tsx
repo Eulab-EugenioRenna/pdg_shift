@@ -138,19 +138,22 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
     }, [isEditDialogOpen]);
 
     const filteredEvents = useMemo(() => {
-        const singleEvents = events.filter(e => !e.is_recurring);
+        const filterStartDate = new Date();
+        filterStartDate.setDate(filterStartDate.getDate() - 2);
+        filterStartDate.setHours(0, 0, 0, 0);
+
+        const singleEvents = events.filter(e => !e.is_recurring && new Date(e.start_date) >= filterStartDate);
         const recurringTemplates = events.filter(e => e.is_recurring);
 
         const singleEventDateKeys = new Set(
             singleEvents.map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
         );
-
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const futureLimit = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        
+        const futureLimit = new Date();
+        futureLimit.setMonth(futureLimit.getMonth() + 2);
 
         const recurringInstances = recurringTemplates
-            .flatMap(event => generateRecurringInstances(event, today, futureLimit))
+            .flatMap(event => generateRecurringInstances(event, filterStartDate, futureLimit))
             .filter(instance => {
                 const dateKey = `${format(new Date(instance.start_date), 'yyyy-MM-dd')}-${instance.church}`;
                 return !singleEventDateKeys.has(dateKey);
