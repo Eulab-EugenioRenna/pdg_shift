@@ -23,7 +23,7 @@ export function HeroSection() {
 
         <div className="space-y-4 md:space-y-0 md:space-x-4">
           <Button className="w-full md:w-1/3 text-lg" asChild>
-            <Link href="#">Get Started</Link>
+            <Link href="/register">Get Started</Link>
           </Button>
         </div>
       </div>
