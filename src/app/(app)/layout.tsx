@@ -53,6 +53,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setIsProfileIncomplete(false);
   };
 
+  const isMenuItemActive = (itemHref: string) => {
+    if (itemHref === '/dashboard') {
+      return pathname === itemHref;
+    }
+    return pathname.startsWith(itemHref);
+  }
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -68,7 +75,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label}>
+                <SidebarMenuButton asChild isActive={isMenuItemActive(item.href)} tooltip={item.label}>
                   <Link href={item.href}>
                     <item.icon />
                     <span>{item.label}</span>
