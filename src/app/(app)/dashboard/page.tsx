@@ -141,55 +141,61 @@ export default function DashboardPage() {
                     </CardContent>
                 </Card>
             </div>
-            
-             <Card>
-                <CardContent className="p-0">
-                   {viewMode === 'month' ? (
-                         <DashboardCalendar 
-                            events={eventsForCalendar}
-                            month={calendarMonth}
-                            selected={selectedDate}
-                            onSelect={handleSelectDate}
-                        />
-                    ) : (
-                        data && (
-                            <WeeklyCalendarView 
-                                week={dateRange}
-                                events={data.events}
-                                selected={selectedDate}
-                                onSelect={handleSelectDate}
-                            />
-                        )
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2">
+                    <Card>
+                        <CardContent className="p-0">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center min-h-[400px]">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            </div>
+                        ) : viewMode === 'month' ? (
+                                <DashboardCalendar 
+                                    events={eventsForCalendar}
+                                    month={calendarMonth}
+                                    selected={selectedDate}
+                                    onSelect={handleSelectDate}
+                                />
+                            ) : (
+                                data && (
+                                    <WeeklyCalendarView 
+                                        week={dateRange}
+                                        events={data.events}
+                                        selected={selectedDate}
+                                        onSelect={handleSelectDate}
+                                    />
+                                )
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className="xl:col-span-1">
+                    {!selectedDate && (
+                        <Card className="flex flex-col items-center justify-center text-center h-full min-h-[200px] animate-in fade-in-50">
+                            <CardContent className="flex flex-col items-center justify-center pt-6">
+                                <CalendarDays className="h-12 w-12 text-muted-foreground mb-4" />
+                                <h3 className="font-semibold">Nessun giorno selezionato</h3>
+                                <p className="text-muted-foreground text-sm mt-1">
+                                    Seleziona un giorno dal calendario per vederne i dettagli.
+                                </p>
+                            </CardContent>
+                        </Card>
                     )}
-                </CardContent>
-              </Card>
 
-            {isLoading && (
-                <div className="flex items-center justify-center h-40">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    {selectedDate && eventsForSelectedDay.length > 0 && (
+                         <div className="space-y-4 animate-in fade-in-50 h-full">
+                            <h3 className="font-bold text-xl">Eventi del {format(selectedDate, 'd MMMM yyyy', { locale: it })}</h3>
+                            <div className="space-y-4 max-h-[calc(100vh-350px)] overflow-y-auto pr-2">
+                                {eventsForSelectedDay.map(event => (
+                                    <EventCard key={event.id} event={event} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
-            )}
-
-            {!isLoading && selectedDate && eventsForSelectedDay.length > 0 && (
-                 <div className="space-y-4 animate-in fade-in-50">
-                    <h3 className="font-bold text-xl">Eventi del {format(selectedDate, 'd MMMM yyyy', { locale: it })}</h3>
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {eventsForSelectedDay.map(event => (
-                            <EventCard key={event.id} event={event} />
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {!isLoading && !selectedDate && (
-                 <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg border-2 border-dashed min-h-[200px]">
-                    <CalendarDays className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="font-semibold">Nessun giorno selezionato</h3>
-                    <p className="text-muted-foreground text-sm mt-1">
-                        Seleziona un giorno dal calendario con un evento per vederne i dettagli.
-                    </p>
-                </div>
-            )}
+            </div>
         </div>
     );
 }
