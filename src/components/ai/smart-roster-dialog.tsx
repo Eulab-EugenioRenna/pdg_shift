@@ -28,32 +28,32 @@ const volunteerPool = [
   {
     volunteerName: "Alice",
     availability: "available",
-    skills: "Singer, greeting",
-    preferences: "prefers morning services",
+    skills: "Cantante, accoglienza",
+    preferences: "preferisce i servizi mattutini",
   },
   {
     volunteerName: "Bob",
     availability: "available",
-    skills: "Musician (Guitar), tech support",
-    preferences: "available for any service",
+    skills: "Musicista (chitarra), supporto tecnico",
+    preferences: "disponibile per qualsiasi servizio",
   },
   {
     volunteerName: "Charlie",
     availability: "not available",
-    skills: "Childcare, security",
-    preferences: "prefers evening services",
+    skills: "Assistenza all'infanzia, sicurezza",
+    preferences: "preferisce i servizi serali",
   },
   {
     volunteerName: "Diana",
     availability: "available",
-    skills: "Tech support, sound board",
-    preferences: "prefers to work with a team",
+    skills: "Supporto tecnico, mixer audio",
+    preferences: "preferisce lavorare in team",
   },
    {
     volunteerName: "Ethan",
     availability: "available",
-    skills: "Usher, setup/teardown",
-    preferences: "doesn't mind staying late",
+    skills: "Usciere, allestimento/smontaggio",
+    preferences: "non gli dispiace rimanere fino a tardi",
   },
 ];
 
@@ -69,7 +69,7 @@ export function SmartRosterDialog() {
     setSuggestions(null);
     try {
       const result = await getAiSuggestions({
-        serviceName: "Sunday Morning Worship",
+        serviceName: "Culto Domenicale Mattutino",
         date: new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString(),
         openSlots: 2,
         volunteerAvailability: volunteerPool,
@@ -78,8 +78,8 @@ export function SmartRosterDialog() {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to get suggestions. Please try again.",
+        title: "Errore",
+        description: "Impossibile ottenere suggerimenti. Riprova.",
       });
     } finally {
       setIsLoading(false);
@@ -91,36 +91,36 @@ export function SmartRosterDialog() {
       <DialogTrigger asChild>
         <Button size="lg">
             <Wand2 className="mr-2 h-5 w-5" />
-            Try the AI Assistant
+            Prova l'Assistente IA
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="font-headline text-2xl">Smart Roster Filling</DialogTitle>
+          <DialogTitle className="font-headline text-2xl">Composizione Intelligente dei Turni</DialogTitle>
           <DialogDescription>
-            See how our AI can help you find the right people for your service.
+            Scopri come la nostra IA può aiutarti a trovare le persone giuste per il tuo servizio.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
           <div>
             <Card>
               <CardHeader>
-                <CardTitle>Service Details</CardTitle>
+                <CardTitle>Dettagli del Servizio</CardTitle>
                 <CardDescription>
-                  Here are the details for the service needing volunteers.
+                  Ecco i dettagli per il servizio che necessita di volontari.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="serviceName">Service Name</Label>
-                  <Input id="serviceName" defaultValue="Sunday Morning Worship" readOnly />
+                  <Label htmlFor="serviceName">Nome del Servizio</Label>
+                  <Input id="serviceName" defaultValue="Culto Domenicale Mattutino" readOnly />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="date">Date</Label>
+                  <Label htmlFor="date">Data</Label>
                   <Input id="date" defaultValue={new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString()} readOnly />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="openSlots">Open Slots</Label>
+                  <Label htmlFor="openSlots">Posti disponibili</Label>
                   <Input id="openSlots" type="number" defaultValue="2" readOnly />
                 </div>
               </CardContent>
@@ -128,7 +128,7 @@ export function SmartRosterDialog() {
 
              <Card className="mt-4">
               <CardHeader>
-                 <CardTitle className="flex items-center gap-2"><Users /> Available Volunteers</CardTitle>
+                 <CardTitle className="flex items-center gap-2"><Users /> Volontari Disponibili</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
@@ -150,14 +150,14 @@ export function SmartRosterDialog() {
                 ) : (
                   <Wand2 className="mr-2 h-4 w-4" />
                 )}
-                Suggest Volunteers
+                Suggerisci Volontari
               </Button>
             </div>
             <Card className="min-h-[300px]">
               <CardHeader>
-                <CardTitle>AI Suggestions</CardTitle>
+                <CardTitle>Suggerimenti dall'IA</CardTitle>
                 <CardDescription>
-                  Our AI recommends the following volunteers to fill the open slots.
+                  La nostra IA raccomanda i seguenti volontari per riempire i posti disponibili.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -176,7 +176,7 @@ export function SmartRosterDialog() {
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-muted-foreground">No suggestions available.</p>
+                      <p className="text-sm text-muted-foreground">Nessun suggerimento disponibile.</p>
                     )}
                   </div>
                 )}

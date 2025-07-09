@@ -47,7 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Link href="/dashboard" className="flex items-center gap-2">
             <Icons.logo className="size-6 text-primary" />
             <span className="text-lg font-semibold group-data-[collapsible=icon]:hidden">
-              Grace Shifts
+              Grace Services
             </span>
           </Link>
         </SidebarHeader>

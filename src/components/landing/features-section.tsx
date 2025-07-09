@@ -10,21 +10,21 @@ import { Users, CalendarDays, MousePointerClick, ShieldCheck } from "lucide-reac
 const features = [
   {
     icon: <ShieldCheck className="w-8 h-8 text-primary" />,
-    title: "Role-Based Access",
+    title: "Accesso Basato sui Ruoli",
     description:
-      "Secure login for Admins, Leaders, and Volunteers with tailored permissions. Manage multiple church locations seamlessly.",
+      "Login sicuro per amministratori, leader e volontari con permessi personalizzati. Gestisci più sedi della chiesa senza interruzioni.",
   },
   {
     icon: <CalendarDays className="w-8 h-8 text-primary" />,
-    title: "Service & Event Scheduling",
+    title: "Pianificazione di Servizi ed Eventi",
     description:
-      "Automated and manual scheduling to ensure fair volunteer distribution. Create recurring or single events with ease.",
+      "Pianificazione automatica e manuale per garantire una distribuzione equa dei volontari. Crea eventi ricorrenti o singoli con facilità.",
   },
   {
     icon: <MousePointerClick className="w-8 h-8 text-primary" />,
-    title: "Interactive Assignment",
+    title: "Assegnazione Interattiva",
     description:
-      "Intuitive drag-and-drop interface to manually assign volunteers, providing flexibility in team management.",
+      "Interfaccia intuitiva per assegnare manualmente i volontari, offrendo flessibilità nella gestione del team.",
   },
 ];
 
@@ -32,9 +32,9 @@ export function FeaturesSection() {
   return (
     <section id="features" className="container py-24 sm:py-32 space-y-8">
       <h2 className="text-3xl lg:text-4xl font-headline font-bold md:text-center">
-        Everything You Need{" "}
+        Tutto Ciò di Cui Hai Bisogno{" "}
         <span className="inline bg-gradient-to-r from-[#D39400] to-[#9400D3] text-transparent bg-clip-text">
-          In One Place
+          In Un Unico Posto
         </span>
       </h2>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">

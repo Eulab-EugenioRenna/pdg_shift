@@ -17,7 +17,7 @@ export function Header() {
           <Link href="/" className="flex items-center space-x-2">
             <Icons.logo className="h-6 w-6 text-primary" />
             <span className="font-bold font-headline text-lg">
-              Grace Shifts
+              Grace Services
             </span>
           </Link>
         </div>
@@ -32,7 +32,7 @@ export function Header() {
             </Button>
           ) : (
             <Button asChild>
-              <Link href="/login">Login</Link>
+              <Link href="/login">Accedi</Link>
             </Button>
           )}
         </div>

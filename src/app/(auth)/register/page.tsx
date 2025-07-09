@@ -76,7 +76,7 @@ export default function RegisterPage() {
            <Link href="/" className="flex items-center justify-center space-x-2">
             <Icons.logo className="h-8 w-8 text-primary" />
             <span className="font-bold font-headline text-2xl">
-              Grace Shifts
+              Grace Services
             </span>
           </Link>
         </div>

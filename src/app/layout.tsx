@@ -5,8 +5,8 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Grace Shifts',
-  description: 'Manage church service rosters with ease.',
+  title: 'Grace Services',
+  description: 'Gestisci i turni di servizio della chiesa con facilità.',
 };
 
 export default function RootLayout({
