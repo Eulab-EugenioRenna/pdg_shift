@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { createService, getServiceTemplates } from '@/app/actions';
+import { createService, getServiceTemplates, getLeaders } from '@/app/actions';
 import { Loader2 } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -35,27 +35,48 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
     // Custom service form state
     const [customName, setCustomName] = useState('');
     const [customDescription, setCustomDescription] = useState('');
+    const [customLeaderId, setCustomLeaderId] = useState('');
     
     // Template service form state
     const [serviceTemplates, setServiceTemplates] = useState<RecordModel[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [templateLeaderId, setTemplateLeaderId] = useState('');
+
+    // Data
+    const [leaders, setLeaders] = useState<RecordModel[]>([]);
+    const [dataLoading, setDataLoading] = useState(true);
 
     useEffect(() => {
         if (isOpen) {
-            getServiceTemplates()
-                .then(setServiceTemplates)
-                .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di servizio.' }));
+            setDataLoading(true);
+            Promise.all([
+                getServiceTemplates(),
+                getLeaders(churchId)
+            ])
+            .then(([templates, leadersData]) => {
+                setServiceTemplates(templates);
+                setLeaders(leadersData);
+            })
+            .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati necessari.' }))
+            .finally(() => setDataLoading(false));
+            
             // Reset forms
             setCustomName('');
             setCustomDescription('');
             setSelectedTemplateId('');
+            setCustomLeaderId('');
+            setTemplateLeaderId('');
         }
-    }, [isOpen, toast]);
+    }, [isOpen, churchId, toast]);
 
     const handleCustomSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!customName.trim()) {
             toast({ variant: 'destructive', title: 'Errore', description: 'Il nome del servizio è obbligatorio.' });
+            return;
+        }
+        if (!customLeaderId) {
+            toast({ variant: 'destructive', title: 'Errore', description: 'È obbligatorio assegnare un leader.' });
             return;
         }
         
@@ -65,6 +86,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             formData.append('description', customDescription);
             formData.append('event', eventId);
             formData.append('church', churchId);
+            formData.append('leader', customLeaderId);
 
             try {
                 await createService(formData);
@@ -83,6 +105,10 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             toast({ variant: 'destructive', title: 'Errore', description: 'Seleziona un modello di servizio.' });
             return;
         }
+        if (!templateLeaderId) {
+            toast({ variant: 'destructive', title: 'Errore', description: 'È obbligatorio assegnare un leader.' });
+            return;
+        }
         
         startTransition(async () => {
             const template = serviceTemplates.find(t => t.id === selectedTemplateId);
@@ -93,6 +119,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             formData.append('description', template.description);
             formData.append('event', eventId);
             formData.append('church', churchId);
+            formData.append('leader', templateLeaderId);
             
             try {
                 await createService(formData);
@@ -111,7 +138,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
         <DialogHeader>
           <DialogTitle>Aggiungi Servizio all'Evento</DialogTitle>
           <DialogDescription>
-            Aggiungi un servizio da un modello pre-configurato o creane uno nuovo.
+            Aggiungi un servizio da un modello pre-configurato o creane uno nuovo. È obbligatorio assegnare un leader.
           </DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="template" className="w-full">
@@ -123,7 +150,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             <form onSubmit={handleTemplateSubmit} className="space-y-4 py-4">
                 <div className="space-y-2">
                     <Label htmlFor="template-select">Modello di Servizio</Label>
-                    <Select onValueChange={setSelectedTemplateId} value={selectedTemplateId} disabled={isPending || serviceTemplates.length === 0} required>
+                    <Select onValueChange={setSelectedTemplateId} value={selectedTemplateId} disabled={isPending || dataLoading || serviceTemplates.length === 0} required>
                         <SelectTrigger id="template-select">
                             <SelectValue placeholder="Seleziona un modello..." />
                         </SelectTrigger>
@@ -136,9 +163,22 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
                         </SelectContent>
                     </Select>
                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="template-leader-select">Leader</Label>
+                    <Select onValueChange={setTemplateLeaderId} value={templateLeaderId} disabled={isPending || dataLoading || leaders.length === 0} required>
+                        <SelectTrigger id="template-leader-select">
+                            <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {leaders.map((l) => (
+                                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                  <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                    <Button type="submit" disabled={isPending}>
+                    <Button type="submit" disabled={isPending || dataLoading}>
                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Aggiungi Servizio
                     </Button>
@@ -155,9 +195,22 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
                 <Label htmlFor="custom-description">Descrizione (opzionale)</Label>
                 <Textarea id="custom-description" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} disabled={isPending} />
               </div>
+               <div className="space-y-2">
+                    <Label htmlFor="custom-leader-select">Leader</Label>
+                    <Select onValueChange={setCustomLeaderId} value={customLeaderId} disabled={isPending || dataLoading || leaders.length === 0} required>
+                        <SelectTrigger id="custom-leader-select">
+                            <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {leaders.map((l) => (
+                                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                <Button type="submit" disabled={isPending}>
+                <Button type="submit" disabled={isPending || dataLoading}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Crea Servizio
                 </Button>

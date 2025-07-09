@@ -303,18 +303,16 @@ export async function createEventOverride(originalEventId: string, occurrenceDat
             filter: `event = "${originalEventId}"`,
         });
 
-        if (templateServices.length > 0) {
-            for (const service of templateServices) {
-                const newServiceData = {
-                    church: service.church,
-                    event: newEventRecord.id,
-                    name: service.name,
-                    description: service.description,
-                    leader: service.leader,
-                    team: service.team || [],
-                };
-                await pb.collection('pdg_services').create(newServiceData);
-            }
+        for (const service of templateServices) {
+            const newServiceData = {
+                church: service.church,
+                event: newEventRecord.id,
+                name: service.name,
+                description: service.description,
+                leader: service.leader,
+                team: service.team || [],
+            };
+            await pb.collection('pdg_services').create(newServiceData);
         }
         
         const finalRecord = await pb.collection('pdg_events').getOne(newEventRecord.id);
@@ -343,6 +341,11 @@ export async function getServicesForEvent(eventId: string) {
 }
 
 export async function createService(formData: FormData) {
+    const leaderId = formData.get('leader');
+    if (!leaderId) {
+        throw new Error("È obbligatorio assegnare un leader per creare un servizio.");
+    }
+
     try {
         const record = await pb.collection('pdg_services').create(formData);
         const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader' });
