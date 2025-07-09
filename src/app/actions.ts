@@ -1,3 +1,4 @@
+
 "use server";
 
 import { suggestVolunteers, SuggestVolunteersInput } from "@/ai/flows/smart-roster-filling";
@@ -5,18 +6,18 @@ import { pb } from "@/lib/pocketbase";
 import type { ClientResponseError } from "pocketbase";
 
 function getErrorMessage(error: any): string {
+    if (error && typeof error === 'object' && error.data?.data) {
+        const errorData = error.data.data;
+        const firstErrorKey = Object.keys(errorData)[0];
+        if (firstErrorKey && errorData[firstErrorKey].message) {
+            return errorData[firstErrorKey].message;
+        }
+    }
     if (error instanceof Error) {
         const clientError = error as ClientResponseError;
-        if (clientError.data?.data) {
-            const errorData = clientError.data.data;
-            const firstErrorKey = Object.keys(errorData)[0];
-            if (firstErrorKey && errorData[firstErrorKey].message) {
-                return errorData[firstErrorKey].message;
-            }
-        }
-        return clientError.message;
+        if (clientError.message) return clientError.message;
     }
-    return "An unknown error occurred.";
+    return "An unexpected response was received from the server.";
 }
 
 
@@ -82,49 +83,28 @@ export async function getUsers() {
 }
 
 export async function addUserByAdmin(formData: FormData) {
-    let createdRecordId = '';
      try {
         const email = formData.get('email') as string;
         if (!email) throw new Error('Email is required');
         
         const username = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Date.now().toString().slice(-4);
-        
-        const textData: {[key:string]: any} = {
-            username,
-            email,
-            emailVisibility: true,
-            name: formData.get('name'),
-            role: formData.get('role'),
-            password: formData.get('password'),
-            passwordConfirm: formData.get('passwordConfirm'),
-            church: formData.getAll('church'),
-        };
-
-        const record = await pb.collection('pdg_users').create(textData);
-        createdRecordId = record.id;
+        formData.append('username', username);
+        formData.append('emailVisibility', 'true');
         
         let avatarFile = formData.get('avatar') as File | null;
         
         if (!avatarFile || avatarFile.size === 0) {
             const avatarResponse = await fetch('https://placehold.co/200x200.png');
             const avatarBlob = await avatarResponse.blob();
-            avatarFile = new File([avatarBlob], `${username}_avatar.png`, {type: 'image/png'});
+            formData.set('avatar', avatarBlob, `${username}_avatar.png`);
         }
 
-        if (avatarFile) {
-            const avatarFormData = new FormData();
-            avatarFormData.append('avatar', avatarFile);
-            await pb.collection('pdg_users').update(record.id, avatarFormData);
-        }
-
+        const record = await pb.collection('pdg_users').create(formData);
+        
         const finalRecord = await pb.collection('pdg_users').getOne(record.id, { expand: 'church' });
         return JSON.parse(JSON.stringify(finalRecord));
 
     } catch (error: any) {
-        if (createdRecordId) {
-            // cleanup created record if avatar upload fails
-            await pb.collection('pdg_users').delete(createdRecordId);
-        }
         console.error("Error adding user:", error);
         throw new Error(getErrorMessage(error));
     }
@@ -132,19 +112,7 @@ export async function addUserByAdmin(formData: FormData) {
 
 export async function updateUserByAdmin(id: string, formData: FormData) {
     try {
-        const updateData = new FormData();
-        updateData.append('name', formData.get('name') || '');
-        updateData.append('role', formData.get('role') || '');
-        
-        const churches = formData.getAll('church');
-        churches.forEach(churchId => updateData.append('church', churchId));
-        
-        const avatarFile = formData.get('avatar') as File | null;
-        if (avatarFile && avatarFile.size > 0) {
-            updateData.append('avatar', avatarFile);
-        }
-
-        await pb.collection('pdg_users').update(id, updateData);
+        await pb.collection('pdg_users').update(id, formData);
         const finalRecord = await pb.collection('pdg_users').getOne(id, { expand: 'church' });
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
