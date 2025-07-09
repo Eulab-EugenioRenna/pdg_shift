@@ -89,13 +89,13 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     e.preventDefault();
     
     if (user) { // Editing user
-      if (!formData.name.trim() || !formData.role || formData.church.length === 0) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Nome, Ruolo e almeno una Chiesa sono obbligatori.' });
+      if (!formData.name.trim() || !formData.role) {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Nome e Ruolo sono obbligatori.' });
         return;
       }
     } else { // Adding new user
-      if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.role || formData.church.length === 0) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Tutti i campi, inclusa la chiesa, sono obbligatori.' });
+      if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.role) {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Nome, Email, Password e Ruolo sono obbligatori.' });
         return;
       }
       if (formData.password !== formData.passwordConfirm) {
@@ -113,7 +113,12 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
         const data = new FormData();
         data.append('name', formData.name.trim());
         data.append('role', formData.role);
-        formData.church.forEach((c: string) => data.append('church', c));
+        
+        if (formData.church.length > 0) {
+            formData.church.forEach((c: string) => data.append('church', c));
+        } else {
+            data.append('church', '');
+        }
         
         if (avatarFile) {
           data.append('avatar', avatarFile);
