@@ -66,23 +66,49 @@ export async function getUsers() {
 }
 
 export async function addUserByAdmin(formData: FormData) {
+    let createdRecordId = '';
      try {
         const email = formData.get('email') as string;
         if (!email) throw new Error('Email is required');
         
         const username = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Date.now().toString().slice(-4);
-        formData.append('username', username);
-        formData.append('emailVisibility', 'true');
+        
+        const textData: {[key:string]: any} = {
+            username,
+            email,
+            emailVisibility: true,
+            name: formData.get('name'),
+            role: formData.get('role'),
+            password: formData.get('password'),
+            passwordConfirm: formData.get('passwordConfirm'),
+            church: formData.get('church') ? [formData.get('church')] : [],
+        };
 
-        if (!formData.has('avatar') || (formData.get('avatar') as File).size === 0) {
+        const record = await pb.collection('pdg_users').create(textData);
+        createdRecordId = record.id;
+        
+        let avatarFile = formData.get('avatar') as File | null;
+        
+        if (!avatarFile || avatarFile.size === 0) {
             const avatarResponse = await fetch('https://placehold.co/200x200.png');
             const avatarBlob = await avatarResponse.blob();
-            formData.set('avatar', avatarBlob, `${username}_avatar.png`);
+            avatarFile = new File([avatarBlob], `${username}_avatar.png`, {type: 'image/png'});
         }
-        
-        const record = await pb.collection('pdg_users').create(formData);
-        return JSON.parse(JSON.stringify(record));
+
+        if (avatarFile) {
+            const avatarFormData = new FormData();
+            avatarFormData.append('avatar', avatarFile);
+            await pb.collection('pdg_users').update(record.id, avatarFormData);
+        }
+
+        const finalRecord = await pb.collection('pdg_users').getOne(record.id);
+        return JSON.parse(JSON.stringify(finalRecord));
+
     } catch (error: any) {
+        if (createdRecordId) {
+            // cleanup created record if avatar upload fails
+            await pb.collection('pdg_users').delete(createdRecordId);
+        }
         console.error("Error adding user:", error.data);
          let errorMessage = "Operazione fallita. Controlla i dati e riprova.";
          if (error.data?.data) {
@@ -98,10 +124,26 @@ export async function addUserByAdmin(formData: FormData) {
 
 export async function updateUserByAdmin(id: string, formData: FormData) {
     try {
-        const record = await pb.collection('pdg_users').update(id, formData);
+        const textData: {[key:string]: any} = {
+            name: formData.get('name'),
+            role: formData.get('role'),
+            church: formData.get('church') ? [formData.get('church')] : [],
+        };
+
+        await pb.collection('pdg_users').update(id, textData);
+
+        const avatarFile = formData.get('avatar') as File | null;
+
+        if (avatarFile && avatarFile.size > 0) {
+            const avatarFormData = new FormData();
+            avatarFormData.append('avatar', avatarFile);
+            await pb.collection('pdg_users').update(id, avatarFormData);
+        }
+        
+        const record = await pb.collection('pdg_users').getOne(id);
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
-        console.error("Error updating user:", error);
+        console.error("Error updating user:", error.data);
         let errorMessage = "Operazione fallita. Controlla i dati e riprova.";
          if (error.data?.data) {
             const errorData = error.data.data;

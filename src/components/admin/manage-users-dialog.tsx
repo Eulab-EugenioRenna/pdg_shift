@@ -41,7 +41,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     password: '',
     passwordConfirm: '',
     role: user?.role || 'volontario',
-    church: user?.expand?.church?.id || user?.church || '',
+    church: user?.expand?.church?.[0]?.id || user?.church?.[0] || '',
   });
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -274,8 +274,8 @@ export function ManageUsersDialog() {
   }
 
   const getExpandedChurchName = (user: RecordModel) => {
-    if (user.expand?.church) {
-      return user.expand.church.name || 'N/A';
+    if (user.expand?.church && user.expand.church.length > 0) {
+        return user.expand.church.map((c: any) => c.name).join(', ') || 'N/A';
     }
     return 'N/A';
   }
