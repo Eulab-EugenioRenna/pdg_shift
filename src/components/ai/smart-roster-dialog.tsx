@@ -23,9 +23,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getAiSuggestions } from "@/app/actions";
 import type { SuggestVolunteersOutput } from "@/ai/flows/smart-roster-filling";
 import { Loader2, Users, Wand2 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 
-const initialVolunteerPool = [
+const volunteerPool = [
   {
     volunteerName: "Alice",
     availability: "disponibile",
@@ -66,7 +65,6 @@ export function SmartRosterDialog() {
   const [serviceName, setServiceName] = useState("Culto Domenicale Mattutino");
   const [date, setDate] = useState(new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString());
   const [openSlots, setOpenSlots] = useState(2);
-  const [volunteerPoolText, setVolunteerPoolText] = useState(JSON.stringify(initialVolunteerPool, null, 2));
 
   const { toast } = useToast();
 
@@ -76,7 +74,6 @@ export function SmartRosterDialog() {
       setServiceName("Culto Domenicale Mattutino");
       setDate(new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString());
       setOpenSlots(2);
-      setVolunteerPoolText(JSON.stringify(initialVolunteerPool, null, 2));
       setSuggestions(null);
       setIsLoading(false);
     }
@@ -85,26 +82,13 @@ export function SmartRosterDialog() {
   const handleSuggestion = async () => {
     setIsLoading(true);
     setSuggestions(null);
-    let parsedVolunteerPool;
-
-    try {
-        parsedVolunteerPool = JSON.parse(volunteerPoolText);
-    } catch (e) {
-        toast({
-            variant: "destructive",
-            title: "Errore nel formato dei dati",
-            description: "I dati dei volontari non sono in un formato JSON valido.",
-        });
-        setIsLoading(false);
-        return;
-    }
 
     try {
       const result = await getAiSuggestions({
         serviceName,
         date,
         openSlots,
-        volunteerAvailability: parsedVolunteerPool,
+        volunteerAvailability: volunteerPool,
       });
       setSuggestions(result);
     } catch (error) {
@@ -160,16 +144,15 @@ export function SmartRosterDialog() {
 
             <Card className="mt-4">
               <CardHeader>
-                 <CardTitle className="flex items-center gap-2"><Users /> Elenco Volontari (formato JSON)</CardTitle>
-                 <CardDescription>Aggiungi o modifica i volontari, mantenendo il formato JSON.</CardDescription>
+                 <CardTitle className="flex items-center gap-2"><Users /> Elenco Volontari</CardTitle>
+                 <CardDescription>Questo è un elenco di esempio dei volontari. L'IA userà questi dati per i suoi suggerimenti.</CardDescription>
               </CardHeader>
-              <CardContent>
-                <Textarea
-                    value={volunteerPoolText}
-                    onChange={(e) => setVolunteerPoolText(e.target.value)}
-                    rows={12}
-                    className="font-mono text-xs"
-                />
+              <CardContent className="text-sm">
+                <ul className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                    {volunteerPool.map((v, i) => (
+                        <li key={i}><strong>{v.volunteerName}</strong> - {v.skills} ({v.availability})</li>
+                    ))}
+                </ul>
               </CardContent>
             </Card>
           </div>
