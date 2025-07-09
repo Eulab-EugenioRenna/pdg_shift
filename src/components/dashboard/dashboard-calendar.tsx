@@ -6,9 +6,11 @@ import { it } from 'date-fns/locale';
 interface DashboardCalendarProps {
     events: Date[];
     month: Date;
+    selected: Date | undefined;
+    onSelect: (date: Date | undefined) => void;
 }
 
-export function DashboardCalendar({ events, month }: DashboardCalendarProps) {
+export function DashboardCalendar({ events, month, selected, onSelect }: DashboardCalendarProps) {
     const eventDays = events.map(d => new Date(d));
 
     return (
@@ -16,20 +18,21 @@ export function DashboardCalendar({ events, month }: DashboardCalendarProps) {
             locale={it}
             mode="single"
             month={month}
+            selected={selected}
+            onSelect={onSelect}
             showOutsideDays
             weekStartsOn={1}
-            className="p-0"
+            className="rounded-md border"
             classNames={{
-                day_disabled: "cursor-default",
-                day_today: "bg-primary/20"
+                day_today: "bg-accent text-accent-foreground",
+                day_selected: "bg-primary text-primary-foreground hover:bg-primary/90 focus:bg-primary",
             }}
             modifiers={{
                 hasEvent: eventDays,
             }}
             modifiersClassNames={{
-                hasEvent: "bg-accent text-accent-foreground rounded-md font-bold",
+                hasEvent: "bg-primary/20",
             }}
-            disabled // Disables interaction
         />
     );
 }

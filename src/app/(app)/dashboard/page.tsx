@@ -2,11 +2,11 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Users, Bell, Loader2 } from 'lucide-react';
+import { Calendar, Users, Bell, Loader2, CalendarDays } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getDashboardData, type DashboardEvent } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardCalendar } from '@/components/dashboard/dashboard-calendar';
@@ -18,14 +18,15 @@ export default function DashboardPage() {
     const { user } = useAuth();
     const { toast } = useToast();
 
-    const [viewMode, setViewMode] = useState<ViewMode>('week');
+    const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [dateRange, setDateRange] = useState({
-        start: startOfWeek(new Date(), { locale: it }),
-        end: endOfWeek(new Date(), { locale: it })
+        start: startOfMonth(new Date()),
+        end: endOfMonth(new Date())
     });
     
     const [data, setData] = useState<{ events: DashboardEvent[], stats: { upcomingEvents: number, openPositions: number } } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>();
 
     useEffect(() => {
         if (!user) return;
@@ -36,7 +37,10 @@ export default function DashboardPage() {
 
         setIsLoading(true);
         getDashboardData(user.role, userChurchIds, dateRange.start.toISOString(), dateRange.end.toISOString())
-            .then(setData)
+            .then(data => {
+                setData(data);
+                setSelectedDate(undefined); // Reset selection when data reloads
+            })
             .catch(error => {
                 console.error(error);
                 toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati della dashboard.' });
@@ -64,13 +68,32 @@ export default function DashboardPage() {
     
     const eventsForCalendar = useMemo(() => data?.events.map(e => new Date(e.start_date)) || [], [data]);
 
+    const eventsForSelectedDay = useMemo(() => {
+        if (!selectedDate || !data?.events) return [];
+        return data.events.filter(event => isSameDay(new Date(event.start_date), selectedDate));
+    }, [data?.events, selectedDate]);
+    
+    // Set the month for the calendar view to the selected date if it exists, otherwise the start of the range
+    const calendarMonth = selectedDate || dateRange.start;
+
     return (
         <div className="space-y-6">
-            <h1 className="text-3xl font-bold">Bentornato, {user?.name}!</h1>
-             <p className="text-muted-foreground">
-              Questa è la tua dashboard. Da qui potrai gestire i turni e i volontari.
-            </p>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold">Bentornato, {user?.name}!</h1>
+                    <p className="text-muted-foreground">
+                      Questa è la tua dashboard. Da qui potrai gestire i turni e i volontari.
+                    </p>
+                </div>
+                 <Tabs value={viewMode} onValueChange={(v) => handleViewChange(v as ViewMode)} className="w-full md:w-auto mt-4 md:mt-0">
+                    <TabsList className="grid w-full grid-cols-2 md:w-auto">
+                        <TabsTrigger value="week">Settimana</TabsTrigger>
+                        <TabsTrigger value="month">Mese</TabsTrigger>
+                    </TabsList>
+                </Tabs>
+            </div>
+            
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Prossimi Eventi</CardTitle>
@@ -104,40 +127,50 @@ export default function DashboardPage() {
             </div>
             
              <Card>
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <CardTitle>Il Tuo Calendario</CardTitle>
-                            <CardDescription>
-                                {viewMode === 'week' ? 'Eventi per la settimana corrente.' : 'Eventi per il mese corrente.'}
-                            </CardDescription>
-                        </div>
-                        <Tabs value={viewMode} onValueChange={(v) => handleViewChange(v as ViewMode)} className="w-full md:w-auto">
-                            <TabsList className="grid w-full grid-cols-2 md:w-auto">
-                                <TabsTrigger value="week">Settimana</TabsTrigger>
-                                <TabsTrigger value="month">Mese</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
+                <CardContent className="grid gap-6 lg:grid-cols-3 p-6">
+                    <div className="lg:col-span-2">
+                        <DashboardCalendar 
+                            events={eventsForCalendar}
+                            month={calendarMonth}
+                            selected={selectedDate}
+                            onSelect={(date) => {
+                                // If clicking the same day, deselect it. Otherwise, select the new day.
+                                if (date && selectedDate && isSameDay(date, selectedDate)) {
+                                    setSelectedDate(undefined);
+                                } else {
+                                    setSelectedDate(date);
+                                }
+                            }}
+                        />
                     </div>
-                </CardHeader>
-                <CardContent className="grid gap-6 lg:grid-cols-2">
-                    <DashboardCalendar 
-                        events={eventsForCalendar}
-                        month={dateRange.start}
-                    />
-                     <div className="space-y-4 max-h-[500px] overflow-y-auto pr-3">
+                     <div className="lg:col-span-1 space-y-4 max-h-[600px] overflow-y-auto pr-3">
                         {isLoading && (
                             <div className="flex items-center justify-center h-full">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
                         )}
-                        {!isLoading && data?.events && data.events.length > 0 && data.events.map(event => (
-                            <EventCard key={event.id} event={event} />
-                        ))}
-                        {!isLoading && (!data?.events || data.events.length === 0) && (
-                            <div className="flex items-center justify-center h-40 rounded-lg border-2 border-dashed">
-                                <p className="text-muted-foreground">Nessun evento in programma per questo periodo.</p>
+                        {!isLoading && !selectedDate && (
+                            <div className="flex flex-col items-center justify-center h-full text-center p-4 rounded-lg border-2 border-dashed">
+                                <CalendarDays className="h-12 w-12 text-muted-foreground mb-4" />
+                                <h3 className="font-semibold">Nessun giorno selezionato</h3>
+                                <p className="text-muted-foreground text-sm mt-1">
+                                    Seleziona un giorno dal calendario per vedere gli eventi in programma.
+                                </p>
                             </div>
+                        )}
+                        {!isLoading && selectedDate && (
+                            <>
+                                <h3 className="font-bold text-xl">Eventi del {format(selectedDate, 'd MMMM yyyy', { locale: it })}</h3>
+                                {eventsForSelectedDay.length > 0 ? (
+                                    eventsForSelectedDay.map(event => (
+                                        <EventCard key={event.id} event={event} />
+                                    ))
+                                ) : (
+                                    <div className="flex items-center justify-center h-40 rounded-lg border-2 border-dashed">
+                                        <p className="text-muted-foreground">Nessun evento in programma.</p>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </CardContent>

@@ -8,71 +8,22 @@ import { format } from 'date-fns';
 
 
 function getErrorMessage(error: any): string {
-    if (error instanceof Error && !(error instanceof ClientResponseError)) {
-        return error.message;
-    }
-    
-    if (error && typeof error === 'object' && 'data' in error && (error as any).data?.data) {
-        const errorData = (error as any).data.data;
-        const firstErrorKey = Object.keys(errorData)[0];
-        if (firstErrorKey && errorData[firstErrorKey].message) {
-            return errorData[firstErrorKey].message;
+    if (error instanceof ClientResponseError) {
+        if (error && typeof error === 'object' && 'data' in error && (error as any).data?.data) {
+            const errorData = (error as any).data.data;
+            const firstErrorKey = Object.keys(errorData)[0];
+            if (firstErrorKey && errorData[firstErrorKey].message) {
+                return errorData[firstErrorKey].message;
+            }
         }
     }
     
-    if (error && error.message) {
+    if (error instanceof Error) {
         return error.message;
     }
 
     return "An unexpected response was received from the server.";
 }
-
-// Dashboard Actions
-const generateRecurringInstancesForAction = (
-    event: RecordModel,
-    rangeStart: Date,
-    rangeEnd: Date
-): (RecordModel & { isRecurringInstance: boolean; original_id: string })[] => {
-    if (!event.is_recurring || event.recurring_day === null || event.recurring_day === undefined) {
-        return [];
-    }
-
-    const instances = [];
-    const recurrenceStartDate = new Date(event.start_date);
-    recurrenceStartDate.setHours(0, 0, 0, 0);
-
-    let currentDate = new Date(rangeStart > recurrenceStartDate ? rangeStart : recurrenceStartDate);
-    
-    const recurringDay = parseInt(event.recurring_day, 10);
-    
-    const dayOfWeek = currentDate.getDay();
-    const daysToAdd = (recurringDay - dayOfWeek + 7) % 7;
-    currentDate.setDate(currentDate.getDate() + daysToAdd);
-
-    const originalStartTime = new Date(event.start_date);
-    const originalEndTime = new Date(event.end_date);
-    const duration = originalEndTime.getTime() - originalStartTime.getTime();
-
-    while (currentDate <= rangeEnd) {
-        const newStartDate = new Date(currentDate);
-        newStartDate.setHours(originalStartTime.getHours(), originalStartTime.getMinutes(), originalStartTime.getSeconds());
-        
-        const newEndDate = new Date(newStartDate.getTime() + duration);
-
-        instances.push({
-            ...event,
-            id: `${event.id}-${newStartDate.toISOString()}`, // unique ID for the instance
-            start_date: newStartDate.toISOString(),
-            end_date: newEndDate.toISOString(),
-            isRecurringInstance: true,
-            original_id: event.id, // reference to the template event
-        });
-
-        currentDate.setDate(currentDate.getDate() + 7);
-    }
-
-    return instances;
-};
 
 export interface DashboardEvent extends RecordModel {
     expand: {
@@ -109,41 +60,20 @@ export async function getDashboardData(userRole: string, userChurchIds: string[]
         const sDate = new Date(startDateISO);
         const eDate = new Date(endDateISO);
 
-        const allBaseEvents = await pb.collection('pdg_events').getFullList({
-            filter: churchFilter,
+        const filter = `(${churchFilter}) && is_recurring = false && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
+        
+        const eventInstances = await pb.collection('pdg_events').getFullList({
+            filter: filter,
+            sort: 'start_date',
         });
-
-        const singleEvents = allBaseEvents.filter(e => !e.is_recurring);
-        const recurringTemplates = allBaseEvents.filter(e => e.is_recurring);
-
-        const singleEventInstances = singleEvents
-            .filter(e => {
-                const eventDate = new Date(e.start_date);
-                return eventDate >= sDate && eventDate <= eDate;
-            })
-            .map(e => ({ ...e, original_id: e.id, isRecurringInstance: false }));
-
-        const singleOverrideDateKeys = new Set(
-            singleEventInstances.map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
-        );
-
-        const recurringInstances = recurringTemplates
-            .flatMap(event => generateRecurringInstancesForAction(event, sDate, eDate))
-            .filter(instance => {
-                const dateKey = `${format(new Date(instance.start_date), 'yyyy-MM-dd')}-${instance.church}`;
-                return !singleOverrideDateKeys.has(dateKey);
-            });
         
-        const allEventInstances = [...singleEventInstances, ...recurringInstances]
-            .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-        
-        const originalEventIds = [...new Set(allEventInstances.map(e => e.original_id))];
+        const eventIds = eventInstances.map(e => e.id);
 
-        if (originalEventIds.length === 0) {
+        if (eventIds.length === 0) {
             return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
         }
 
-        const eventIdFilter = `(${originalEventIds.map(id => `event="${id}"`).join(' || ')})`;
+        const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
         const allServices = await pb.collection('pdg_services').getFullList({
             filter: eventIdFilter,
             expand: 'leader,team'
@@ -154,8 +84,8 @@ export async function getDashboardData(userRole: string, userChurchIds: string[]
             if (!s.expand?.leader) openPositions++;
         });
 
-        const eventsWithServices = allEventInstances.map(eventInstance => {
-            const relatedServices = allServices.filter(s => s.event === eventInstance.original_id);
+        const eventsWithServices = eventInstances.map(eventInstance => {
+            const relatedServices = allServices.filter(s => s.event === eventInstance.id);
             return {
                 ...eventInstance,
                 expand: {
