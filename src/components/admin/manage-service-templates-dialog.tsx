@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getServiceTemplates, addServiceTemplate, updateServiceTemplate, deleteServiceTemplate } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
-import { Loader2, Trash2, Edit, PlusCircle, ListTodo } from 'lucide-react';
+import { Loader2, Trash2, Edit, PlusCircle, ListTodo, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '../ui/textarea';
 import { pb } from '@/lib/pocketbase';
@@ -111,6 +111,9 @@ export function ManageServiceTemplatesDialog() {
   const [templateToDelete, setTemplateToDelete] = useState<RecordModel | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -118,21 +121,17 @@ export function ManageServiceTemplatesDialog() {
 
     setIsLoading(true);
     getServiceTemplates()
-        .then(records => {
-            setTemplates(records.sort((a,b) => a.name.localeCompare(b.name)));
-        })
+        .then(setTemplates)
         .catch(() => {
             toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i tipi di servizio.' });
         })
         .finally(() => setIsLoading(false));
 
     const handleSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
-        const sortTemplates = (t: RecordModel[]) => t.sort((a,b) => a.name.localeCompare(b.name));
-        
         if (action === 'create') {
-            setTemplates(prev => sortTemplates([...prev, record]));
+            setTemplates(prev => [...prev, record]);
         } else if (action === 'update') {
-            setTemplates(prev => sortTemplates(prev.map(t => t.id === record.id ? record : t)));
+            setTemplates(prev => prev.map(t => t.id === record.id ? record : t));
         } else if (action === 'delete') {
             setTemplates(prev => prev.filter(t => t.id !== record.id));
         }
@@ -144,6 +143,34 @@ export function ManageServiceTemplatesDialog() {
         pb.collection('pdg_service_templates').unsubscribe('*');
     };
   }, [open, toast]);
+
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const processedTemplates = useMemo(() => {
+    let filtered = templates.filter(template =>
+        template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        template.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (sortConfig) {
+        filtered.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+             if (!aValue || !bValue) return 0;
+            if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    return filtered;
+  }, [templates, searchTerm, sortConfig]);
 
   useEffect(() => {
     if (open) {
@@ -210,7 +237,13 @@ export function ManageServiceTemplatesDialog() {
 
           {view === 'list' ? (
              <div className="space-y-4 py-4">
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center gap-4">
+                     <Input
+                        placeholder="Cerca tipi di servizio..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="max-w-xs"
+                    />
                     <Button onClick={handleAdd}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Tipo</Button>
                 </div>
                 <div className="rounded-md border max-h-80 overflow-y-auto">
@@ -220,15 +253,20 @@ export function ManageServiceTemplatesDialog() {
                     </div>
                 ) : (
                     <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                          <TableHead>Nome</TableHead>
+                          <TableHead>
+                             <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                Nome
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                             </Button>
+                          </TableHead>
                           <TableHead>Descrizione</TableHead>
                           <TableHead className="text-right w-[120px]">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {templates.length > 0 ? templates.map((template) => (
+                        {processedTemplates.length > 0 ? processedTemplates.map((template) => (
                         <TableRow key={template.id}>
                             <TableCell className="font-medium">{template.name}</TableCell>
                             <TableCell className="text-muted-foreground">{template.description}</TableCell>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback, useRef } from 'react';
+import { useState, useEffect, useTransition, useCallback, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getUsers, addUserByAdmin, updateUserByAdmin, deleteUser, getChurches } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
-import { Loader2, Trash2, Edit, PlusCircle, UserCog, Upload } from 'lucide-react';
+import { Loader2, Trash2, Edit, PlusCircle, UserCog, Upload, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -224,37 +224,43 @@ export function ManageUsersDialog() {
   const [isLoading, setIsLoading] = useState(false);
   const [userToDelete, setUserToDelete] = useState<RecordModel | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const [allChurches, setAllChurches] = useState<RecordModel[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [churchFilter, setChurchFilter] = useState('all');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
+
   const { toast } = useToast();
 
   useEffect(() => {
     if (!open) return;
     
     setIsLoading(true);
-    getUsers()
-        .then(records => {
-            setUsers(records.sort((a,b) => a.name.localeCompare(b.name)));
+    Promise.all([getUsers(), getChurches()])
+        .then(([usersData, churchesData]) => {
+            setUsers(usersData);
+            setAllChurches(churchesData);
         })
         .catch(() => {
-            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare gli utenti.' });
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare dati.' });
         })
         .finally(() => setIsLoading(false));
 
     const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
-        const sortUsers = (u: RecordModel[]) => u.sort((a,b) => a.name.localeCompare(b.name));
-
-        if (action === 'create' || action === 'update') {
-            try {
-                const fullRecord = await pb.collection('pdg_users').getOne(record.id, { expand: 'church' });
-                if (action === 'create') {
-                    setUsers(prev => sortUsers([...prev, fullRecord]));
-                } else { // update
-                    setUsers(prev => sortUsers(prev.map(u => u.id === fullRecord.id ? fullRecord : u)));
-                }
-            } catch (e) {
+        try {
+            const fullRecord = await pb.collection('pdg_users').getOne(record.id, { expand: 'church' });
+            if (action === 'create') {
+                setUsers(prev => [...prev, fullRecord]);
+            } else if (action === 'update') {
+                setUsers(prev => prev.map(u => u.id === fullRecord.id ? fullRecord : u));
+            }
+        } catch (e) {
+            if (action === 'delete') {
+                setUsers(prev => prev.filter(u => u.id !== record.id));
+            } else {
                 console.error("Failed to fetch full user record for subscription update:", e);
             }
-        } else if (action === 'delete') {
-            setUsers(prev => prev.filter(u => u.id !== record.id));
         }
     };
     
@@ -265,6 +271,36 @@ export function ManageUsersDialog() {
     };
     
   }, [open, toast]);
+
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const processedUsers = useMemo(() => {
+    let filtered = users.filter(user =>
+        (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         user.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
+        (roleFilter === 'all' || user.role === roleFilter) &&
+        (churchFilter === 'all' || (user.church && user.church.includes(churchFilter)))
+    );
+
+    if (sortConfig) {
+        filtered.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+            if (!aValue || !bValue) return 0;
+            if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    return filtered;
+  }, [users, searchTerm, roleFilter, churchFilter, sortConfig]);
 
   useEffect(() => {
     if (open) {
@@ -359,26 +395,71 @@ export function ManageUsersDialog() {
 
           {view === 'list' ? (
              <div className="space-y-4 py-4">
-                <div className="flex justify-end">
-                    <Button onClick={handleAdd}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
+                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                     <Input
+                        placeholder="Cerca per nome o email..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="max-w-sm"
+                    />
+                    <div className='flex flex-col sm:flex-row gap-2 w-full md:w-auto'>
+                      <Select value={churchFilter} onValueChange={setChurchFilter}>
+                          <SelectTrigger className="w-full sm:w-[180px]">
+                              <SelectValue placeholder="Filtra per chiesa" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="all">Tutte le chiese</SelectItem>
+                              {allChurches.map(church => (
+                                  <SelectItem key={church.id} value={church.id}>{church.name}</SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                      <Select value={roleFilter} onValueChange={setRoleFilter}>
+                          <SelectTrigger className="w-full sm:w-[150px]">
+                              <SelectValue placeholder="Filtra per ruolo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="all">Tutti i ruoli</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="leader">Leader</SelectItem>
+                              <SelectItem value="volontario">Volontario</SelectItem>
+                          </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
                 </div>
                 <div className="rounded-md border max-h-[60vh] overflow-y-auto">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : (
                     <Table>
-                    <TableHeader className="sticky top-0 bg-background">
+                    <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                           <TableHead className="w-[60px]">Avatar</TableHead>
-                          <TableHead>Nome</TableHead>
-                          <TableHead>Email</TableHead>
+                          <TableHead>
+                            <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                Nome
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                          </TableHead>
+                          <TableHead>
+                             <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
+                                Email
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                          </TableHead>
                           <TableHead>Chiesa</TableHead>
-                          <TableHead>Ruolo</TableHead>
+                          <TableHead>
+                            <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
+                                Ruolo
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                            </Button>
+                          </TableHead>
                           <TableHead className="text-right w-[120px]">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {users.length > 0 ? users.map((user) => (
+                        {processedUsers.length > 0 ? processedUsers.map((user) => (
                         <TableRow key={user.id}>
                             <TableCell>
                                 <Avatar>

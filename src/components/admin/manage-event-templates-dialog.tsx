@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getEventTemplates, addEventTemplate, updateEventTemplate, deleteEventTemplate, getServiceTemplates } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
-import { Loader2, Trash2, Edit, PlusCircle, ClipboardPlus } from 'lucide-react';
+import { Loader2, Trash2, Edit, PlusCircle, ClipboardPlus, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
@@ -138,6 +138,9 @@ export function ManageEventTemplatesDialog() {
   const [templateToDelete, setTemplateToDelete] = useState<RecordModel | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
+
   const { toast } = useToast();
 
   useEffect(() => {
@@ -145,24 +148,20 @@ export function ManageEventTemplatesDialog() {
 
     setIsLoading(true);
     getEventTemplates()
-        .then(records => {
-            setTemplates(records.sort((a,b) => a.name.localeCompare(b.name)));
-        })
+        .then(setTemplates)
         .catch(() => {
             toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' });
         })
         .finally(() => setIsLoading(false));
 
     const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
-        const sortTemplates = (t: RecordModel[]) => t.sort((a,b) => a.name.localeCompare(b.name));
-
         if (action === 'create' || action === 'update') {
             try {
                 const fullRecord = await pb.collection('pdg_event_templates').getOne(record.id, { expand: 'service_templates' });
                 if (action === 'create') {
-                    setTemplates(prev => sortTemplates([...prev, fullRecord]));
+                    setTemplates(prev => [...prev, fullRecord]);
                 } else { // update
-                    setTemplates(prev => sortTemplates(prev.map(t => t.id === fullRecord.id ? fullRecord : t)));
+                    setTemplates(prev => prev.map(t => t.id === fullRecord.id ? fullRecord : t));
                 }
             } catch (e) {
                 console.error("Failed to fetch full event template record for subscription update:", e);
@@ -178,6 +177,34 @@ export function ManageEventTemplatesDialog() {
         pb.collection('pdg_event_templates').unsubscribe('*');
     };
   }, [open, toast]);
+
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const processedTemplates = useMemo(() => {
+    let filtered = templates.filter(template =>
+        template.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (sortConfig) {
+        filtered.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+            if (!aValue || !bValue) return 0;
+            if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    return filtered;
+  }, [templates, searchTerm, sortConfig]);
+
 
   useEffect(() => {
     if (open) {
@@ -244,7 +271,13 @@ export function ManageEventTemplatesDialog() {
 
           {view === 'list' ? (
              <div className="space-y-4 py-4">
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center gap-4">
+                     <Input
+                        placeholder="Cerca modelli..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="max-w-xs"
+                    />
                     <Button onClick={handleAdd}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Modello</Button>
                 </div>
                 <div className="rounded-md border max-h-80 overflow-y-auto">
@@ -254,15 +287,20 @@ export function ManageEventTemplatesDialog() {
                     </div>
                 ) : (
                     <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                          <TableHead>Nome Modello</TableHead>
+                          <TableHead>
+                            <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                Nome Modello
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                             </Button>
+                          </TableHead>
                           <TableHead>Servizi Inclusi</TableHead>
                           <TableHead className="text-right w-[120px]">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {templates.length > 0 ? templates.map((template) => (
+                        {processedTemplates.length > 0 ? processedTemplates.map((template) => (
                         <TableRow key={template.id}>
                             <TableCell className="font-medium">{template.name}</TableCell>
                             <TableCell>

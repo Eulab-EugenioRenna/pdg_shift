@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback, useRef } from 'react';
+import { useState, useEffect, useTransition, useCallback, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getChurches, addChurch, updateChurch, deleteChurch } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
-import { Loader2, Trash2, Edit, PlusCircle, Building, Upload } from 'lucide-react';
+import { Loader2, Trash2, Edit, PlusCircle, Building, Upload, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
@@ -138,32 +138,27 @@ export function ManageChurchesDialog() {
   const [churchToDelete, setChurchToDelete] = useState<RecordModel | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
+
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!open) {
-        return;
-    }
+    if (!open) return;
     
     setIsLoading(true);
     getChurches()
-        .then(records => {
-            setChurches(records.sort((a,b) => a.name.localeCompare(b.name)));
-        })
+        .then(setChurches)
         .catch(() => {
             toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare le chiese.' });
         })
-        .finally(() => {
-            setIsLoading(false);
-        });
+        .finally(() => setIsLoading(false));
 
     const handleSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
-        const sortChurches = (c: RecordModel[]) => c.sort((a,b) => a.name.localeCompare(b.name));
-        
         if (action === 'create') {
-            setChurches(prev => sortChurches([...prev, record]));
+            setChurches(prev => [...prev, record]);
         } else if (action === 'update') {
-            setChurches(prev => sortChurches(prev.map(c => c.id === record.id ? record : c)));
+            setChurches(prev => prev.map(c => c.id === record.id ? record : c));
         } else if (action === 'delete') {
             setChurches(prev => prev.filter(c => c.id !== record.id));
         }
@@ -176,6 +171,34 @@ export function ManageChurchesDialog() {
     };
     
   }, [open, toast]);
+
+  const requestSort = (key: string) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const processedChurches = useMemo(() => {
+    let filtered = churches.filter(church =>
+        church.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (sortConfig) {
+        filtered.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+            if (!aValue || !bValue) return 0;
+
+            if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    return filtered;
+  }, [churches, searchTerm, sortConfig]);
 
   useEffect(() => {
     if (open) {
@@ -242,7 +265,13 @@ export function ManageChurchesDialog() {
 
           {view === 'list' ? (
              <div className="space-y-4 py-4">
-                <div className="flex justify-end">
+                <div className="flex justify-between items-center gap-4">
+                    <Input
+                        placeholder="Cerca chiese..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="max-w-xs"
+                    />
                     <Button onClick={handleAdd}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Chiesa</Button>
                 </div>
                 <div className="rounded-md border max-h-80 overflow-y-auto">
@@ -252,15 +281,20 @@ export function ManageChurchesDialog() {
                     </div>
                 ) : (
                     <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                           <TableHead className="w-[60px]">Logo</TableHead>
-                          <TableHead>Nome Chiesa</TableHead>
+                          <TableHead>
+                             <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                Nome Chiesa
+                                <ArrowUpDown className="ml-2 h-4 w-4" />
+                             </Button>
+                          </TableHead>
                           <TableHead className="text-right w-[120px]">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {churches.length > 0 ? churches.map((church) => (
+                        {processedChurches.length > 0 ? processedChurches.map((church) => (
                         <TableRow key={church.id}>
                             <TableCell>
                                 <Avatar>
