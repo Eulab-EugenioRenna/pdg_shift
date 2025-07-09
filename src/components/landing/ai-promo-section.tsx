@@ -36,12 +36,11 @@ export function AiPromoSection() {
         </div>
 
         <Image
-          src="https://placehold.co/600x600.png"
+          src="/600x600.jpg"
           alt="Dimostrazione dello strumento IA"
           width={600}
           height={600}
           className="rounded-lg shadow-lg"
-          data-ai-hint="artificial intelligence brain"
         />
       </div>
     </section>

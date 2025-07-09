@@ -29,12 +29,11 @@ export function HeroSection() {
 
       <div className="z-10">
         <Image
-          src="https://placehold.co/700x500.png"
+          src="/700x500.jpg"
           alt="Dimostrazione dell'app"
           width={700}
           height={500}
           className="rounded-lg shadow-lg"
-          data-ai-hint="church community"
         />
       </div>
 
