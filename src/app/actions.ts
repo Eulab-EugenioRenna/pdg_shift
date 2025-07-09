@@ -311,6 +311,7 @@ export async function createEventOverride(originalEventId: string, occurrenceDat
                     name: service.name,
                     description: service.description,
                     leader: service.leader,
+                    team: service.team || [],
                 };
                 await pb.collection('pdg_services').create(newServiceData);
             }
@@ -332,7 +333,7 @@ export async function getServicesForEvent(eventId: string) {
         const records = await pb.collection('pdg_services').getFullList({
             filter: `event = "${eventId}"`,
             sort: 'name',
-            expand: 'leader'
+            expand: 'leader,team'
         });
         return JSON.parse(JSON.stringify(records));
     } catch (error) {
@@ -355,7 +356,7 @@ export async function createService(formData: FormData) {
 export async function updateService(id: string, formData: FormData) {
     try {
         const record = await pb.collection('pdg_services').update(id, formData);
-        const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader' });
+        const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader,team' });
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
         console.error("Error updating service:", error);

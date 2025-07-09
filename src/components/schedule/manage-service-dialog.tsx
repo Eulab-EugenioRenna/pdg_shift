@@ -14,11 +14,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { updateService, getLeaders } from '@/app/actions';
+import { updateService, getLeaders, getUsers } from '@/app/actions';
 import { Loader2 } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '../ui/textarea';
+import { MultiSelect, type Option } from '../ui/multi-select';
 
 interface ManageServiceDialogProps {
   isOpen: boolean;
@@ -36,10 +37,13 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [leaderId, setLeaderId] = useState('');
+    const [teamIds, setTeamIds] = useState<string[]>([]);
     
     // Data
     const [leaders, setLeaders] = useState<RecordModel[]>([]);
     const [leadersLoading, setLeadersLoading] = useState(true);
+    const [allUsers, setAllUsers] = useState<RecordModel[]>([]);
+    const [usersLoading, setUsersLoading] = useState(true);
     
     useEffect(() => {
         if (isOpen && churchId) {
@@ -48,12 +52,19 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                 .then(setLeaders)
                 .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i leader.' }))
                 .finally(() => setLeadersLoading(false));
+            
+            setUsersLoading(true);
+            getUsers()
+                .then(setAllUsers)
+                .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i volontari.' }))
+                .finally(() => setUsersLoading(false));
         }
 
         if (service) {
             setName(service.name);
             setDescription(service.description);
             setLeaderId(service.leader || '');
+            setTeamIds(service.team || []);
         }
     }, [isOpen, service, churchId, toast]);
 
@@ -65,8 +76,13 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
             const formData = new FormData();
             formData.append('name', name);
             formData.append('description', description);
-            // If 'unassign' is selected, send an empty string to remove the relation
             formData.append('leader', leaderId === 'unassign' ? '' : leaderId);
+
+            if (teamIds.length === 0) {
+                formData.append('team', '');
+            } else {
+                teamIds.forEach(id => formData.append('team', id));
+            }
 
             try {
                 await updateService(service.id, formData);
@@ -78,6 +94,8 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
             }
         });
     };
+    
+    const userOptions: Option[] = allUsers.map(u => ({ value: u.id, label: u.name }));
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -85,10 +103,10 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                 <DialogHeader>
                 <DialogTitle>Gestisci Servizio: {service?.name}</DialogTitle>
                 <DialogDescription>
-                    Modifica i dettagli del servizio e assegna un leader.
+                    Modifica i dettagli del servizio, assegna un leader e componi il team.
                 </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                     <div className="space-y-2">
                         <Label htmlFor="service-name">Nome Servizio</Label>
                         <Input id="service-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} required />
@@ -113,9 +131,19 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                             </SelectContent>
                         </Select>
                     </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="team-select">Team</Label>
+                        <MultiSelect
+                            options={userOptions}
+                            selected={teamIds}
+                            onChange={setTeamIds}
+                            placeholder={usersLoading ? "Caricamento volontari..." : "Seleziona i volontari"}
+                            disabled={isPending || usersLoading}
+                        />
+                    </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                        <Button type="submit" disabled={isPending || leadersLoading}>
+                        <Button type="submit" disabled={isPending || leadersLoading || usersLoading}>
                         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Salva Modifiche
                         </Button>
