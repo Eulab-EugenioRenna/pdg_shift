@@ -80,8 +80,8 @@ function ChurchForm({ church, onSave, onCancel }: { church: RecordModel | null; 
           toast({ title: 'Successo', description: 'Chiesa aggiunta con successo.' });
         }
         onSave();
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Operazione fallita. Controlla i dati e riprova.' });
+      } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Errore', description: error.message });
       }
     });
   };
@@ -183,8 +183,8 @@ export function ManageChurchesDialog() {
         toast({ title: 'Successo', description: 'Chiesa eliminata con successo.' });
         fetchAndSetChurches();
       })
-      .catch(() => {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile eliminare la chiesa.' });
+      .catch((error) => {
+        toast({ variant: 'destructive', title: 'Errore', description: error.message });
       })
       .finally(() => {
         setIsDeleting(false);
@@ -297,7 +297,7 @@ export function ManageChurchesDialog() {
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Annulla</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteChurch} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                <AlertDialogAction onClick={handleDeleteChurch} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                     {isDeleting ? <Loader2 className="animate-spin" /> : "Elimina"}
                 </AlertDialogAction>
             </AlertDialogFooter>

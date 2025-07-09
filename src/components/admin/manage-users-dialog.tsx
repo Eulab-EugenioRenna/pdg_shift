@@ -44,7 +44,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     password: '',
     passwordConfirm: '',
     role: user?.role || 'volontario',
-    church: user?.expand?.church?.map((c: any) => c.id) || user?.church || [],
+    church: user?.church || [],
   });
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -113,7 +113,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
         const data = new FormData();
         data.append('name', formData.name.trim());
         data.append('role', formData.role);
-        formData.church.forEach(c => data.append('church', c));
+        formData.church.forEach((c: string) => data.append('church', c));
         
         if (avatarFile) {
           data.append('avatar', avatarFile);
@@ -155,7 +155,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
               onChange={handleFileChange} 
           />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
         <div className="space-y-2">
           <Label htmlFor="name">Nome e Cognome</Label>
           <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
@@ -264,8 +264,8 @@ export function ManageUsersDialog() {
         toast({ title: 'Successo', description: 'Utente eliminato con successo.' });
         fetchAndSetUsers();
       })
-      .catch(() => {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile eliminare l\'utente.' });
+      .catch((error) => {
+        toast({ variant: 'destructive', title: 'Errore', description: error.message });
       })
       .finally(() => {
         setIsDeleting(false);
@@ -398,7 +398,7 @@ export function ManageUsersDialog() {
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Annulla</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteUser} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                <AlertDialogAction onClick={handleDeleteUser} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                     {isDeleting ? <Loader2 className="animate-spin" /> : "Elimina"}
                 </AlertDialogAction>
             </AlertDialogFooter>
