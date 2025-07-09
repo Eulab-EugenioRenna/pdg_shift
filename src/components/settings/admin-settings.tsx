@@ -6,6 +6,7 @@ import { Building, UserPlus, CalendarPlus, UserCog, Trash2 } from 'lucide-react'
 import { ManageChurchesDialog } from '@/components/admin/manage-churches-dialog';
 import { ManageUsersDialog } from '@/components/admin/manage-users-dialog';
 import { ManageProfileDialog } from '@/components/settings/manage-profile-dialog';
+import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
 
 export default function AdminSettings() {
     return (
@@ -80,7 +81,7 @@ export default function AdminSettings() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground mb-4">Questa azione è irreversibile. Tutti i tuoi dati verranno cancellati.</p>
-                        <Button variant="destructive">Elimina il tuo account</Button>
+                        <DeleteAccountDialog />
                     </CardContent>
                 </Card>
             </div>

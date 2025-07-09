@@ -2,9 +2,9 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { UserCog, Trash2 } from 'lucide-react';
 import { ManageProfileDialog } from '@/components/settings/manage-profile-dialog';
+import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
 
 export default function VolunteerSettings() {
     const { user } = useAuth();
@@ -42,7 +42,7 @@ export default function VolunteerSettings() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground mb-4">Questa azione è irreversibile. Tutti i tuoi dati verranno cancellati.</p>
-                        <Button variant="destructive">Elimina il tuo account</Button>
+                        <DeleteAccountDialog />
                     </CardContent>
                 </Card>
             </div>
