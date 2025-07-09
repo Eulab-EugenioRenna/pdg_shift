@@ -6,6 +6,10 @@ import { pb } from "@/lib/pocketbase";
 import type { ClientResponseError } from "pocketbase";
 
 function getErrorMessage(error: any): string {
+    if (error instanceof Error && !(error instanceof ClientResponseError)) {
+        return error.message;
+    }
+    
     if (error && typeof error === 'object' && error.data?.data) {
         const errorData = error.data.data;
         const firstErrorKey = Object.keys(errorData)[0];
@@ -13,10 +17,7 @@ function getErrorMessage(error: any): string {
             return errorData[firstErrorKey].message;
         }
     }
-    if (error instanceof Error) {
-        const clientError = error as ClientResponseError;
-        if (clientError.message) return clientError.message;
-    }
+    
     return "An unexpected response was received from the server.";
 }
 
@@ -139,5 +140,61 @@ export async function updateUserProfile(id: string, formData: FormData) {
     } catch (error: any) {
         console.error("Error updating user profile:", error);
         throw new Error(getErrorMessage(error));
+    }
+}
+
+// Event Management Actions
+export async function getEvents(churchId: string) {
+    try {
+        const records = await pb.collection('pdg_events').getFullList({
+            filter: `church = "${churchId}"`,
+            sort: '-start_date',
+        });
+        return JSON.parse(JSON.stringify(records));
+    } catch (error) {
+        console.error("Error fetching events:", error);
+        throw new Error("Failed to fetch events.");
+    }
+}
+
+export async function createEvent(formData: FormData) {
+    const churchId = formData.get('church') as string;
+    const startDate = formData.get('start_date') as string;
+    const endDate = formData.get('end_date') as string;
+
+    if (!churchId || !startDate || !endDate) {
+        throw new Error("Church, start date, and end date are required.");
+    }
+
+    try {
+        // Check for overlapping events
+        const overlappingEvents = await pb.collection('pdg_events').getFullList({
+            filter: `church = "${churchId}" && ((start_date < "${endDate}" && end_date > "${startDate}"))`,
+        });
+
+        if (overlappingEvents.length > 0) {
+            throw new Error("An event already exists in this time range for the selected church.");
+        }
+
+        const record = await pb.collection('pdg_events').create(formData);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error: any) {
+        console.error("Error creating event:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+// Service Management Actions
+export async function getServicesForEvent(eventId: string) {
+    try {
+        const records = await pb.collection('pdg_services').getFullList({
+            filter: `event = "${eventId}"`,
+            sort: 'name',
+            expand: 'leader'
+        });
+        return JSON.parse(JSON.stringify(records));
+    } catch (error) {
+        console.error("Error fetching services for event:", error);
+        throw new Error("Failed to fetch services.");
     }
 }

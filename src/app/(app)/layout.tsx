@@ -34,7 +34,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const menuItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
-    // { href: "/dashboard/schedule", icon: Calendar, label: "Schedule" },
+    { href: "/dashboard/schedule", icon: Calendar, label: "Programma" },
     // { href: "/dashboard/volunteers", icon: Users, label: "Volunteers" },
     { href: "/dashboard/settings", icon: Settings, label: "Impostazioni" },
   ];
@@ -54,7 +54,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             {menuItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.label}>
+                <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)} tooltip={item.label}>
                   <Link href={item.href}>
                     <item.icon />
                     <span>{item.label}</span>
