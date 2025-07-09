@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,9 +22,10 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getAiSuggestions } from "@/app/actions";
 import type { SuggestVolunteersOutput } from "@/ai/flows/smart-roster-filling";
-import { Loader2, User, Users, Wand2 } from "lucide-react";
+import { Loader2, Users, Wand2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
-const volunteerPool = [
+const initialVolunteerPool = [
   {
     volunteerName: "Alice",
     availability: "disponibile",
@@ -49,7 +50,7 @@ const volunteerPool = [
     skills: "Supporto tecnico, mixer audio",
     preferences: "preferisce lavorare in team",
   },
-   {
+  {
     volunteerName: "Ethan",
     availability: "disponibile",
     skills: "Usciere, allestimento/smontaggio",
@@ -60,19 +61,50 @@ const volunteerPool = [
 export function SmartRosterDialog() {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [suggestions, setSuggestions] =
-    useState<SuggestVolunteersOutput | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestVolunteersOutput | null>(null);
+  
+  const [serviceName, setServiceName] = useState("Culto Domenicale Mattutino");
+  const [date, setDate] = useState(new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString());
+  const [openSlots, setOpenSlots] = useState(2);
+  const [volunteerPoolText, setVolunteerPoolText] = useState(JSON.stringify(initialVolunteerPool, null, 2));
+
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (open) {
+      // Reset state when dialog opens
+      setServiceName("Culto Domenicale Mattutino");
+      setDate(new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString());
+      setOpenSlots(2);
+      setVolunteerPoolText(JSON.stringify(initialVolunteerPool, null, 2));
+      setSuggestions(null);
+      setIsLoading(false);
+    }
+  }, [open]);
 
   const handleSuggestion = async () => {
     setIsLoading(true);
     setSuggestions(null);
+    let parsedVolunteerPool;
+
+    try {
+        parsedVolunteerPool = JSON.parse(volunteerPoolText);
+    } catch (e) {
+        toast({
+            variant: "destructive",
+            title: "Errore nel formato dei dati",
+            description: "I dati dei volontari non sono in un formato JSON valido.",
+        });
+        setIsLoading(false);
+        return;
+    }
+
     try {
       const result = await getAiSuggestions({
-        serviceName: "Culto Domenicale Mattutino",
-        date: new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString(),
-        openSlots: 2,
-        volunteerAvailability: volunteerPool,
+        serviceName,
+        date,
+        openSlots,
+        volunteerAvailability: parsedVolunteerPool,
       });
       setSuggestions(result);
     } catch (error) {
@@ -98,49 +130,48 @@ export function SmartRosterDialog() {
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">Composizione Intelligente dei Turni</DialogTitle>
           <DialogDescription>
-            Scopri come la nostra IA può aiutarti a trovare le persone giuste per il tuo servizio.
+            Modifica i parametri qui sotto per scoprire come la nostra IA può aiutarti a trovare le persone giuste per il tuo servizio.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 max-h-[70vh] overflow-y-auto pr-4">
           <div>
             <Card>
               <CardHeader>
                 <CardTitle>Dettagli del Servizio</CardTitle>
                 <CardDescription>
-                  Ecco i dettagli per il servizio che necessita di volontari.
+                  Modifica i parametri del servizio per cui hai bisogno di volontari.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="serviceName">Nome del Servizio</Label>
-                  <Input id="serviceName" defaultValue="Culto Domenicale Mattutino" readOnly />
+                  <Input id="serviceName" value={serviceName} onChange={(e) => setServiceName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="date">Data</Label>
-                  <Input id="date" defaultValue={new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString()} readOnly />
+                  <Input id="date" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="openSlots">Posti disponibili</Label>
-                  <Input id="openSlots" type="number" defaultValue="2" readOnly />
+                  <Input id="openSlots" type="number" value={openSlots} onChange={(e) => setOpenSlots(Number(e.target.value))} />
                 </div>
               </CardContent>
             </Card>
 
-             <Card className="mt-4">
+            <Card className="mt-4">
               <CardHeader>
-                 <CardTitle className="flex items-center gap-2"><Users /> Volontari Disponibili</CardTitle>
+                 <CardTitle className="flex items-center gap-2"><Users /> Elenco Volontari (formato JSON)</CardTitle>
+                 <CardDescription>Aggiungi o modifica i volontari, mantenendo il formato JSON.</CardDescription>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                    {volunteerPool.map(v => (
-                        <li key={v.volunteerName} className={`flex items-center gap-2 ${v.availability !== 'disponibile' ? 'line-through' : ''}`}>
-                            <User className="w-4 h-4"/> {v.volunteerName} - <span className="text-xs">{v.skills}</span>
-                        </li>
-                    ))}
-                </ul>
+                <Textarea
+                    value={volunteerPoolText}
+                    onChange={(e) => setVolunteerPoolText(e.target.value)}
+                    rows={12}
+                    className="font-mono text-xs"
+                />
               </CardContent>
             </Card>
-
           </div>
           <div>
             <div className="flex justify-start mb-4">
@@ -180,6 +211,11 @@ export function SmartRosterDialog() {
                     )}
                   </div>
                 )}
+                 {!isLoading && !suggestions && (
+                    <div className="flex items-center justify-center text-center h-40 text-muted-foreground">
+                        <p>Clicca su "Suggerisci Volontari" per vedere la magia dell'IA!</p>
+                    </div>
+                 )}
               </CardContent>
             </Card>
           </div>
