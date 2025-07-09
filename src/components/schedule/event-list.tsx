@@ -147,8 +147,7 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
 
         const today = new Date();
         today.setHours(0,0,0,0);
-        const futureLimit = new Date();
-        futureLimit.setMonth(today.getMonth() + 3);
+        const futureLimit = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
         const recurringInstances = recurringTemplates
             .flatMap(event => generateRecurringInstances(event, today, futureLimit))
