@@ -6,9 +6,10 @@ import type { RecordModel } from 'pocketbase';
 import { getChurches } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PlusCircle } from 'lucide-react';
 import { EventList } from '@/components/schedule/event-list';
 import { ManageEventDialog } from '@/components/schedule/manage-event-dialog';
+import { Button } from '@/components/ui/button';
 
 export default function SchedulePage() {
     const { user } = useAuth();
@@ -16,6 +17,7 @@ export default function SchedulePage() {
     const [selectedChurch, setSelectedChurch] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
     const loadChurches = useCallback(async () => {
         if (!user) return;
@@ -45,7 +47,7 @@ export default function SchedulePage() {
     const canCreateEvent = user?.role === 'admin' || user?.role === 'leader';
     const hasMultipleChurches = churches.length > 1;
 
-    const onEventCreated = () => {
+    const onEventUpserted = () => {
         setRefreshKey(prev => prev + 1);
     }
     
@@ -80,17 +82,24 @@ export default function SchedulePage() {
                         </Select>
                     )}
                     {canCreateEvent && selectedChurch && (
-                       <ManageEventDialog 
-                            userChurches={churches} 
-                            selectedChurchId={selectedChurch} 
-                            onEventCreated={onEventCreated}
-                       />
+                        <>
+                           <Button onClick={() => setIsCreateDialogOpen(true)}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Crea Evento
+                           </Button>
+                           <ManageEventDialog 
+                                isOpen={isCreateDialogOpen}
+                                setIsOpen={setIsCreateDialogOpen}
+                                userChurches={churches} 
+                                selectedChurchId={selectedChurch} 
+                                onEventUpserted={onEventUpserted}
+                           />
+                        </>
                     )}
                 </div>
             </div>
 
             {selectedChurch ? (
-                <EventList key={refreshKey} churchId={selectedChurch} />
+                <EventList key={refreshKey} churchId={selectedChurch} onEventChange={onEventUpserted} />
             ) : (
                  <Card>
                     <CardHeader>

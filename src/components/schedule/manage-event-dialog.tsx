@@ -8,25 +8,37 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { createEvent, getEventTemplates } from '@/app/actions';
-import { Loader2, PlusCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { createEvent, getEventTemplates, updateEvent } from '@/app/actions';
+import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Calendar } from '../ui/calendar';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Textarea } from '../ui/textarea';
 
+interface ManageEventDialogProps {
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
+    eventToEdit?: RecordModel | null;
+    userChurches: RecordModel[];
+    selectedChurchId: string;
+    onEventUpserted: () => void;
+}
 
-export function ManageEventDialog({ userChurches, selectedChurchId, onEventCreated }: { userChurches: RecordModel[], selectedChurchId: string, onEventCreated: () => void }) {
-    const [open, setOpen] = useState(false);
+export function ManageEventDialog({ 
+    isOpen, 
+    setIsOpen, 
+    eventToEdit, 
+    userChurches, 
+    selectedChurchId, 
+    onEventUpserted 
+}: ManageEventDialogProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
@@ -40,34 +52,51 @@ export function ManageEventDialog({ userChurches, selectedChurchId, onEventCreat
 
     const [eventTemplates, setEventTemplates] = useState<RecordModel[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    
+    const isEditMode = !!eventToEdit;
 
-
-    useEffect(() => {
-        if (open) {
-            getEventTemplates()
-                .then(setEventTemplates)
-                .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' }));
-            // Reset form on open
-            setName('');
-            setDescription('');
+    const resetForm = () => {
+        setName(eventToEdit?.name || '');
+        setDescription(eventToEdit?.description || '');
+        setChurch(eventToEdit?.church || selectedChurchId);
+        
+        if (eventToEdit) {
+            const startDate = parseISO(eventToEdit.start_date);
+            const endDate = parseISO(eventToEdit.end_date);
+            setDate(startDate);
+            setStartTime(format(startDate, 'HH:mm'));
+            setEndTime(format(endDate, 'HH:mm'));
+        } else {
             setDate(undefined);
             setStartTime('');
             setEndTime('');
             setSelectedTemplateId('');
-            setChurch(selectedChurchId);
         }
-    }, [open, selectedChurchId, toast]);
+    };
+    
+    useEffect(() => {
+        if (isOpen) {
+            getEventTemplates()
+                .then(setEventTemplates)
+                .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' }));
+            resetForm();
+        }
+    }, [isOpen, eventToEdit, selectedChurchId]);
 
     const handleTemplateChange = (templateId: string) => {
         const template = eventTemplates.find(t => t.id === templateId);
         if (template) {
             setSelectedTemplateId(template.id);
-            setName(template.name);
-            setDescription(template.description);
+            if (!isEditMode) {
+                setName(template.name);
+                setDescription(template.description);
+            }
         } else {
             setSelectedTemplateId('');
-            setName('');
-            setDescription('');
+            if (!isEditMode) {
+                setName('');
+                setDescription('');
+            }
         }
     }
 
@@ -98,15 +127,20 @@ export function ManageEventDialog({ userChurches, selectedChurchId, onEventCreat
             formData.append('church', church);
             formData.append('start_date', startDateTime.toISOString());
             formData.append('end_date', endDateTime.toISOString());
-            if (selectedTemplateId) {
-                formData.append('templateId', selectedTemplateId);
-            }
-
+            
             try {
-                await createEvent(formData);
-                toast({ title: 'Successo', description: 'Evento creato con successo.' });
-                onEventCreated();
-                setOpen(false);
+                if (isEditMode) {
+                    await updateEvent(eventToEdit.id, formData);
+                    toast({ title: 'Successo', description: 'Evento aggiornato con successo.' });
+                } else {
+                     if (selectedTemplateId) {
+                        formData.append('templateId', selectedTemplateId);
+                    }
+                    await createEvent(formData);
+                    toast({ title: 'Successo', description: 'Evento creato con successo.' });
+                }
+                onEventUpserted();
+                setIsOpen(false);
             } catch (error: any) {
                 toast({ variant: 'destructive', title: 'Errore nella creazione', description: error.message });
             }
@@ -114,35 +148,35 @@ export function ManageEventDialog({ userChurches, selectedChurchId, onEventCreat
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Crea Evento
-                </Button>
-            </DialogTrigger>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Crea Nuovo Evento</DialogTitle>
+                    <DialogTitle>{isEditMode ? 'Modifica Evento' : 'Crea Nuovo Evento'}</DialogTitle>
                     <DialogDescription>
-                        Compila i dettagli per creare un nuovo evento. Puoi partire da un modello per velocizzare.
+                        {isEditMode 
+                            ? "Modifica i dettagli dell'evento."
+                            : "Compila i dettagli per creare un nuovo evento. Puoi partire da un modello per velocizzare."
+                        }
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 py-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="event-template">Modello (Opzionale)</Label>
-                        <Select onValueChange={handleTemplateChange} value={selectedTemplateId} disabled={isPending || eventTemplates.length === 0}>
-                            <SelectTrigger id="event-template">
-                                <SelectValue placeholder="Seleziona un modello" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {eventTemplates.map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                        {t.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                    {!isEditMode && (
+                        <div className="space-y-2">
+                            <Label htmlFor="event-template">Modello (Opzionale)</Label>
+                            <Select onValueChange={handleTemplateChange} value={selectedTemplateId} disabled={isPending || eventTemplates.length === 0}>
+                                <SelectTrigger id="event-template">
+                                    <SelectValue placeholder="Seleziona un modello" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {eventTemplates.map((t) => (
+                                        <SelectItem key={t.id} value={t.id}>
+                                            {t.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
 
                      <div className="space-y-2">
                         <Label htmlFor="event-name">Nome Evento</Label>
@@ -206,13 +240,13 @@ export function ManageEventDialog({ userChurches, selectedChurchId, onEventCreat
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Annulla</Button>
+                    <div className="pt-4 flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
                         <Button type="submit" disabled={isPending}>
                         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Crea Evento
+                            {isEditMode ? 'Salva Modifiche' : 'Crea Evento'}
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </form>
             </DialogContent>
         </Dialog>

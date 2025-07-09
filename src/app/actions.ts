@@ -3,21 +3,25 @@
 
 import { suggestVolunteers, SuggestVolunteersInput } from "@/ai/flows/smart-roster-filling";
 import { pb } from "@/lib/pocketbase";
-import type { ClientResponseError } from "pocketbase";
+import type { ClientResponseError, RecordModel } from "pocketbase";
 
 function getErrorMessage(error: any): string {
     if (error instanceof Error && !(error instanceof ClientResponseError)) {
         return error.message;
     }
     
-    if (error && typeof error === 'object' && error.data?.data) {
-        const errorData = error.data.data;
+    if (error && typeof error === 'object' && 'data' in error && (error as any).data?.data) {
+        const errorData = (error as any).data.data;
         const firstErrorKey = Object.keys(errorData)[0];
         if (firstErrorKey && errorData[firstErrorKey].message) {
             return errorData[firstErrorKey].message;
         }
     }
     
+    if (error && error.message) {
+        return error.message;
+    }
+
     return "An unexpected response was received from the server.";
 }
 
@@ -92,15 +96,20 @@ export async function addUserByAdmin(formData: FormData) {
         formData.append('username', username);
         formData.append('emailVisibility', 'true');
         
-        let avatarFile = formData.get('avatar') as File | null;
-        
+        const avatarFile = formData.get('avatar') as File | null;
         if (!avatarFile || avatarFile.size === 0) {
-            const avatarResponse = await fetch('https://placehold.co/200x200.png');
-            const avatarBlob = await avatarResponse.blob();
-            formData.set('avatar', avatarBlob, `${username}_avatar.png`);
+            formData.delete('avatar');
         }
 
         const record = await pb.collection('pdg_users').create(formData);
+
+        if (!avatarFile || avatarFile.size === 0) {
+            const avatarResponse = await fetch('https://placehold.co/200x200.png');
+            const avatarBlob = await avatarResponse.blob();
+            const updateFormData = new FormData();
+            updateFormData.append('avatar', avatarBlob, `${username}_avatar.png`);
+            await pb.collection('pdg_users').update(record.id, updateFormData);
+        }
         
         const finalRecord = await pb.collection('pdg_users').getOne(record.id, { expand: 'church' });
         return JSON.parse(JSON.stringify(finalRecord));
@@ -197,7 +206,6 @@ export async function createEvent(formData: FormData) {
                         description: serviceTemplate.description,
                         event: record.id,
                         church: churchId,
-                        // leader field is not set by default
                     });
                 }
             }
@@ -210,6 +218,47 @@ export async function createEvent(formData: FormData) {
     }
 }
 
+export async function updateEvent(id: string, formData: FormData) {
+    const startDate = formData.get('start_date') as string;
+    const endDate = formData.get('end_date') as string;
+    const churchId = formData.get('church') as string;
+
+    if (!startDate || !endDate || !churchId) {
+        throw new Error("Church, start date, and end date are required.");
+    }
+    
+    try {
+        // Check for overlapping events, excluding the current one
+        const overlappingEvents = await pb.collection('pdg_events').getFullList({
+            filter: `id != "${id}" && church = "${churchId}" && ((start_date < "${endDate}" && end_date > "${startDate}"))`,
+        });
+
+        if (overlappingEvents.length > 0) {
+            throw new Error("An event already exists in this time range for the selected church.");
+        }
+        
+        const record = await pb.collection('pdg_events').update(id, formData);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error: any) {
+        console.error("Error updating event:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function deleteEvent(id: string) {
+    try {
+        const services = await pb.collection('pdg_services').getFullList({ filter: `event = "${id}"` });
+        for (const service of services) {
+            await pb.collection('pdg_services').delete(service.id);
+        }
+
+        await pb.collection('pdg_events').delete(id);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting event:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
 
 // Service Management Actions
 export async function getServicesForEvent(eventId: string) {
@@ -223,6 +272,27 @@ export async function getServicesForEvent(eventId: string) {
     } catch (error) {
         console.error("Error fetching services for event:", error);
         throw new Error("Failed to fetch services.");
+    }
+}
+
+export async function createService(formData: FormData) {
+    try {
+        const record = await pb.collection('pdg_services').create(formData);
+        const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader' });
+        return JSON.parse(JSON.stringify(finalRecord));
+    } catch (error: any) {
+        console.error("Error creating service:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function deleteService(id: string) {
+    try {
+        await pb.collection('pdg_services').delete(id);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting service:", error);
+        throw new Error(getErrorMessage(error));
     }
 }
 
@@ -259,7 +329,7 @@ export async function deleteServiceTemplate(id: string) {
     try {
         await pb.collection('pdg_service_templates').delete(id);
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         throw new Error(getErrorMessage(error));
     }
 }
@@ -300,7 +370,7 @@ export async function deleteEventTemplate(id: string) {
     try {
         await pb.collection('pdg_event_templates').delete(id);
         return { success: true };
-    } catch (error) {
+    } catch (error: { message: any; }) {
         throw new Error(getErrorMessage(error));
     }
 }
