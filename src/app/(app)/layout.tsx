@@ -11,6 +11,7 @@ import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -86,6 +87,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className='flex-1'>
                 {/* Breadcrumbs can go here */}
             </div>
+            <ThemeToggle />
         </header>
         <main className="flex-1 p-4 md:p-6">
             {children}

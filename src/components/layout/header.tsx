@@ -5,6 +5,7 @@ import { Icons } from "@/components/icons";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { LayoutDashboard } from "lucide-react";
+import { ThemeToggle } from "../theme-toggle";
 
 export function Header() {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ export function Header() {
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
+          <ThemeToggle />
           {user ? (
              <Button asChild variant="outline">
               <Link href="/dashboard">
