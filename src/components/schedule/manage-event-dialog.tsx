@@ -225,6 +225,7 @@ export function ManageEventDialog({
                                     selected={date}
                                     onSelect={setDate}
                                     initialFocus
+                                    locale={it}
                                 />
                             </PopoverContent>
                         </Popover>
