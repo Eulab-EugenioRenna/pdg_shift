@@ -17,6 +17,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 export default function SchedulePage() {
     const { user } = useAuth();
@@ -28,6 +30,7 @@ export default function SchedulePage() {
     // Filters state
     const [searchTerm, setSearchTerm] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
+    const [showPastEvents, setShowPastEvents] = useState(false);
 
     const loadChurches = useCallback(async () => {
         if (!user) return;
@@ -109,7 +112,7 @@ export default function SchedulePage() {
             </div>
 
             <Card>
-                <CardContent className="pt-6 flex flex-col md:flex-row items-center gap-4">
+                <CardContent className="pt-6 flex flex-col md:flex-row items-center gap-4 flex-wrap">
                      <Input
                         placeholder="Cerca per nome evento..."
                         value={searchTerm}
@@ -158,11 +161,19 @@ export default function SchedulePage() {
                             Reset Filtri
                         </Button>
                     )}
+                    <div className="flex items-center space-x-2 md:ml-auto">
+                        <Switch
+                            id="show-past-events"
+                            checked={showPastEvents}
+                            onCheckedChange={setShowPastEvents}
+                        />
+                        <Label htmlFor="show-past-events">Mostra eventi passati</Label>
+                    </div>
                 </CardContent>
             </Card>
 
             {selectedChurch ? (
-                <EventList churchId={selectedChurch} searchTerm={searchTerm} dateRange={dateRange} />
+                <EventList churchId={selectedChurch} searchTerm={searchTerm} dateRange={dateRange} showPastEvents={showPastEvents} />
             ) : (
                  <Card>
                     <CardHeader>

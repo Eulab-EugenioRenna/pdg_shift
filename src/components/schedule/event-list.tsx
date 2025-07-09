@@ -22,6 +22,7 @@ interface EventListProps {
     churchId: string;
     searchTerm: string;
     dateRange?: DateRange;
+    showPastEvents: boolean;
 }
 
 const generateRecurringInstances = (
@@ -70,7 +71,7 @@ const generateRecurringInstances = (
 };
 
 
-export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
+export function EventList({ churchId, searchTerm, dateRange, showPastEvents }: EventListProps) {
     const { user } = useAuth();
     const [events, setEvents] = useState<RecordModel[]>([]);
     const [churches, setChurches] = useState<RecordModel[]>([]);
@@ -138,54 +139,69 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
     }, [isEditDialogOpen]);
 
     const filteredEvents = useMemo(() => {
-        const filterStartDate = new Date();
-        filterStartDate.setDate(filterStartDate.getDate() - 2);
-        filterStartDate.setHours(0, 0, 0, 0);
-
-        const singleEvents = events.filter(e => !e.is_recurring && new Date(e.start_date) >= filterStartDate);
+        // 1. Separate events and templates
+        const singleEvents = events.filter(e => !e.is_recurring);
         const recurringTemplates = events.filter(e => e.is_recurring);
-
+    
         const singleEventDateKeys = new Set(
             singleEvents.map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
         );
         
+        // 2. Define range for generating recurring instances
+        let recurrenceRangeStart = new Date();
         const futureLimit = new Date();
-        futureLimit.setMonth(futureLimit.getMonth() + 2);
-
+        futureLimit.setMonth(futureLimit.getMonth() + 3);
+    
+        if (dateRange?.from) {
+            recurrenceRangeStart = new Date(dateRange.from);
+        } else if (showPastEvents) {
+            // If showing past events, go back a reasonable amount
+            recurrenceRangeStart.setFullYear(recurrenceRangeStart.getFullYear() - 1);
+        } else {
+            // Default view: start from 2 days ago
+            recurrenceRangeStart.setDate(recurrenceRangeStart.getDate() - 2);
+        }
+        recurrenceRangeStart.setHours(0, 0, 0, 0);
+    
         const recurringInstances = recurringTemplates
-            .flatMap(event => generateRecurringInstances(event, filterStartDate, futureLimit))
+            .flatMap(event => generateRecurringInstances(event, recurrenceRangeStart, futureLimit))
             .filter(instance => {
                 const dateKey = `${format(new Date(instance.start_date), 'yyyy-MM-dd')}-${instance.church}`;
                 return !singleEventDateKeys.has(dateKey);
             });
-
-        const displayEvents = [...singleEvents, ...recurringInstances];
-
-        const finalFilteredEvents = displayEvents.filter(event => {
+    
+        const allPossibleEvents = [...singleEvents, ...recurringInstances];
+    
+        // 3. Apply final filters
+        const finalFilteredEvents = allPossibleEvents.filter(event => {
             const matchSearch = searchTerm
                 ? event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   (event.description && event.description.toLowerCase().includes(searchTerm.toLowerCase()))
                 : true;
             
-            let matchDateRange = true;
+            let matchDate = true;
             if (dateRange?.from) {
+                // Filter by date picker range
                 const eventStart = new Date(event.start_date);
-                const eventEnd = new Date(event.end_date);
-
+                const eventEnd = event.end_date ? new Date(event.end_date) : new Date(event.start_date);
                 const filterFrom = new Date(dateRange.from);
                 filterFrom.setHours(0, 0, 0, 0);
-
                 const filterTo = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
                 filterTo.setHours(23, 59, 59, 999);
-                
-                matchDateRange = eventStart <= filterTo && eventEnd >= filterFrom;
+                matchDate = eventStart <= filterTo && eventEnd >= filterFrom;
+            } else if (!showPastEvents) {
+                // Default filter: hide events older than 2 days
+                const twoDaysAgo = new Date();
+                twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+                twoDaysAgo.setHours(0, 0, 0, 0);
+                matchDate = new Date(event.start_date) >= twoDaysAgo;
             }
-
-            return matchSearch && matchDateRange;
+    
+            return matchSearch && matchDate;
         });
-
+    
         return finalFilteredEvents.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-    }, [events, searchTerm, dateRange]);
+    }, [events, searchTerm, dateRange, showPastEvents]);
 
 
     const handleEventUpdated = () => {
