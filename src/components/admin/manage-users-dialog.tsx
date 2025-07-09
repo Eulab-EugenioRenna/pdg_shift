@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useState, useEffect, useTransition, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getUsers, addUserByAdmin, updateUserByAdmin, deleteUser, getChurches } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
-import { Loader2, Trash2, Edit, PlusCircle, UserCog } from 'lucide-react';
+import { Loader2, Trash2, Edit, PlusCircle, UserCog, Upload } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -41,8 +41,13 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     password: '',
     passwordConfirm: '',
     role: user?.role || 'volontario',
-    church: (user?.church && Array.isArray(user.church)) ? user.church[0] : (user?.church || ''),
+    church: user?.expand?.church?.id || user?.church || '',
   });
+
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(user?.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [churches, setChurches] = useState<RecordModel[]>([]);
   const [churchesLoading, setChurchesLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
@@ -63,12 +68,24 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     setFormData(prev => ({ ...prev, [name]: value }));
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (user) { // Editing user
       if (!formData.name.trim() || !formData.role || !formData.church) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Tutti i campi sono obbligatori.' });
+        toast({ variant: 'destructive', title: 'Errore', description: 'Nome, Ruolo e Chiesa sono obbligatori.' });
         return;
       }
     } else { // Adding new user
@@ -88,21 +105,21 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
 
     startTransition(async () => {
       try {
+        const data = new FormData();
+        data.append('name', formData.name.trim());
+        data.append('role', formData.role);
+        data.append('church', formData.church);
+        if (avatarFile) {
+          data.append('avatar', avatarFile);
+        }
+
         if (user) {
-          await updateUserByAdmin(user.id, {
-            name: formData.name.trim(),
-            role: formData.role,
-            church: formData.church,
-          });
+          await updateUserByAdmin(user.id, data);
           toast({ title: 'Successo', description: 'Utente aggiornato con successo.' });
         } else {
-          const data = new FormData();
-          data.append('name', formData.name.trim());
           data.append('email', formData.email.trim());
           data.append('password', formData.password);
           data.append('passwordConfirm', formData.passwordConfirm);
-          data.append('role', formData.role);
-          data.append('church', formData.church);
           await addUserByAdmin(data);
           toast({ title: 'Successo', description: 'Utente aggiunto con successo.' });
         }
@@ -115,6 +132,23 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4">
+      <div className="flex flex-col items-center gap-4 col-span-full">
+          <Avatar className="w-24 h-24">
+              <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />
+              <AvatarFallback>{formData.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+          </Avatar>
+          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" />
+              {preview ? 'Cambia Avatar' : 'Carica Avatar'}
+          </Button>
+          <Input 
+              ref={fileInputRef}
+              type="file" 
+              className="hidden" 
+              accept="image/*" 
+              onChange={handleFileChange} 
+          />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="name">Nome e Cognome</Label>
@@ -240,12 +274,10 @@ export function ManageUsersDialog() {
   }
 
   const getExpandedChurchName = (user: RecordModel) => {
-    if (!user.expand?.church) return 'N/A';
-    // Handle both single and multi-relation for display
-    if (Array.isArray(user.expand.church)) {
-        return user.expand.church.map(c => c.name).join(', ') || 'N/A';
+    if (user.expand?.church) {
+      return user.expand.church.name || 'N/A';
     }
-    return (user.expand.church as RecordModel).name;
+    return 'N/A';
   }
 
   return (
