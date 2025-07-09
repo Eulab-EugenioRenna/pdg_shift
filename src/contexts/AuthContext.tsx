@@ -63,16 +63,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (data: any) => {
     setLoading(true);
     try {
-      const newUser = await pb.collection('pdg_users').create({
-        ...data,
-        role: 'volunteer', // Default role
-        churchId: 'default_church', // Placeholder for multi-church
-      });
+      // PocketBase requires a username, let's generate one from the email to help ensure it's unique.
+      const username = data.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Date.now().toString().slice(-4);
+      
+      const recordData = {
+        username,
+        email: data.email,
+        emailVisibility: true,
+        password: data.password,
+        passwordConfirm: data.passwordConfirm,
+        name: data.name,
+      };
+
+      const newUser = await pb.collection('pdg_users').create(recordData);
+      
       // After successful registration, log the user in
       await login(data.email, data.password);
       return newUser;
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Registrazione Fallita', description: "Controlla i dati inseriti e riprova." });
+      let errorMessage = "Controlla i dati inseriti e riprova.";
+      // PocketBase returns structured errors. Let's try to display a more specific message.
+      if (error && typeof error === 'object' && 'data' in error && (error as any).data?.data) {
+        const errorData = (error as any).data.data;
+        const firstErrorKey = Object.keys(errorData)[0];
+        if (firstErrorKey && errorData[firstErrorKey].message) {
+            errorMessage = errorData[firstErrorKey].message;
+        }
+      }
+      toast({ variant: 'destructive', title: 'Registrazione Fallita', description: errorMessage });
       throw error;
     } finally {
       setLoading(false);
