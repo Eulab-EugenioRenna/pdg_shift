@@ -73,6 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password: data.password,
         passwordConfirm: data.passwordConfirm,
         name: data.name,
+        // The user specified 'multi', so PocketBase expects an array of IDs.
+        church: [data.church],
+        role: 'volontario', // Default role for new registrations
       };
 
       const newUser = await pb.collection('pdg_users').create(recordData);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Icons } from '@/components/icons';
+import { pb } from '@/lib/pocketbase';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -19,6 +21,29 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [churches, setChurches] = useState<any[]>([]);
+  const [church, setChurch] = useState('');
+
+  useEffect(() => {
+    const fetchChurches = async () => {
+      try {
+        const records = await pb.collection('pdg_church').getFullList({
+          sort: 'name',
+        });
+        setChurches(records);
+      } catch (error) {
+        console.error("Failed to fetch churches:", error);
+        toast({
+          variant: 'destructive',
+          title: 'Errore di Caricamento',
+          description: "Impossibile caricare l'elenco delle chiese. Riprova più tardi.",
+        });
+      }
+    };
+
+    fetchChurches();
+  }, [toast]);
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,9 +55,13 @@ export default function RegisterPage() {
       toast({ variant: 'destructive', title: 'Errore', description: 'La password deve contenere almeno 8 caratteri.' });
       return;
     }
+     if (!church) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Per favore, seleziona una chiesa.' });
+      return;
+    }
     setIsLoading(true);
     try {
-      await register({ name, email, password, passwordConfirm });
+      await register({ name, email, password, passwordConfirm, church });
     } catch (error) {
       console.error(error);
     } finally {
@@ -66,6 +95,23 @@ export default function RegisterPage() {
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" placeholder="mario.rossi@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
+               <div className="grid gap-2">
+                <Label htmlFor="church">Chiesa</Label>
+                <Select onValueChange={setChurch} value={church} required>
+                  <SelectTrigger id="church">
+                    <SelectValue placeholder="Seleziona la tua chiesa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                     {churches.length > 0 ? (
+                      churches.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="loading" disabled>Caricamento...</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -76,7 +122,7 @@ export default function RegisterPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
-              <Button className="w-full" type="submit" disabled={isLoading}>
+              <Button className="w-full" type="submit" disabled={isLoading || churches.length === 0}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Crea account
               </Button>
