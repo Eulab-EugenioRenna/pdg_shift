@@ -35,6 +35,7 @@ const SuggestTeamOutputSchema = z.object({
       reason: z.string().describe('La motivazione per cui questo volontario viene suggerito per questa specifica posizione.'),
     })
   ).describe('Un array di suggerimenti di volontari per posizioni specifiche e le motivazioni per ogni suggerimento.'),
+  message: z.string().optional().describe("Un messaggio opzionale per l'utente, da usare se non è possibile fornire suggerimenti (es. nessun volontario disponibile o adatto).")
 });
 
 export type SuggestTeamOutput = z.infer<typeof SuggestTeamOutputSchema>;
@@ -59,13 +60,19 @@ Ecco i dettagli del servizio:
 Ecco l'elenco dei volontari disponibili. Analizza attentamente le loro competenze per trovare la persona più adatta a ciascun ruolo. Assicurati di non assegnare lo stesso volontario a più di una posizione per questo servizio.
 
 Volontari:
+{{#if volunteerAvailability}}
 {{#each volunteerAvailability}}
 - Nome: {{{volunteerName}}}, Disponibilità: {{{availability}}}, Competenze: {{{skills}}}, Preferenze: {{{preferences}}}
 {{/each}}
+{{else}}
+Nessun volontario fornito.
+{{/if}}
 
 Suggerisci un solo volontario per ogni posizione. Assegna le persone ai ruoli in cui le loro competenze sono più pertinenti. Fornisci una breve ma chiara motivazione per ogni suggerimento, spiegando perché quel volontario è una buona scelta per quella specifica posizione.
 
-Formatta la tua risposta come un array JSON di suggerimenti.
+Se non ci sono volontari disponibili o se nessuno dei volontari forniti è adatto per le posizioni richieste, il campo 'suggestions' deve essere un array vuoto e devi invece impostare il campo 'message' con una frase appropriata, come "Nessun volontario disponibile o adatto per le posizioni richieste."
+
+Formatta la tua risposta come un oggetto JSON che rispetti lo schema di output.
 `, safetySettings: [
     {
       category: 'HARM_CATEGORY_HATE_SPEECH',

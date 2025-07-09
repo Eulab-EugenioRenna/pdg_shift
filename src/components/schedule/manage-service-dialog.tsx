@@ -26,10 +26,11 @@ interface ManageServiceDialogProps {
   setIsOpen: (open: boolean) => void;
   service: RecordModel | null;
   churchId: string;
+  eventDate: string;
   onServiceUpdated: () => void;
 }
 
-export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onServiceUpdated }: ManageServiceDialogProps) {
+export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, eventDate, onServiceUpdated }: ManageServiceDialogProps) {
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
@@ -76,7 +77,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
     const handleGetAiSuggestions = () => {
         if (!service) return;
 
-        const openPositions = (service.positions || []).filter((pos: string) => !teamAssignments[pos]);
+        const openPositions = (service.positions || []).filter((pos: string) => !teamAssignments[pos] || teamAssignments[pos] === 'unassign');
 
         if (openPositions.length === 0) {
             toast({ title: 'Tutto coperto!', description: "Non ci sono posizioni aperte da riempire." });
@@ -101,24 +102,17 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                     };
                 });
             
-            if (volunteerData.length === 0) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Nessun volontario',
-                    description: 'Non ci sono volontari disponibili in questa chiesa per generare suggerimenti.',
-                });
-                return;
-            }
-
             try {
                 const result = await getAiTeamSuggestions({
                     serviceName: service.name,
-                    date: new Date(service.start_date).toLocaleDateString('it-IT'),
+                    date: new Date(eventDate).toLocaleDateString('it-IT'),
                     positions: openPositions,
                     volunteerAvailability: volunteerData,
                 });
                 setAiSuggestions(result);
-                 toast({ title: 'Suggerimenti Pronti!', description: "L'IA ha generato delle proposte per le posizioni aperte." });
+                if (result.suggestions.length > 0) {
+                    toast({ title: 'Suggerimenti Pronti!', description: "L'IA ha generato delle proposte per le posizioni aperte." });
+                }
             } catch (error) {
                 toast({ variant: "destructive", title: "Errore IA", description: "Impossibile ottenere suggerimenti dall'IA." });
             }
@@ -141,7 +135,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
         startTransition(async () => {
             const finalAssignments = { ...teamAssignments };
             Object.keys(finalAssignments).forEach(key => {
-                if(finalAssignments[key] === 'unassign') {
+                if(finalAssignments[key] === 'unassign' || !finalAssignments[key]) {
                     delete finalAssignments[key];
                 }
             });
@@ -224,7 +218,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="unassign">Non assegnato</SelectItem>
-                                            {allUsers.map((u) => (
+                                            {allUsers.filter(u => u.role === 'volontario' || u.role === 'leader').map((u) => (
                                                 <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                                             ))}
                                         </SelectContent>
@@ -238,17 +232,21 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                                         {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
                                         Suggerisci Team con IA
                                     </Button>
-                                    {aiSuggestions && aiSuggestions.suggestions.length > 0 && (
+                                    {aiSuggestions && (
                                         <div className="space-y-2 mt-4 p-4 bg-accent/50 rounded-lg">
                                             <h4 className="font-semibold text-accent-foreground">Suggerimenti IA:</h4>
-                                            {aiSuggestions.suggestions.map((s, i) => (
-                                                <div key={i} className="text-sm flex items-center justify-between gap-2">
-                                                   <div>
-                                                        <span className="font-medium">{s.position}:</span> {s.volunteerName} - <em className="text-muted-foreground">{s.reason}</em>
-                                                   </div>
-                                                    <Button type="button" size="sm" variant="secondary" onClick={() => applySuggestion(s.position, s.volunteerName)}>Applica</Button>
-                                                </div>
-                                            ))}
+                                            {aiSuggestions.suggestions.length > 0 ? (
+                                                aiSuggestions.suggestions.map((s, i) => (
+                                                    <div key={i} className="text-sm flex items-center justify-between gap-2">
+                                                    <div>
+                                                            <span className="font-medium">{s.position}:</span> {s.volunteerName} - <em className="text-muted-foreground">{s.reason}</em>
+                                                    </div>
+                                                        <Button type="button" size="sm" variant="secondary" onClick={() => applySuggestion(s.position, s.volunteerName)}>Applica</Button>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">{aiSuggestions.message || "L'IA non è riuscita a trovare candidati idonei."}</p>
+                                            )}
                                         </div>
                                     )}
                                 </>

@@ -292,7 +292,7 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
                             <AccordionItem value="item-1">
                                 <AccordionTrigger>Visualizza Servizi</AccordionTrigger>
                                 <AccordionContent>
-                                    <ServiceList eventId={event.id} churchId={event.church} />
+                                    <ServiceList eventId={event.id} churchId={event.church} eventDate={event.start_date} />
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>

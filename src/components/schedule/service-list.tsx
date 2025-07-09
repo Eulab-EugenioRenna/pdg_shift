@@ -14,6 +14,12 @@ import { pb } from '@/lib/pocketbase';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
+interface ServiceListProps {
+    eventId: string;
+    churchId: string;
+    eventDate: string;
+}
+
 function TeamDisplay({ service }: { service: RecordModel }) {
     const assignments = service.team_assignments || {};
     const positions = service.positions || [];
@@ -82,7 +88,7 @@ function TeamDisplay({ service }: { service: RecordModel }) {
     );
 }
 
-export function ServiceList({ eventId, churchId }: { eventId: string, churchId: string }) {
+export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [services, setServices] = useState<RecordModel[]>([]);
@@ -209,6 +215,7 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
                     setIsOpen={setIsManageDialogOpen}
                     service={serviceToManage}
                     churchId={churchId}
+                    eventDate={eventDate}
                     onServiceUpdated={handleServiceChange}
                 />
 
