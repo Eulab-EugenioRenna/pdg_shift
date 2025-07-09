@@ -32,6 +32,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { pb } from '@/lib/pocketbase';
+import { MultiSelect, type Option } from '@/components/ui/multi-select';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
 function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave: () => void; onCancel: () => void }) {
@@ -41,7 +44,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     password: '',
     passwordConfirm: '',
     role: user?.role || 'volontario',
-    church: user?.expand?.church?.[0]?.id || user?.church?.[0] || '',
+    church: user?.church || [],
   });
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -52,6 +55,8 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
   const [churchesLoading, setChurchesLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  
+  const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
 
   useEffect(() => {
     getChurches()
@@ -64,7 +69,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSelectChange = (name: string) => (value: string) => {
+  const handleSelectChange = (name: string) => (value: string | string[]) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   }
 
@@ -84,13 +89,13 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     e.preventDefault();
     
     if (user) { // Editing user
-      if (!formData.name.trim() || !formData.role || !formData.church) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Nome, Ruolo e Chiesa sono obbligatori.' });
+      if (!formData.name.trim() || !formData.role || formData.church.length === 0) {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Nome, Ruolo e almeno una Chiesa sono obbligatori.' });
         return;
       }
     } else { // Adding new user
-      if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.role || !formData.church) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Tutti i campi sono obbligatori.' });
+      if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.role || formData.church.length === 0) {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Tutti i campi, inclusa la chiesa, sono obbligatori.' });
         return;
       }
       if (formData.password !== formData.passwordConfirm) {
@@ -108,7 +113,8 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
         const data = new FormData();
         data.append('name', formData.name.trim());
         data.append('role', formData.role);
-        data.append('church', formData.church);
+        formData.church.forEach(c => data.append('church', c));
+        
         if (avatarFile) {
           data.append('avatar', avatarFile);
         }
@@ -173,13 +179,14 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
       )}
        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="church">Chiesa</Label>
-          <Select name="church" onValueChange={handleSelectChange('church')} value={formData.church} required disabled={churchesLoading || isPending}>
-            <SelectTrigger><SelectValue placeholder={churchesLoading ? "caricamento..." : "Seleziona una chiesa"} /></SelectTrigger>
-            <SelectContent>
-              {churches.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Label htmlFor="church">Chiesa/e</Label>
+          <MultiSelect
+            options={churchOptions}
+            selected={formData.church}
+            onChange={handleSelectChange('church')}
+            placeholder={churchesLoading ? "caricamento..." : "Seleziona una o più chiese"}
+            disabled={churchesLoading || isPending}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="role">Ruolo</Label>
@@ -273,12 +280,35 @@ export function ManageUsersDialog() {
     return 'Gestione Utenti';
   }
 
-  const getExpandedChurchName = (user: RecordModel) => {
-    if (user.expand?.church && user.expand.church.length > 0) {
-        return user.expand.church.map((c: any) => c.name).join(', ') || 'N/A';
+  const ChurchList = ({ user }: { user: RecordModel }) => {
+    const churches = user.expand?.church;
+    if (!churches || churches.length === 0) {
+        return <>N/A</>;
     }
-    return 'N/A';
-  }
+    if (churches.length === 1) {
+        return <>{churches[0].name}</>;
+    }
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-auto p-1 text-left justify-start">
+                    <div className="flex items-center gap-2">
+                        <span>{churches[0].name}</span>
+                        <Badge variant="secondary">+{churches.length - 1}</Badge>
+                    </div>
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2">
+                <div className="text-sm font-semibold mb-2">Chiese associate</div>
+                <ul className="space-y-1">
+                    {churches.map((c: any) => (
+                        <li key={c.id} className="text-sm">{c.name}</li>
+                    ))}
+                </ul>
+            </PopoverContent>
+        </Popover>
+    );
+  };
 
   return (
     <>
@@ -328,7 +358,7 @@ export function ManageUsersDialog() {
                             </TableCell>
                             <TableCell className="font-medium">{user.name}</TableCell>
                             <TableCell>{user.email}</TableCell>
-                            <TableCell>{getExpandedChurchName(user)}</TableCell>
+                            <TableCell><ChurchList user={user} /></TableCell>
                             <TableCell className="capitalize">{user.role}</TableCell>
                             <TableCell className="text-right">
                                 <div className="flex gap-2 justify-end">

@@ -97,7 +97,7 @@ export async function addUserByAdmin(formData: FormData) {
             role: formData.get('role'),
             password: formData.get('password'),
             passwordConfirm: formData.get('passwordConfirm'),
-            church: formData.get('church') ? [formData.get('church')] : [],
+            church: formData.getAll('church'),
         };
 
         const record = await pb.collection('pdg_users').create(textData);
@@ -117,7 +117,7 @@ export async function addUserByAdmin(formData: FormData) {
             await pb.collection('pdg_users').update(record.id, avatarFormData);
         }
 
-        const finalRecord = await pb.collection('pdg_users').getOne(record.id);
+        const finalRecord = await pb.collection('pdg_users').getOne(record.id, { expand: 'church' });
         return JSON.parse(JSON.stringify(finalRecord));
 
     } catch (error: any) {
@@ -135,7 +135,7 @@ export async function updateUserByAdmin(id: string, formData: FormData) {
         const textData: {[key:string]: any} = {
             name: formData.get('name'),
             role: formData.get('role'),
-            church: formData.get('church') ? [formData.get('church')] : [],
+            church: formData.getAll('church'),
         };
 
         await pb.collection('pdg_users').update(id, textData);
@@ -148,7 +148,7 @@ export async function updateUserByAdmin(id: string, formData: FormData) {
             await pb.collection('pdg_users').update(id, avatarFormData);
         }
         
-        const record = await pb.collection('pdg_users').getOne(id);
+        const record = await pb.collection('pdg_users').getOne(id, { expand: 'church' });
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
         console.error("Error updating user:", error);

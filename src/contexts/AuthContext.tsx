@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password: data.password,
           passwordConfirm: data.passwordConfirm,
           name: data.name,
-          church: data.church ? [data.church] : [],
+          church: data.church || [],
           role: 'volontario',
       };
       

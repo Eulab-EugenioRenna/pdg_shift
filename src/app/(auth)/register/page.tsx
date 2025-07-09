@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Icons } from '@/components/icons';
 import { pb } from '@/lib/pocketbase';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect, type Option } from '@/components/ui/multi-select';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -22,7 +22,7 @@ export default function RegisterPage() {
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [churches, setChurches] = useState<any[]>([]);
-  const [church, setChurch] = useState('');
+  const [selectedChurches, setSelectedChurches] = useState<string[]>([]);
   const [churchesLoading, setChurchesLoading] = useState(true);
 
   useEffect(() => {
@@ -43,6 +43,7 @@ export default function RegisterPage() {
     fetchChurches();
   }, []);
 
+  const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,13 +55,13 @@ export default function RegisterPage() {
       toast({ variant: 'destructive', title: 'Errore', description: 'La password deve contenere almeno 8 caratteri.' });
       return;
     }
-     if (!church) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Per favore, seleziona una chiesa.' });
+     if (selectedChurches.length === 0) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Per favore, seleziona almeno una chiesa.' });
       return;
     }
     setIsLoading(true);
     try {
-      await register({ name, email, password, passwordConfirm, church });
+      await register({ name, email, password, passwordConfirm, church: selectedChurches });
     } catch (error) {
       console.error(error);
     } finally {
@@ -95,23 +96,14 @@ export default function RegisterPage() {
                 <Input id="email" type="email" placeholder="mario.rossi@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
                <div className="grid gap-2">
-                <Label htmlFor="church">Chiesa</Label>
-                <Select onValueChange={setChurch} value={church} required disabled={churchesLoading}>
-                  <SelectTrigger id="church">
-                    <SelectValue placeholder={churchesLoading ? "caricamento ..." : "Seleziona la tua chiesa"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                     {churchesLoading ? (
-                       <SelectItem value="loading" disabled>caricamento ...</SelectItem>
-                     ) : churches.length > 0 ? (
-                      churches.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="no-churches" disabled>Nessuna chiesa disponibile.</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="church">Chiesa/e</Label>
+                <MultiSelect
+                    options={churchOptions}
+                    selected={selectedChurches}
+                    onChange={setSelectedChurches}
+                    placeholder={churchesLoading ? "caricamento..." : "Seleziona una o più chiese"}
+                    disabled={churchesLoading || churches.length === 0}
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Password</Label>
