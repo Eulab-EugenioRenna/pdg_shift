@@ -65,7 +65,8 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
             const formData = new FormData();
             formData.append('name', name);
             formData.append('description', description);
-            formData.append('leader', leaderId);
+            // If 'unassign' is selected, send an empty string to remove the relation
+            formData.append('leader', leaderId === 'unassign' ? '' : leaderId);
 
             try {
                 await updateService(service.id, formData);
@@ -103,7 +104,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                                 <SelectValue placeholder={leadersLoading ? "Caricamento leader..." : "Seleziona un leader"} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">Non assegnato</SelectItem>
+                                <SelectItem value="unassign">Non assegnato</SelectItem>
                                 {leaders.map((l) => (
                                     <SelectItem key={l.id} value={l.id}>
                                         {l.name}
