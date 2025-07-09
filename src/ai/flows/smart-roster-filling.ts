@@ -1,4 +1,3 @@
-// src/ai/flows/smart-roster-filling.ts
 'use server';
 
 /**
@@ -13,17 +12,17 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestVolunteersInputSchema = z.object({
-  serviceName: z.string().describe('The name of the service requiring volunteers.'),
-  date: z.string().describe('The date of the service.'),
-  openSlots: z.number().describe('The number of open slots in the service roster.'),
+  serviceName: z.string().describe('Il nome del servizio che richiede volontari.'),
+  date: z.string().describe('La data del servizio.'),
+  openSlots: z.number().describe('Il numero di posti disponibili nella lista del servizio.'),
   volunteerAvailability: z.array(
     z.object({
-      volunteerName: z.string().describe('The name of the volunteer.'),
-      availability: z.string().describe('The availability of the volunteer (e.g., available, not available).'),
-      skills: z.string().describe('The skills of the volunteer (e.g., singer, musician, tech support).'),
-      preferences: z.string().describe('The preferences of the volunteer (e.g., prefers morning services, works well with children).'),
+      volunteerName: z.string().describe('Il nome del volontario.'),
+      availability: z.string().describe('La disponibilità del volontario (es. disponibile, non disponibile).'),
+      skills: z.string().describe('Le competenze del volontario (es. cantante, musicista, supporto tecnico).'),
+      preferences: z.string().describe('Le preferenze del volontario (es. preferisce i servizi mattutini, lavora bene con i bambini).'),
     })
-  ).describe('An array of volunteer availability, skills, and preferences.'),
+  ).describe('Un array con disponibilità, competenze e preferenze dei volontari.'),
 });
 
 export type SuggestVolunteersInput = z.infer<typeof SuggestVolunteersInputSchema>;
@@ -31,10 +30,10 @@ export type SuggestVolunteersInput = z.infer<typeof SuggestVolunteersInputSchema
 const SuggestVolunteersOutputSchema = z.object({
   suggestedVolunteers: z.array(
     z.object({
-      volunteerName: z.string().describe('The name of the suggested volunteer.'),
-      reason: z.string().describe('The reason for suggesting this volunteer.'),
+      volunteerName: z.string().describe('Il nome del volontario suggerito.'),
+      reason: z.string().describe('La motivazione per cui questo volontario viene suggerito.'),
     })
-  ).describe('An array of suggested volunteers and their reasons for being suggested.'),
+  ).describe('Un array di volontari suggeriti e le motivazioni per il suggerimento.'),
 });
 
 export type SuggestVolunteersOutput = z.infer<typeof SuggestVolunteersOutputSchema>;
@@ -47,24 +46,24 @@ const prompt = ai.definePrompt({
   name: 'suggestVolunteersPrompt',
   input: {schema: SuggestVolunteersInputSchema},
   output: {schema: SuggestVolunteersOutputSchema},
-  prompt: `You are an AI assistant helping service leaders fill open slots in their service rosters.
+  prompt: `Sei un assistente IA che aiuta i responsabili dei servizi a riempire i posti vacanti nelle liste dei turni.
 
-You will be provided with the service name, date, number of open slots, and a list of volunteers with their availability, skills, and preferences.
+Ti verranno forniti il nome del servizio, la data, il numero di posti disponibili e un elenco di volontari con la loro disponibilità, competenze e preferenze.
 
-Your task is to suggest volunteers to fill the open slots based on their availability, skills, and preferences.
+Il tuo compito è suggerire volontari per riempire i posti disponibili in base alla loro disponibilità, competenze e preferenze.
 
-Service Name: {{{serviceName}}}
-Date: {{{date}}}
-Open Slots: {{{openSlots}}}
+Nome del Servizio: {{{serviceName}}}
+Data: {{{date}}}
+Posti Disponibili: {{{openSlots}}}
 
-Volunteers:
+Volontari:
 {{#each volunteerAvailability}}
-- Name: {{{volunteerName}}}, Availability: {{{availability}}}, Skills: {{{skills}}}, Preferences: {{{preferences}}}
+- Nome: {{{volunteerName}}}, Disponibilità: {{{availability}}}, Competenze: {{{skills}}}, Preferenze: {{{preferences}}}
 {{/each}}
 
-Suggest volunteers who are available, have the necessary skills, and whose preferences align with the service needs. Provide a reason for each suggestion.
+Suggerisci volontari che siano disponibili, che abbiano le competenze necessarie e le cui preferenze siano in linea con le esigenze del servizio. Fornisci una motivazione per ogni suggerimento.
 
-Format your response as a JSON array of suggested volunteers with their names and reasons.
+Formatta la tua risposta come un array JSON di volontari suggeriti con i loro nomi e le motivazioni.
 `, safetySettings: [
     {
       category: 'HARM_CATEGORY_HATE_SPEECH',

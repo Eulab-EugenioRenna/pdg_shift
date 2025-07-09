@@ -27,31 +27,31 @@ import { Loader2, User, Users, Wand2 } from "lucide-react";
 const volunteerPool = [
   {
     volunteerName: "Alice",
-    availability: "available",
+    availability: "disponibile",
     skills: "Cantante, accoglienza",
     preferences: "preferisce i servizi mattutini",
   },
   {
     volunteerName: "Bob",
-    availability: "available",
+    availability: "disponibile",
     skills: "Musicista (chitarra), supporto tecnico",
     preferences: "disponibile per qualsiasi servizio",
   },
   {
     volunteerName: "Charlie",
-    availability: "not available",
+    availability: "non disponibile",
     skills: "Assistenza all'infanzia, sicurezza",
     preferences: "preferisce i servizi serali",
   },
   {
     volunteerName: "Diana",
-    availability: "available",
+    availability: "disponibile",
     skills: "Supporto tecnico, mixer audio",
     preferences: "preferisce lavorare in team",
   },
    {
     volunteerName: "Ethan",
-    availability: "available",
+    availability: "disponibile",
     skills: "Usciere, allestimento/smontaggio",
     preferences: "non gli dispiace rimanere fino a tardi",
   },
@@ -133,7 +133,7 @@ export function SmartRosterDialog() {
               <CardContent>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                     {volunteerPool.map(v => (
-                        <li key={v.volunteerName} className={`flex items-center gap-2 ${v.availability !== 'available' ? 'line-through' : ''}`}>
+                        <li key={v.volunteerName} className={`flex items-center gap-2 ${v.availability !== 'disponibile' ? 'line-through' : ''}`}>
                             <User className="w-4 h-4"/> {v.volunteerName} - <span className="text-xs">{v.skills}</span>
                         </li>
                     ))}
