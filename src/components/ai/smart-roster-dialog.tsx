@@ -20,51 +20,30 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { getAiSuggestions } from "@/app/actions";
-import type { SuggestVolunteersOutput } from "@/ai/flows/smart-roster-filling";
+import { getAiTeamSuggestions } from "@/app/actions";
+import type { SuggestTeamOutput } from "@/ai/flows/smart-team-builder";
 import { Loader2, Users, Wand2 } from "lucide-react";
+import { Textarea } from "../ui/textarea";
 
 const volunteerPool = [
-  {
-    volunteerName: "Alice",
-    availability: "disponibile",
-    skills: "Cantante, accoglienza",
-    preferences: "preferisce i servizi mattutini",
-  },
-  {
-    volunteerName: "Bob",
-    availability: "disponibile",
-    skills: "Musicista (chitarra), supporto tecnico",
-    preferences: "disponibile per qualsiasi servizio",
-  },
-  {
-    volunteerName: "Charlie",
-    availability: "non disponibile",
-    skills: "Assistenza all'infanzia, sicurezza",
-    preferences: "preferisce i servizi serali",
-  },
-  {
-    volunteerName: "Diana",
-    availability: "disponibile",
-    skills: "Supporto tecnico, mixer audio",
-    preferences: "preferisce lavorare in team",
-  },
-  {
-    volunteerName: "Ethan",
-    availability: "disponibile",
-    skills: "Usciere, allestimento/smontaggio",
-    preferences: "non gli dispiace rimanere fino a tardi",
-  },
+  { volunteerName: "Alice", availability: "disponibile", skills: "Cantante, accoglienza", preferences: "preferisce i servizi mattutini" },
+  { volunteerName: "Bob", availability: "disponibile", skills: "Musicista (chitarra), supporto tecnico", preferences: "disponibile per qualsiasi servizio" },
+  { volunteerName: "Charlie", availability: "non disponibile", skills: "Assistenza all'infanzia, sicurezza", preferences: "preferisce i servizi serali" },
+  { volunteerName: "Diana", availability: "disponibile", skills: "Supporto tecnico, mixer audio", preferences: "preferisce lavorare in team" },
+  { volunteerName: "Ethan", availability: "disponibile", skills: "Usciere, allestimento/smontaggio", preferences: "non gli dispiace rimanere fino a tardi" },
+  { volunteerName: "Fiona", availability: "disponibile", skills: "Cantante (voce di supporto), social media", preferences: "disponibile per servizi speciali" },
+  { volunteerName: "George", availability: "disponibile", skills: "Musicista (basso)", preferences: "preferisce i servizi mattutini" },
+  { volunteerName: "Hannah", availability: "disponibile", skills: "Musicista (batteria)", preferences: "puntuale" },
 ];
 
 export function SmartRosterDialog() {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<SuggestVolunteersOutput | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestTeamOutput | null>(null);
   
   const [serviceName, setServiceName] = useState("Culto Domenicale Mattutino");
   const [date, setDate] = useState(new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString());
-  const [openSlots, setOpenSlots] = useState(2);
+  const [positions, setPositions] = useState("Voce, Chitarra, Batteria");
 
   const { toast } = useToast();
 
@@ -73,7 +52,7 @@ export function SmartRosterDialog() {
       // Reset state when dialog opens
       setServiceName("Culto Domenicale Mattutino");
       setDate(new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString());
-      setOpenSlots(2);
+      setPositions("Voce, Chitarra, Batteria");
       setSuggestions(null);
       setIsLoading(false);
     }
@@ -82,12 +61,23 @@ export function SmartRosterDialog() {
   const handleSuggestion = async () => {
     setIsLoading(true);
     setSuggestions(null);
+    
+    const positionArray = positions.split(',').map(p => p.trim()).filter(Boolean);
+    if(positionArray.length === 0){
+        toast({
+            variant: "destructive",
+            title: "Errore",
+            description: "Inserisci almeno una posizione da ricoprire.",
+        });
+        setIsLoading(false);
+        return;
+    }
 
     try {
-      const result = await getAiSuggestions({
+      const result = await getAiTeamSuggestions({
         serviceName,
         date,
-        openSlots,
+        positions: positionArray,
         volunteerAvailability: volunteerPool,
       });
       setSuggestions(result);
@@ -136,8 +126,13 @@ export function SmartRosterDialog() {
                   <Input id="date" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="openSlots">Posti disponibili</Label>
-                  <Input id="openSlots" type="number" value={openSlots} onChange={(e) => setOpenSlots(Number(e.target.value))} />
+                  <Label htmlFor="positions">Posizioni da ricoprire</Label>
+                   <Textarea 
+                      id="positions"
+                      value={positions}
+                      onChange={(e) => setPositions(e.target.value)}
+                      placeholder="Elenco di posizioni separate da virgola (es. Voce, Chitarra, Batteria)"
+                    />
                 </div>
               </CardContent>
             </Card>
@@ -182,10 +177,10 @@ export function SmartRosterDialog() {
                 )}
                 {suggestions && (
                   <div className="space-y-4">
-                    {suggestions.suggestedVolunteers.length > 0 ? (
-                      suggestions.suggestedVolunteers.map((s, i) => (
+                    {suggestions.suggestions.length > 0 ? (
+                      suggestions.suggestions.map((s, i) => (
                         <div key={i} className="p-4 rounded-lg bg-accent/50">
-                          <h4 className="font-semibold text-accent-foreground">{s.volunteerName}</h4>
+                          <h4 className="font-semibold text-accent-foreground">{s.position}: {s.volunteerName}</h4>
                           <p className="text-sm text-muted-foreground">{s.reason}</p>
                         </div>
                       ))

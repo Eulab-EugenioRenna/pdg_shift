@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,6 +13,74 @@ import { ManageServiceDialog } from './manage-service-dialog';
 import { pb } from '@/lib/pocketbase';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+
+function TeamDisplay({ service }: { service: RecordModel }) {
+    const assignments = service.team_assignments || {};
+    const positions = service.positions || [];
+    const teamMembers = service.expand?.team || [];
+    const teamMemberMap = new Map(teamMembers.map((m: RecordModel) => [m.id, m]));
+
+    if (positions.length > 0) {
+        return (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mt-2">
+                {positions.map((position: string) => {
+                    const userId = assignments[position];
+                    const user = userId ? teamMemberMap.get(userId) : null;
+                    return (
+                        <div key={position} className="flex items-center gap-2">
+                            <span className="font-medium text-muted-foreground w-24 truncate" title={position}>{position}:</span>
+                            {user ? (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1.5">
+                                            <Avatar className="h-5 w-5">
+                                                <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : ''} alt={user.name} />
+                                                <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="truncate">{user.name}</span>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>{user.name}</p></TooltipContent>
+                                </Tooltip>
+                            ) : (
+                                <span className="text-muted-foreground/70 italic">Non assegnato</span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        )
+    }
+
+    // Fallback for services without defined positions
+    return (
+        <div className="flex items-center gap-2 mt-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <div className="flex -space-x-2">
+                {teamMembers.length > 0 ? (
+                    teamMembers.slice(0, 7).map((member: RecordModel) => (
+                        <Tooltip key={member.id}>
+                            <TooltipTrigger asChild>
+                                <Avatar className="h-6 w-6 border-2 border-background">
+                                    <AvatarImage src={member.avatar ? pb.getFileUrl(member, member.avatar, { thumb: '100x100' }) : ''} alt={member.name} />
+                                    <AvatarFallback>{member.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                            </TooltipTrigger>
+                            <TooltipContent><p>{member.name}</p></TooltipContent>
+                        </Tooltip>
+                    ))
+                ) : (
+                    <span className="text-xs text-muted-foreground">Nessun volontario assegnato.</span>
+                )}
+                 {teamMembers.length > 7 && (
+                    <Avatar className="h-6 w-6 border-2 border-background">
+                        <AvatarFallback>+{teamMembers.length - 7}</AvatarFallback>
+                    </Avatar>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export function ServiceList({ eventId, churchId }: { eventId: string, churchId: string }) {
     const { user } = useAuth();
@@ -109,55 +176,29 @@ export function ServiceList({ eventId, churchId }: { eventId: string, churchId: 
                 ) : (
                     <div className="space-y-2">
                         {services.map(service => (
-                            <div key={service.id} className="p-3 rounded-md bg-secondary/50 flex justify-between items-center gap-4">
-                                <div className="flex-1 space-y-2">
-                                    <div>
+                            <div key={service.id} className="p-3 rounded-md bg-secondary/50">
+                                <div className="flex justify-between items-start gap-4">
+                                    <div className="flex-1 space-y-1">
                                         <p className="font-semibold">{service.name}</p>
                                         <p className="text-xs text-muted-foreground flex items-center gap-2"><UserCheck className="w-3 h-3"/> Leader: {service.expand?.leader?.name || 'Non assegnato'}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Users className="w-4 h-4 text-muted-foreground" />
-                                        <div className="flex -space-x-2">
-                                            {service.expand?.team && service.expand.team.length > 0 ? (
-                                                service.expand.team.slice(0, 7).map((member: RecordModel) => (
-                                                    <Tooltip key={member.id}>
-                                                        <TooltipTrigger asChild>
-                                                            <Avatar className="h-6 w-6 border-2 border-background">
-                                                                <AvatarImage src={member.avatar ? pb.getFileUrl(member, member.avatar, { thumb: '100x100' }) : `https://placehold.co/24x24.png`} alt={member.name} />
-                                                                <AvatarFallback>{member.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                                                            </Avatar>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>{member.name}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                ))
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground">Nessun volontario assegnato.</span>
-                                            )}
-                                             {service.expand?.team && service.expand.team.length > 7 && (
-                                                <Avatar className="h-6 w-6 border-2 border-background">
-                                                    <AvatarFallback>+{service.expand.team.length - 7}</AvatarFallback>
-                                                </Avatar>
-                                            )}
-                                        </div>
+                                        {(user?.role === 'admin' || user?.role === 'leader') && (
+                                            <Button variant="outline" size="sm" onClick={() => {
+                                                setServiceToManage(service);
+                                                setIsManageDialogOpen(true);
+                                            }}>
+                                                Gestisci Team
+                                            </Button>
+                                        )}
+                                        {user?.role === 'admin' && (
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setServiceToDelete(service)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    {(user?.role === 'admin' || user?.role === 'leader') && (
-                                        <Button variant="outline" size="sm" onClick={() => {
-                                            setServiceToManage(service);
-                                            setIsManageDialogOpen(true);
-                                        }}>
-                                            Gestisci
-                                        </Button>
-                                    )}
-                                    {user?.role === 'admin' && (
-                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setServiceToDelete(service)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    )}
-                                </div>
+                                <TeamDisplay service={service} />
                             </div>
                         ))}
                     </div>

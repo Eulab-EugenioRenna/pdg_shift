@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
@@ -14,12 +13,24 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { updateService, getLeaders, getUsers } from '@/app/actions';
-import { Loader2 } from 'lucide-react';
+import { updateService, getLeaders, getUsers, getAiTeamSuggestions } from '@/app/actions';
+import { Loader2, Wand2 } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '../ui/textarea';
-import { MultiSelect, type Option } from '../ui/multi-select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import type { SuggestTeamOutput } from '@/ai/flows/smart-team-builder';
+
+const volunteerPool = [
+    { volunteerName: "Alice", availability: "disponibile", skills: "Cantante, accoglienza", preferences: "preferisce i servizi mattutini" },
+    { volunteerName: "Bob", availability: "disponibile", skills: "Musicista (chitarra), supporto tecnico", preferences: "disponibile per qualsiasi servizio" },
+    { volunteerName: "Charlie", availability: "non disponibile", skills: "Assistenza all'infanzia, sicurezza", preferences: "preferisce i servizi serali" },
+    { volunteerName: "Diana", availability: "disponibile", skills: "Supporto tecnico, mixer audio", preferences: "preferisce lavorare in team" },
+    { volunteerName: "Ethan", availability: "disponibile", skills: "Usciere, allestimento/smontaggio", preferences: "non gli dispiace rimanere fino a tardi" },
+    { volunteerName: "Fiona", availability: "disponibile", skills: "Cantante (voce di supporto), social media", preferences: "disponibile per servizi speciali" },
+    { volunteerName: "George", availability: "disponibile", skills: "Musicista (basso)", preferences: "preferisce i servizi mattutini" },
+    { volunteerName: "Hannah", availability: "disponibile", skills: "Musicista (batteria)", preferences: "puntuale" },
+];
 
 interface ManageServiceDialogProps {
   isOpen: boolean;
@@ -33,59 +44,103 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
-    // Form state
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [leaderId, setLeaderId] = useState('');
-    const [teamIds, setTeamIds] = useState<string[]>([]);
+    const [teamAssignments, setTeamAssignments] = useState<Record<string, string>>({});
     
-    // Data
     const [leaders, setLeaders] = useState<RecordModel[]>([]);
-    const [leadersLoading, setLeadersLoading] = useState(true);
     const [allUsers, setAllUsers] = useState<RecordModel[]>([]);
-    const [usersLoading, setUsersLoading] = useState(true);
-    
+    const [dataLoading, setDataLoading] = useState(true);
+
+    const [aiSuggestions, setAiSuggestions] = useState<SuggestTeamOutput | null>(null);
+    const [isSuggesting, startAiTransition] = useTransition();
+
     useEffect(() => {
         if (isOpen && churchId) {
-            setLeadersLoading(true);
-            getLeaders(churchId)
-                .then(setLeaders)
-                .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i leader.' }))
-                .finally(() => setLeadersLoading(false));
-            
-            setUsersLoading(true);
-            getUsers()
-                .then(setAllUsers)
-                .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i volontari.' }))
-                .finally(() => setUsersLoading(false));
+            setDataLoading(true);
+            Promise.all([
+                getLeaders(churchId),
+                getUsers(), // In a real app, this should be scoped to the church
+            ]).then(([leadersData, usersData]) => {
+                setLeaders(leadersData);
+                setAllUsers(usersData);
+            }).catch(() => {
+                toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati necessari.' });
+            }).finally(() => {
+                setDataLoading(false);
+            });
         }
 
         if (service) {
             setName(service.name);
             setDescription(service.description);
             setLeaderId(service.leader || '');
-            setTeamIds(service.team || []);
+            setTeamAssignments(service.team_assignments || {});
+            setAiSuggestions(null); // Reset suggestions when opening
         }
     }, [isOpen, service, churchId, toast]);
+
+    const handleGetAiSuggestions = () => {
+        if (!service) return;
+
+        const openPositions = (service.positions || []).filter((pos: string) => !teamAssignments[pos]);
+
+        if (openPositions.length === 0) {
+            toast({ title: 'Tutto coperto!', description: "Non ci sono posizioni aperte da riempire." });
+            return;
+        }
+
+        startAiTransition(async () => {
+            try {
+                const result = await getAiTeamSuggestions({
+                    serviceName: service.name,
+                    date: new Date().toLocaleDateString('it-IT'),
+                    positions: openPositions,
+                    volunteerAvailability: volunteerPool, // This should be dynamic in a real app
+                });
+                setAiSuggestions(result);
+                 toast({ title: 'Suggerimenti Pronti!', description: "L'IA ha generato delle proposte per le posizioni aperte." });
+            } catch (error) {
+                toast({ variant: "destructive", title: "Errore IA", description: "Impossibile ottenere suggerimenti dall'IA." });
+            }
+        });
+    };
+    
+    const applySuggestion = (position: string, volunteerName: string) => {
+        const volunteer = allUsers.find(u => u.name === volunteerName);
+        if (volunteer) {
+            setTeamAssignments(prev => ({ ...prev, [position]: volunteer.id }));
+        } else {
+            toast({ variant: "destructive", title: "Errore", description: `Volontario "${volunteerName}" non trovato.`});
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!service) return;
 
         startTransition(async () => {
-            const formData = new FormData();
-            formData.append('name', name);
-            formData.append('description', description);
-            formData.append('leader', leaderId === 'unassign' ? '' : leaderId);
+            const finalAssignments = { ...teamAssignments };
+            Object.keys(finalAssignments).forEach(key => {
+                if(finalAssignments[key] === 'unassign') {
+                    delete finalAssignments[key];
+                }
+            });
 
-            if (teamIds.length === 0) {
-                formData.append('team', '');
-            } else {
-                teamIds.forEach(id => formData.append('team', id));
-            }
+            const teamIds = Object.values(finalAssignments).filter(id => id);
+            const uniqueTeamIds = [...new Set(teamIds)];
+
+            const serviceData = {
+                name,
+                description,
+                leader: leaderId === 'unassign' ? null : leaderId,
+                team_assignments: finalAssignments,
+                team: uniqueTeamIds,
+            };
 
             try {
-                await updateService(service.id, formData);
+                await updateService(service.id, serviceData);
                 toast({ title: 'Successo', description: 'Servizio aggiornato con successo.' });
                 onServiceUpdated();
                 setIsOpen(false);
@@ -95,15 +150,15 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
         });
     };
     
-    const userOptions: Option[] = allUsers.map(u => ({ value: u.id, label: u.name }));
+    const positions = service?.positions || [];
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                 <DialogTitle>Gestisci Servizio: {service?.name}</DialogTitle>
                 <DialogDescription>
-                    Modifica i dettagli del servizio, assegna un leader e componi il team.
+                    Modifica i dettagli, assegna un leader e componi il team per ogni posizione.
                 </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
@@ -117,9 +172,9 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="leader-select">Leader</Label>
-                        <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || leadersLoading}>
+                        <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading}>
                             <SelectTrigger id="leader-select">
-                                <SelectValue placeholder={leadersLoading ? "Caricamento leader..." : "Seleziona un leader"} />
+                                <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="unassign">Non assegnato</SelectItem>
@@ -131,20 +186,62 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, onSe
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="team-select">Team</Label>
-                        <MultiSelect
-                            options={userOptions}
-                            selected={teamIds}
-                            onChange={setTeamIds}
-                            placeholder={usersLoading ? "Caricamento volontari..." : "Seleziona i volontari"}
-                            disabled={isPending || usersLoading}
-                        />
-                    </div>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Team</CardTitle>
+                            <CardDescription>Assegna un volontario ad ogni posizione richiesta.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {positions.length > 0 ? positions.map((pos: string) => (
+                                <div key={pos} className="grid grid-cols-3 items-center gap-4">
+                                    <Label htmlFor={`pos-${pos}`} className="text-right">{pos}</Label>
+                                    <Select
+                                        value={teamAssignments[pos] || ''}
+                                        onValueChange={(value) => setTeamAssignments(prev => ({...prev, [pos]: value}))}
+                                        disabled={isPending || dataLoading}
+                                    >
+                                        <SelectTrigger id={`pos-${pos}`} className="col-span-2">
+                                            <SelectValue placeholder="Seleziona un volontario..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unassign">Non assegnato</SelectItem>
+                                            {allUsers.map((u) => (
+                                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )) : <p className="text-sm text-muted-foreground">Nessuna posizione definita per questo servizio.</p>}
+
+                            {positions.length > 0 && (
+                                <>
+                                    <Button type="button" variant="outline" onClick={handleGetAiSuggestions} disabled={isSuggesting} className="mt-4 w-full">
+                                        {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
+                                        Suggerisci Team con IA
+                                    </Button>
+                                    {aiSuggestions && aiSuggestions.suggestions.length > 0 && (
+                                        <div className="space-y-2 mt-4 p-4 bg-accent/50 rounded-lg">
+                                            <h4 className="font-semibold text-accent-foreground">Suggerimenti IA:</h4>
+                                            {aiSuggestions.suggestions.map((s, i) => (
+                                                <div key={i} className="text-sm flex items-center justify-between gap-2">
+                                                   <div>
+                                                        <span className="font-medium">{s.position}:</span> {s.volunteerName} - <em className="text-muted-foreground">{s.reason}</em>
+                                                   </div>
+                                                    <Button type="button" size="sm" variant="secondary" onClick={() => applySuggestion(s.position, s.volunteerName)}>Applica</Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                        <Button type="submit" disabled={isPending || leadersLoading || usersLoading}>
-                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button type="submit" disabled={isPending || dataLoading}>
+                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Salva Modifiche
                         </Button>
                     </DialogFooter>

@@ -1,7 +1,7 @@
 
 "use server";
 
-import { suggestVolunteers, SuggestVolunteersInput } from "@/ai/flows/smart-roster-filling";
+import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
 import { pb } from "@/lib/pocketbase";
 import { ClientResponseError, type RecordModel } from "pocketbase";
 import { format } from 'date-fns';
@@ -109,9 +109,9 @@ export async function getDashboardData(userRole: string, userChurchIds: string[]
 }
 
 
-export async function getAiSuggestions(data: SuggestVolunteersInput) {
+export async function getAiTeamSuggestions(data: SuggestTeamInput) {
     try {
-        const result = await suggestVolunteers(data);
+        const result = await suggestTeam(data);
         return result;
     } catch (error) {
         console.error("Error getting AI suggestions:", error);
@@ -297,6 +297,8 @@ export async function createEvent(formData: FormData) {
                         description: serviceTemplate.description,
                         event: record.id,
                         church: churchId,
+                        positions: serviceTemplate.positions || [],
+                        team_assignments: {},
                     });
                 }
             }
@@ -394,6 +396,8 @@ export async function createEventOverride(originalEventId: string, occurrenceDat
                 description: service.description,
                 leader: service.leader,
                 team: service.team || [],
+                positions: service.positions || [],
+                team_assignments: service.team_assignments || {},
             };
             await pb.collection('pdg_services').create(newServiceData);
         }
@@ -423,14 +427,13 @@ export async function getServicesForEvent(eventId: string) {
     }
 }
 
-export async function createService(formData: FormData) {
-    const leaderId = formData.get('leader');
-    if (!leaderId) {
+export async function createService(serviceData: any) {
+    if (!serviceData.leader) {
         throw new Error("È obbligatorio assegnare un leader per creare un servizio.");
     }
 
     try {
-        const record = await pb.collection('pdg_services').create(formData);
+        const record = await pb.collection('pdg_services').create(serviceData);
         const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader' });
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
@@ -439,9 +442,9 @@ export async function createService(formData: FormData) {
     }
 }
 
-export async function updateService(id: string, formData: FormData) {
+export async function updateService(id: string, serviceData: any) {
     try {
-        const record = await pb.collection('pdg_services').update(id, formData);
+        const record = await pb.collection('pdg_services').update(id, serviceData);
         const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader,team' });
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
@@ -471,18 +474,18 @@ export async function getServiceTemplates() {
     }
 }
 
-export async function addServiceTemplate(formData: FormData) {
+export async function addServiceTemplate(data: any) {
     try {
-        const record = await pb.collection('pdg_service_templates').create(formData);
+        const record = await pb.collection('pdg_service_templates').create(data);
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
         throw new Error(getErrorMessage(error));
     }
 }
 
-export async function updateServiceTemplate(id: string, formData: FormData) {
+export async function updateServiceTemplate(id: string, data: any) {
     try {
-        const record = await pb.collection('pdg_service_templates').update(id, formData);
+        const record = await pb.collection('pdg_service_templates').update(id, data);
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
         throw new Error(getErrorMessage(error));

@@ -81,15 +81,18 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
         }
         
         startTransition(async () => {
-            const formData = new FormData();
-            formData.append('name', customName);
-            formData.append('description', customDescription);
-            formData.append('event', eventId);
-            formData.append('church', churchId);
-            formData.append('leader', customLeaderId);
+            const serviceData = {
+                name: customName,
+                description: customDescription,
+                event: eventId,
+                church: churchId,
+                leader: customLeaderId,
+                positions: [],
+                team_assignments: {},
+            };
 
             try {
-                await createService(formData);
+                await createService(serviceData);
                 toast({ title: 'Successo', description: 'Servizio creato con successo.' });
                 onServiceAdded();
                 setIsOpen(false);
@@ -114,15 +117,18 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             const template = serviceTemplates.find(t => t.id === selectedTemplateId);
             if (!template) return;
 
-            const formData = new FormData();
-            formData.append('name', template.name);
-            formData.append('description', template.description);
-            formData.append('event', eventId);
-            formData.append('church', churchId);
-            formData.append('leader', templateLeaderId);
+            const serviceData = {
+                name: template.name,
+                description: template.description,
+                event: eventId,
+                church: churchId,
+                leader: templateLeaderId,
+                positions: template.positions || [],
+                team_assignments: {},
+            };
             
             try {
-                await createService(formData);
+                await createService(serviceData);
                 toast({ title: 'Successo', description: 'Servizio aggiunto con successo.' });
                 onServiceAdded();
                 setIsOpen(false);

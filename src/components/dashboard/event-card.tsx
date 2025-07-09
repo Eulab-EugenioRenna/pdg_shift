@@ -6,12 +6,75 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { Calendar, Clock, Repeat, UserCheck, Users } from "lucide-react";
+import { Calendar, Clock, Repeat, UserCheck, Users, User } from "lucide-react";
 import { pb } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 
 interface EventCardProps {
     event: DashboardEvent;
+}
+
+function TeamDisplay({ service }: { service: RecordModel }) {
+    const assignments = service.team_assignments || {};
+    const positions = service.positions || [];
+    const teamMembers = service.expand?.team || [];
+    const teamMemberMap = new Map(teamMembers.map((m: RecordModel) => [m.id, m]));
+
+    if (positions.length > 0) {
+        return (
+            <div className="space-y-2 text-sm mt-2">
+                {positions.map((position: string) => {
+                    const userId = assignments[position];
+                    const user = userId ? teamMemberMap.get(userId) : null;
+                    return (
+                        <div key={position} className="flex items-center gap-2">
+                            <span className="font-semibold w-2/5 truncate">{position}:</span>
+                            {user ? (
+                                <div className="flex items-center gap-2">
+                                    <Avatar className="h-5 w-5">
+                                        <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : ''} alt={user.name} />
+                                        <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-muted-foreground">{user.name}</span>
+                                </div>
+                            ) : (
+                                <span className="text-muted-foreground text-xs italic">Non assegnato</span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        )
+    }
+
+    // Fallback for services without defined positions
+    return (
+        <div className="flex items-center gap-2 mt-2">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <div className="flex -space-x-2">
+                {teamMembers.length > 0 ? (
+                    teamMembers.slice(0, 7).map((member: RecordModel) => (
+                        <Tooltip key={member.id}>
+                            <TooltipTrigger asChild>
+                                <Avatar className="h-6 w-6 border-2 border-background">
+                                    <AvatarImage src={member.avatar ? pb.getFileUrl(member, member.avatar, { thumb: '100x100' }) : ''} alt={member.name} />
+                                    <AvatarFallback>{member.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                            </TooltipTrigger>
+                            <TooltipContent><p>{member.name}</p></TooltipContent>
+                        </Tooltip>
+                    ))
+                ) : (
+                    <span className="text-xs text-muted-foreground">Nessun volontario.</span>
+                )}
+                {teamMembers.length > 7 && (
+                    <Avatar className="h-6 w-6 border-2 border-background">
+                        <AvatarFallback>+{teamMembers.length - 7}</AvatarFallback>
+                    </Avatar>
+                )}
+            </div>
+        </div>
+    );
 }
 
 export function EventCard({ event }: EventCardProps) {
@@ -34,31 +97,7 @@ export function EventCard({ event }: EventCardProps) {
                                 <UserCheck className="w-3 h-3"/> 
                                 Leader: {service.expand?.leader?.name || <span className="text-destructive">Non assegnato</span>}
                             </div>
-                            <div className="flex items-center gap-2 mt-2">
-                                <Users className="w-4 h-4 text-muted-foreground" />
-                                <div className="flex -space-x-2">
-                                    {service.expand?.team && service.expand.team.length > 0 ? (
-                                        service.expand.team.slice(0, 7).map((member: RecordModel) => (
-                                            <Tooltip key={member.id}>
-                                                <TooltipTrigger asChild>
-                                                    <Avatar className="h-6 w-6 border-2 border-background">
-                                                        <AvatarImage src={member.avatar ? pb.getFileUrl(member, member.avatar, { thumb: '100x100' }) : `https://placehold.co/24x24.png`} alt={member.name} />
-                                                        <AvatarFallback>{member.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                                                    </Avatar>
-                                                </TooltipTrigger>
-                                                <TooltipContent><p>{member.name}</p></TooltipContent>
-                                            </Tooltip>
-                                        ))
-                                    ) : (
-                                        <span className="text-xs text-muted-foreground">Nessun volontario.</span>
-                                    )}
-                                    {service.expand?.team && service.expand.team.length > 7 && (
-                                        <Avatar className="h-6 w-6 border-2 border-background">
-                                            <AvatarFallback>+{service.expand.team.length - 7}</AvatarFallback>
-                                        </Avatar>
-                                    )}
-                                </div>
-                            </div>
+                           <TeamDisplay service={service} />
                         </div>
                     ))
                    ) : (

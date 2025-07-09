@@ -36,6 +36,7 @@ import { pb } from '@/lib/pocketbase';
 function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
+  const [positions, setPositions] = useState(template?.positions?.join(', ') || '');
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -47,16 +48,18 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
     }
 
     startTransition(async () => {
-      const formData = new FormData();
-      formData.append('name', name.trim());
-      formData.append('description', description.trim());
+      const data = {
+        name: name.trim(),
+        description: description.trim(),
+        positions: positions.split(',').map(p => p.trim()).filter(Boolean),
+      };
 
       try {
         if (template) {
-          await updateServiceTemplate(template.id, formData);
+          await updateServiceTemplate(template.id, data);
           toast({ title: 'Successo', description: 'Tipo di servizio aggiornato con successo.' });
         } else {
-          await addServiceTemplate(formData);
+          await addServiceTemplate(data);
           toast({ title: 'Successo', description: 'Tipo di servizio aggiunto con successo.' });
         }
         onSave();
@@ -88,6 +91,19 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
           disabled={isPending}
           placeholder="Breve descrizione del servizio"
         />
+      </div>
+       <div>
+        <Label htmlFor="template-positions">Posizioni del Team</Label>
+        <Textarea 
+          id="template-positions"
+          value={positions}
+          onChange={(e) => setPositions(e.target.value)}
+          disabled={isPending}
+          placeholder="Elenco di posizioni separate da virgola (es. Voce, Chitarra, Batteria)"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Inserisci le posizioni richieste per questo servizio, separate da una virgola.
+        </p>
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>

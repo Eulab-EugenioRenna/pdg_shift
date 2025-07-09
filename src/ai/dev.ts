@@ -1,4 +1,4 @@
 import { config } from 'dotenv';
 config();
 
-import '@/ai/flows/smart-roster-filling.ts';
+import '@/ai/flows/smart-team-builder.ts';
