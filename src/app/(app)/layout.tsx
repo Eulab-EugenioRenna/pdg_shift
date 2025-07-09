@@ -36,7 +36,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", icon: Home, label: "Dashboard" },
     // { href: "/dashboard/schedule", icon: Calendar, label: "Schedule" },
     // { href: "/dashboard/volunteers", icon: Users, label: "Volunteers" },
-    // { href: "/dashboard/settings", icon: Settings, label: "Settings" },
+    { href: "/dashboard/settings", icon: Settings, label: "Impostazioni" },
   ];
 
   return (
