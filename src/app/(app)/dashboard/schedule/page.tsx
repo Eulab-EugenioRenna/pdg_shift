@@ -149,6 +149,7 @@ export default function SchedulePage() {
                                 selected={dateRange}
                                 onSelect={setDateRange}
                                 numberOfMonths={2}
+                                locale={it}
                             />
                         </PopoverContent>
                     </Popover>
