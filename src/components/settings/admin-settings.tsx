@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Building, UserPlus, CalendarPlus, UserCog, Trash2 } from 'lucide-react';
 import { ManageChurchesDialog } from '@/components/admin/manage-churches-dialog';
+import { ManageUsersDialog } from '@/components/admin/manage-users-dialog';
 
 export default function AdminSettings() {
     return (
@@ -38,8 +39,8 @@ export default function AdminSettings() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground mb-4">Aggiungi nuovi utenti e gestisci i loro ruoli.</p>
-                        <Button>Crea Utente</Button>
+                        <p className="text-muted-foreground mb-4">Aggiungi, modifica o elimina utenti e gestisci i loro ruoli.</p>
+                        <ManageUsersDialog />
                     </CardContent>
                 </Card>
                 <Card>
