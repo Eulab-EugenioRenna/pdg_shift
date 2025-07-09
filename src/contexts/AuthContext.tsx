@@ -63,29 +63,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(async (data: any) => {
     setLoading(true);
     try {
-      // PocketBase requires a username, let's generate one from the email to help ensure it's unique.
       const username = data.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Date.now().toString().slice(-4);
       
-      const recordData = {
-        username,
-        email: data.email,
-        emailVisibility: true,
-        password: data.password,
-        passwordConfirm: data.passwordConfirm,
-        name: data.name,
-        // The user specified 'multi', so PocketBase expects an array of IDs.
-        church: [data.church],
-        role: 'volontario', // Default role for new registrations
-      };
+      const avatarResponse = await fetch('https://placehold.co/200x200.png');
+      const avatarBlob = await avatarResponse.blob();
 
-      const newUser = await pb.collection('pdg_users').create(recordData);
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('email', data.email);
+      formData.append('emailVisibility', 'true');
+      formData.append('password', data.password);
+      formData.append('passwordConfirm', data.passwordConfirm);
+      formData.append('name', data.name);
+      formData.append('church', data.church);
+      formData.append('role', 'volontario');
+      formData.append('avatar', avatarBlob, `${username}_avatar.png`);
+
+      const newUser = await pb.collection('pdg_users').create(formData);
       
-      // After successful registration, log the user in
       await login(data.email, data.password);
       return newUser;
     } catch (error: any) {
       let errorMessage = "Controlla i dati inseriti e riprova.";
-      // PocketBase returns structured errors. Let's try to display a more specific message.
       if (error && typeof error === 'object' && 'data' in error && (error as any).data?.data) {
         const errorData = (error as any).data.data;
         const firstErrorKey = Object.keys(errorData)[0];

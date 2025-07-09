@@ -35,18 +35,13 @@ export default function RegisterPage() {
         setChurches(records);
       } catch (error) {
         console.error("Failed to fetch churches:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Errore di Caricamento',
-          description: "Impossibile caricare l'elenco delle chiese. Riprova più tardi.",
-        });
       } finally {
         setChurchesLoading(false);
       }
     };
 
     fetchChurches();
-  }, [toast]);
+  }, []);
 
 
   const handleRegister = async (e: React.FormEvent) => {
