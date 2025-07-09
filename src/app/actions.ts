@@ -4,6 +4,22 @@ import { suggestVolunteers, SuggestVolunteersInput } from "@/ai/flows/smart-rost
 import { pb } from "@/lib/pocketbase";
 import type { ClientResponseError } from "pocketbase";
 
+function getErrorMessage(error: any): string {
+    if (error instanceof Error) {
+        const clientError = error as ClientResponseError;
+        if (clientError.data?.data) {
+            const errorData = clientError.data.data;
+            const firstErrorKey = Object.keys(errorData)[0];
+            if (firstErrorKey && errorData[firstErrorKey].message) {
+                return errorData[firstErrorKey].message;
+            }
+        }
+        return clientError.message;
+    }
+    return "An unknown error occurred.";
+}
+
+
 export async function getAiSuggestions(data: SuggestVolunteersInput) {
     try {
         const result = await suggestVolunteers(data);
@@ -30,7 +46,7 @@ export async function addChurch(formData: FormData) {
         return JSON.parse(JSON.stringify(record));
     } catch (error) {
         console.error("Error adding church:", error);
-        throw new Error("Failed to add church.");
+        throw new Error(getErrorMessage(error));
     }
 }
 
@@ -40,7 +56,7 @@ export async function updateChurch(id: string, formData: FormData) {
         return JSON.parse(JSON.stringify(record));
     } catch (error) {
         console.error("Error updating church:", error);
-        throw new Error("Failed to update church.");
+        throw new Error(getErrorMessage(error));
     }
 }
 
@@ -50,7 +66,7 @@ export async function deleteChurch(id: string) {
         return { success: true };
     } catch (error) {
         console.error("Error deleting church:", error);
-        throw new Error("Failed to delete church.");
+        throw new Error(getErrorMessage(error));
     }
 }
 
@@ -109,16 +125,8 @@ export async function addUserByAdmin(formData: FormData) {
             // cleanup created record if avatar upload fails
             await pb.collection('pdg_users').delete(createdRecordId);
         }
-        console.error("Error adding user:", error.data);
-         let errorMessage = "Operazione fallita. Controlla i dati e riprova.";
-         if (error.data?.data) {
-            const errorData = error.data.data;
-            const firstErrorKey = Object.keys(errorData)[0];
-            if (firstErrorKey && errorData[firstErrorKey].message) {
-                errorMessage = errorData[firstErrorKey].message;
-            }
-        }
-        throw new Error(errorMessage);
+        console.error("Error adding user:", error);
+        throw new Error(getErrorMessage(error));
     }
 }
 
@@ -143,16 +151,8 @@ export async function updateUserByAdmin(id: string, formData: FormData) {
         const record = await pb.collection('pdg_users').getOne(id);
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
-        console.error("Error updating user:", error.data);
-        let errorMessage = "Operazione fallita. Controlla i dati e riprova.";
-         if (error.data?.data) {
-            const errorData = error.data.data;
-            const firstErrorKey = Object.keys(errorData)[0];
-            if (firstErrorKey && errorData[firstErrorKey].message) {
-                errorMessage = errorData[firstErrorKey].message;
-            }
-        }
-        throw new Error(errorMessage);
+        console.error("Error updating user:", error);
+        throw new Error(getErrorMessage(error));
     }
 }
 
@@ -162,6 +162,6 @@ export async function deleteUser(id: string) {
         return { success: true };
     } catch (error) {
         console.error("Error deleting user:", error);
-        throw new Error("Failed to delete user.");
+        throw new Error(getErrorMessage(error));
     }
 }
