@@ -49,7 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, pass: string) => {
     setLoading(true);
     try {
-      const authData = await pb.collection('pdg_users').authWithPassword(email, pass);
+      const authData = await pb.collection('pdg_users').authWithPassword(email, pass, {
+          expand: 'church',
+      });
       toast({ title: "Successo", description: "Login effettuato con successo." });
       router.push('/dashboard');
       return authData;
@@ -110,7 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      await pb.collection('pdg_users').authRefresh();
+      await pb.collection('pdg_users').authRefresh({
+        expand: 'church',
+      });
     } catch (error) {
       console.error("Impossibile aggiornare l'utente:", error);
       // If refresh fails (e.g. token expired), log the user out
