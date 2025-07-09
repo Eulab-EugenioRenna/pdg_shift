@@ -26,24 +26,48 @@ export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Create the provider component
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User>(pb.authStore.model);
-  const [token, setToken] = useState<string>(pb.authStore.token);
+  const [user, setUser] = useState<User>(null);
+  const [token, setToken] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { toast } = useToast();
 
+  const logout = useCallback(() => {
+    pb.authStore.clear();
+    router.push('/');
+  }, [router]);
+
+  const refreshUser = useCallback(async () => {
+    if (!pb.authStore.model?.id) return;
+    try {
+      await pb.collection('pdg_users').authRefresh({
+        expand: 'church',
+      });
+    } catch (error) {
+      console.error("Impossibile aggiornare l'utente, logout in corso:", error);
+      logout();
+    }
+  }, [logout]);
+
   useEffect(() => {
-    // This effect ensures we check the auth state only on the client
-    setLoading(true);
+    const initializeAuth = async () => {
+      if (pb.authStore.isValid) {
+        await refreshUser();
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
+    
     const unsubscribe = pb.authStore.onChange((newToken, newUser) => {
       setToken(newToken);
       setUser(newUser);
-    }, true); // `true` calls the callback immediately with current state
+    }, true);
 
-    setLoading(false);
     return () => {
       unsubscribe();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(async (email: string, pass: string) => {
@@ -105,23 +129,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [login, toast]);
 
-  const logout = useCallback(() => {
-    pb.authStore.clear();
-    router.push('/');
-  }, [router]);
-
-  const refreshUser = useCallback(async () => {
-    try {
-      await pb.collection('pdg_users').authRefresh({
-        expand: 'church',
-      });
-    } catch (error) {
-      console.error("Impossibile aggiornare l'utente:", error);
-      // If refresh fails (e.g. token expired), log the user out
-      logout();
-    }
-  }, [logout]);
-
 
   const value: AuthContextType = {
     user,
@@ -133,5 +140,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser,
   };
 
-  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
