@@ -304,7 +304,7 @@ export async function createEventOverride(originalEventId: string, occurrenceDat
         });
 
         if (templateServices.length > 0) {
-            const serviceCreationPromises = templateServices.map(service => {
+            for (const service of templateServices) {
                 const newServiceData = {
                     church: service.church,
                     event: newEventRecord.id,
@@ -312,9 +312,8 @@ export async function createEventOverride(originalEventId: string, occurrenceDat
                     description: service.description,
                     leader: service.leader,
                 };
-                return pb.collection('pdg_services').create(newServiceData);
-            });
-            await Promise.all(serviceCreationPromises);
+                await pb.collection('pdg_services').create(newServiceData);
+            }
         }
         
         const finalRecord = await pb.collection('pdg_events').getOne(newEventRecord.id);
