@@ -140,24 +140,48 @@ export function ManageChurchesDialog() {
   
   const { toast } = useToast();
 
-  const fetchAndSetChurches = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const records = await getChurches();
-      setChurches(records);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare le chiese.' });
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (!open) {
+        return;
     }
-  }, [toast]);
+    
+    setIsLoading(true);
+    getChurches()
+        .then(records => {
+            setChurches(records.sort((a,b) => a.name.localeCompare(b.name)));
+        })
+        .catch(() => {
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare le chiese.' });
+        })
+        .finally(() => {
+            setIsLoading(false);
+        });
+
+    const handleSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
+        const sortChurches = (c: RecordModel[]) => c.sort((a,b) => a.name.localeCompare(b.name));
+        
+        if (action === 'create') {
+            setChurches(prev => sortChurches([...prev, record]));
+        } else if (action === 'update') {
+            setChurches(prev => sortChurches(prev.map(c => c.id === record.id ? record : c)));
+        } else if (action === 'delete') {
+            setChurches(prev => prev.filter(c => c.id !== record.id));
+        }
+    };
+    
+    pb.collection('pdg_church').subscribe('*', handleSubscription);
+    
+    return () => {
+        pb.collection('pdg_church').unsubscribe('*');
+    };
+    
+  }, [open, toast]);
 
   useEffect(() => {
     if (open) {
-      fetchAndSetChurches();
       setView('list'); // Reset view on open
     }
-  }, [open, fetchAndSetChurches]);
+  }, [open]);
 
   const handleEdit = (church: RecordModel) => {
     setChurchToEdit(church);
@@ -172,7 +196,6 @@ export function ManageChurchesDialog() {
   const handleBackToList = () => {
     setView('list');
     setChurchToEdit(null);
-    fetchAndSetChurches();
   }
 
   const handleDeleteChurch = () => {
@@ -181,7 +204,6 @@ export function ManageChurchesDialog() {
     deleteChurch(churchToDelete.id)
       .then(() => {
         toast({ title: 'Successo', description: 'Chiesa eliminata con successo.' });
-        fetchAndSetChurches();
       })
       .catch((error) => {
         toast({ variant: 'destructive', title: 'Errore', description: error.message });

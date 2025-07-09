@@ -226,24 +226,51 @@ export function ManageUsersDialog() {
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
-  const fetchAndSetUsers = useCallback(async () => {
+  useEffect(() => {
+    if (!open) return;
+    
     setIsLoading(true);
-    try {
-      const records = await getUsers();
-      setUsers(records);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare gli utenti.' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
+    getUsers()
+        .then(records => {
+            setUsers(records.sort((a,b) => a.name.localeCompare(b.name)));
+        })
+        .catch(() => {
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare gli utenti.' });
+        })
+        .finally(() => setIsLoading(false));
+
+    const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
+        const sortUsers = (u: RecordModel[]) => u.sort((a,b) => a.name.localeCompare(b.name));
+
+        if (action === 'create' || action === 'update') {
+            try {
+                const fullRecord = await pb.collection('pdg_users').getOne(record.id, { expand: 'church' });
+                if (action === 'create') {
+                    setUsers(prev => sortUsers([...prev, fullRecord]));
+                } else { // update
+                    setUsers(prev => sortUsers(prev.map(u => u.id === fullRecord.id ? fullRecord : u)));
+                }
+            } catch (e) {
+                console.error("Failed to fetch full user record for subscription update:", e);
+            }
+        } else if (action === 'delete') {
+            setUsers(prev => prev.filter(u => u.id !== record.id));
+        }
+    };
+    
+    pb.collection('pdg_users').subscribe('*', handleSubscription);
+    
+    return () => {
+        pb.collection('pdg_users').unsubscribe('*');
+    };
+    
+  }, [open, toast]);
 
   useEffect(() => {
     if (open) {
-      fetchAndSetUsers();
       setView('list');
     }
-  }, [open, fetchAndSetUsers]);
+  }, [open]);
 
   const handleEdit = (user: RecordModel) => {
     setUserToEdit(user);
@@ -258,7 +285,6 @@ export function ManageUsersDialog() {
   const handleBackToList = () => {
     setView('list');
     setUserToEdit(null);
-    fetchAndSetUsers();
   }
 
   const handleDeleteUser = () => {
@@ -267,7 +293,6 @@ export function ManageUsersDialog() {
     deleteUser(userToDelete.id)
       .then(() => {
         toast({ title: 'Successo', description: 'Utente eliminato con successo.' });
-        fetchAndSetUsers();
       })
       .catch((error) => {
         toast({ variant: 'destructive', title: 'Errore', description: error.message });

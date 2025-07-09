@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -30,6 +30,7 @@ import type { RecordModel } from 'pocketbase';
 import { Loader2, Trash2, Edit, PlusCircle, ListTodo } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '../ui/textarea';
+import { pb } from '@/lib/pocketbase';
 
 
 function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
@@ -112,24 +113,43 @@ export function ManageServiceTemplatesDialog() {
   
   const { toast } = useToast();
 
-  const fetchAndSetTemplates = useCallback(async () => {
+  useEffect(() => {
+    if (!open) return;
+
     setIsLoading(true);
-    try {
-      const records = await getServiceTemplates();
-      setTemplates(records);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i tipi di servizio.' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
+    getServiceTemplates()
+        .then(records => {
+            setTemplates(records.sort((a,b) => a.name.localeCompare(b.name)));
+        })
+        .catch(() => {
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i tipi di servizio.' });
+        })
+        .finally(() => setIsLoading(false));
+
+    const handleSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
+        const sortTemplates = (t: RecordModel[]) => t.sort((a,b) => a.name.localeCompare(b.name));
+        
+        if (action === 'create') {
+            setTemplates(prev => sortTemplates([...prev, record]));
+        } else if (action === 'update') {
+            setTemplates(prev => sortTemplates(prev.map(t => t.id === record.id ? record : t)));
+        } else if (action === 'delete') {
+            setTemplates(prev => prev.filter(t => t.id !== record.id));
+        }
+    };
+
+    pb.collection('pdg_service_templates').subscribe('*', handleSubscription);
+
+    return () => {
+        pb.collection('pdg_service_templates').unsubscribe('*');
+    };
+  }, [open, toast]);
 
   useEffect(() => {
     if (open) {
-      fetchAndSetTemplates();
       setView('list');
     }
-  }, [open, fetchAndSetTemplates]);
+  }, [open]);
 
   const handleEdit = (template: RecordModel) => {
     setTemplateToEdit(template);
@@ -144,7 +164,6 @@ export function ManageServiceTemplatesDialog() {
   const handleBackToList = () => {
     setView('list');
     setTemplateToEdit(null);
-    fetchAndSetTemplates();
   }
 
   const handleDeleteTemplate = () => {
@@ -153,7 +172,6 @@ export function ManageServiceTemplatesDialog() {
     deleteServiceTemplate(templateToDelete.id)
       .then(() => {
         toast({ title: 'Successo', description: 'Tipo di servizio eliminato con successo.' });
-        fetchAndSetTemplates();
       })
       .catch((error) => {
         toast({ variant: 'destructive', title: 'Errore', description: error.message });

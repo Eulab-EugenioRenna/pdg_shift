@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,6 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import { Badge } from '../ui/badge';
+import { pb } from '@/lib/pocketbase';
 
 
 function EventTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
@@ -139,24 +140,50 @@ export function ManageEventTemplatesDialog() {
   
   const { toast } = useToast();
 
-  const fetchAndSetTemplates = useCallback(async () => {
+  useEffect(() => {
+    if (!open) return;
+
     setIsLoading(true);
-    try {
-      const records = await getEventTemplates();
-      setTemplates(records);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
+    getEventTemplates()
+        .then(records => {
+            setTemplates(records.sort((a,b) => a.name.localeCompare(b.name)));
+        })
+        .catch(() => {
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' });
+        })
+        .finally(() => setIsLoading(false));
+
+    const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
+        const sortTemplates = (t: RecordModel[]) => t.sort((a,b) => a.name.localeCompare(b.name));
+
+        if (action === 'create' || action === 'update') {
+            try {
+                const fullRecord = await pb.collection('pdg_event_templates').getOne(record.id, { expand: 'service_templates' });
+                if (action === 'create') {
+                    setTemplates(prev => sortTemplates([...prev, fullRecord]));
+                } else { // update
+                    setTemplates(prev => sortTemplates(prev.map(t => t.id === fullRecord.id ? fullRecord : t)));
+                }
+            } catch (e) {
+                console.error("Failed to fetch full event template record for subscription update:", e);
+            }
+        } else if (action === 'delete') {
+            setTemplates(prev => prev.filter(t => t.id !== record.id));
+        }
+    };
+
+    pb.collection('pdg_event_templates').subscribe('*', handleSubscription);
+
+    return () => {
+        pb.collection('pdg_event_templates').unsubscribe('*');
+    };
+  }, [open, toast]);
 
   useEffect(() => {
     if (open) {
-      fetchAndSetTemplates();
       setView('list');
     }
-  }, [open, fetchAndSetTemplates]);
+  }, [open]);
 
   const handleEdit = (template: RecordModel) => {
     setTemplateToEdit(template);
@@ -171,7 +198,6 @@ export function ManageEventTemplatesDialog() {
   const handleBackToList = () => {
     setView('list');
     setTemplateToEdit(null);
-    fetchAndSetTemplates();
   }
 
   const handleDeleteTemplate = () => {
@@ -180,7 +206,6 @@ export function ManageEventTemplatesDialog() {
     deleteEventTemplate(templateToDelete.id)
       .then(() => {
         toast({ title: 'Successo', description: 'Modello di evento eliminato.' });
-        fetchAndSetTemplates();
       })
       .catch((error) => {
         toast({ variant: 'destructive', title: 'Errore', description: error.message });
