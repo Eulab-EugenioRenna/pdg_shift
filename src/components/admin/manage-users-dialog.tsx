@@ -44,7 +44,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     password: '',
     passwordConfirm: '',
     role: user?.role || 'volontario',
-    church: user?.church || [],
+    church: user?.expand?.church?.map((c: any) => c.id) || user?.church || [],
   });
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -137,7 +137,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 py-4">
+    <form onSubmit={handleSubmit} className="space-y-6 py-4">
       <div className="flex flex-col items-center gap-4 col-span-full">
           <Avatar className="w-24 h-24">
               <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />
@@ -155,7 +155,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
               onChange={handleFileChange} 
           />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
         <div className="space-y-2">
           <Label htmlFor="name">Nome e Cognome</Label>
           <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
@@ -164,20 +164,20 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
           <Label htmlFor="email">Email</Label>
           <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isPending || !!user} required={!user} />
         </div>
-      </div>
-      {!user && (
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password" type="password" value={formData.password} onChange={handleChange} disabled={isPending} required={!user} />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="passwordConfirm">Conferma Password</Label>
-                <Input id="passwordConfirm" name="passwordConfirm" type="password" value={formData.passwordConfirm} onChange={handleChange} disabled={isPending} required={!user} />
-            </div>
-         </div>
-      )}
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      
+        {!user && (
+           <>
+              <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" name="password" type="password" value={formData.password} onChange={handleChange} disabled={isPending} required={!user} />
+              </div>
+              <div className="space-y-2">
+                  <Label htmlFor="passwordConfirm">Conferma Password</Label>
+                  <Input id="passwordConfirm" name="passwordConfirm" type="password" value={formData.passwordConfirm} onChange={handleChange} disabled={isPending} required={!user} />
+              </div>
+           </>
+        )}
+      
         <div className="space-y-2">
           <Label htmlFor="church">Chiesa/e</Label>
           <MultiSelect
