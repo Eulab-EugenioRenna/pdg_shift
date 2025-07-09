@@ -18,6 +18,7 @@ export interface AuthContextType {
   login: (email: string, pass: string) => Promise<any>;
   logout: () => void;
   register: (data: any) => Promise<any>;
+  refreshUser: () => Promise<void>;
 }
 
 // Create the context
@@ -107,6 +108,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/');
   }, [router]);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      await pb.collection('pdg_users').authRefresh();
+    } catch (error) {
+      console.error("Impossibile aggiornare l'utente:", error);
+      // If refresh fails (e.g. token expired), log the user out
+      logout();
+    }
+  }, [logout]);
+
+
   const value: AuthContextType = {
     user,
     token,
@@ -114,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     register,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

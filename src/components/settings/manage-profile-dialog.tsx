@@ -21,7 +21,7 @@ import { pb } from '@/lib/pocketbase';
 import { useAuth } from '@/hooks/useAuth';
 
 export function ManageProfileDialog() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
@@ -86,6 +86,7 @@ export function ManageProfileDialog() {
 
         try {
             await updateUserProfile(user.id, data);
+            await refreshUser();
             toast({ title: 'Successo', description: 'Profilo aggiornato con successo.' });
             setOpen(false);
         } catch (error: any) {
