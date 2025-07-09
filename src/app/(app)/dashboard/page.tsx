@@ -10,6 +10,7 @@ import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format } f
 import { it } from 'date-fns/locale';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardCalendar } from '@/components/dashboard/dashboard-calendar';
+import { WeeklyCalendarView } from '@/components/dashboard/weekly-calendar-view';
 import { EventCard } from '@/components/dashboard/event-card';
 
 type ViewMode = 'week' | 'month';
@@ -19,27 +20,40 @@ export default function DashboardPage() {
     const { toast } = useToast();
 
     const [viewMode, setViewMode] = useState<ViewMode>('month');
-    const [dateRange, setDateRange] = useState({
-        start: startOfMonth(new Date()),
-        end: endOfMonth(new Date())
-    });
+    const [currentDate, setCurrentDate] = useState(new Date());
     
     const [data, setData] = useState<{ events: DashboardEvent[], stats: { upcomingEvents: number, openPositions: number } } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>();
 
+    const dateRange = useMemo(() => {
+        if (viewMode === 'week') {
+            return {
+                start: startOfWeek(currentDate, { locale: it }),
+                end: endOfWeek(currentDate, { locale: it })
+            };
+        }
+        return {
+            start: startOfMonth(currentDate),
+            end: endOfMonth(currentDate)
+        };
+    }, [viewMode, currentDate]);
+
     useEffect(() => {
         if (!user) return;
-
-        // An admin does not have a `church` property, so we send an empty array
-        // The server action will know to fetch for all churches in that case.
+        
         const userChurchIds = user.role === 'admin' ? [] : (user.church || []);
 
         setIsLoading(true);
         getDashboardData(user.role, userChurchIds, dateRange.start.toISOString(), dateRange.end.toISOString())
             .then(data => {
                 setData(data);
-                setSelectedDate(undefined); // Reset selection when data reloads
+                if (selectedDate) {
+                    const isSelectedDateStillPresent = data.events.some(e => isSameDay(new Date(e.start_date), selectedDate));
+                    if (!isSelectedDateStillPresent) {
+                        setSelectedDate(undefined);
+                    }
+                }
             })
             .catch(error => {
                 console.error(error);
@@ -52,18 +66,8 @@ export default function DashboardPage() {
     const handleViewChange = (mode: ViewMode) => {
         if (!mode) return;
         setViewMode(mode);
-        const now = new Date();
-        if (mode === 'week') {
-            setDateRange({
-                start: startOfWeek(now, { locale: it }),
-                end: endOfWeek(now, { locale: it })
-            });
-        } else { // month
-            setDateRange({
-                start: startOfMonth(now),
-                end: endOfMonth(now)
-            });
-        }
+        setCurrentDate(new Date());
+        setSelectedDate(undefined);
     };
     
     const eventsForCalendar = useMemo(() => data?.events.map(e => new Date(e.start_date)) || [], [data]);
@@ -73,8 +77,20 @@ export default function DashboardPage() {
         return data.events.filter(event => isSameDay(new Date(event.start_date), selectedDate));
     }, [data?.events, selectedDate]);
     
-    // Set the month for the calendar view to the selected date if it exists, otherwise the start of the range
     const calendarMonth = selectedDate || dateRange.start;
+
+    const handleSelectDate = (date: Date | undefined) => {
+        if (date && !eventsForCalendar.some(eventDate => isSameDay(eventDate, date))) {
+            setSelectedDate(undefined);
+            return;
+        }
+
+        if (date && selectedDate && isSameDay(date, selectedDate)) {
+            setSelectedDate(undefined);
+        } else {
+            setSelectedDate(date);
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -127,54 +143,53 @@ export default function DashboardPage() {
             </div>
             
              <Card>
-                <CardContent className="grid gap-6 lg:grid-cols-3 p-6">
-                    <div className="lg:col-span-2">
-                        <DashboardCalendar 
+                <CardContent className="p-0">
+                   {viewMode === 'month' ? (
+                         <DashboardCalendar 
                             events={eventsForCalendar}
                             month={calendarMonth}
                             selected={selectedDate}
-                            onSelect={(date) => {
-                                // If clicking the same day, deselect it. Otherwise, select the new day.
-                                if (date && selectedDate && isSameDay(date, selectedDate)) {
-                                    setSelectedDate(undefined);
-                                } else {
-                                    setSelectedDate(date);
-                                }
-                            }}
+                            onSelect={handleSelectDate}
                         />
-                    </div>
-                     <div className="lg:col-span-1 space-y-4 max-h-[600px] overflow-y-auto pr-3">
-                        {isLoading && (
-                            <div className="flex items-center justify-center h-full">
-                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                        )}
-                        {!isLoading && !selectedDate && (
-                            <div className="flex flex-col items-center justify-center h-full text-center p-4 rounded-lg border-2 border-dashed">
-                                <CalendarDays className="h-12 w-12 text-muted-foreground mb-4" />
-                                <h3 className="font-semibold">Nessun giorno selezionato</h3>
-                                <p className="text-muted-foreground text-sm mt-1">
-                                    Seleziona un giorno dal calendario per vedere gli eventi in programma.
-                                </p>
-                            </div>
-                        )}
-                        {!isLoading && selectedDate && (
-                            <>
-                                <h3 className="font-bold text-xl">Eventi del {format(selectedDate, 'd MMMM yyyy', { locale: it })}</h3>
-                                {eventsForSelectedDay.length > 0 ? (
-                                    eventsForSelectedDay.map(event => (
-                                        <EventCard key={event.id} event={event} />
-                                    ))
-                                ) : (
-                                    <div className="flex items-center justify-center h-40 rounded-lg border-2 border-dashed">
-                                        <p className="text-muted-foreground">Nessun evento in programma.</p>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
+                    ) : (
+                        data && (
+                            <WeeklyCalendarView 
+                                week={dateRange}
+                                events={data.events}
+                                selected={selectedDate}
+                                onSelect={handleSelectDate}
+                            />
+                        )
+                    )}
                 </CardContent>
               </Card>
+
+            {isLoading && (
+                <div className="flex items-center justify-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            )}
+
+            {!isLoading && selectedDate && eventsForSelectedDay.length > 0 && (
+                 <div className="space-y-4 animate-in fade-in-50">
+                    <h3 className="font-bold text-xl">Eventi del {format(selectedDate, 'd MMMM yyyy', { locale: it })}</h3>
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {eventsForSelectedDay.map(event => (
+                            <EventCard key={event.id} event={event} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {!isLoading && !selectedDate && (
+                 <div className="flex flex-col items-center justify-center text-center p-4 rounded-lg border-2 border-dashed min-h-[200px]">
+                    <CalendarDays className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="font-semibold">Nessun giorno selezionato</h3>
+                    <p className="text-muted-foreground text-sm mt-1">
+                        Seleziona un giorno dal calendario con un evento per vederne i dettagli.
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
