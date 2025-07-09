@@ -46,8 +46,7 @@ function MultiSelect({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between",
-            selected.length > 0 ? "h-full" : "h-10",
+            "w-full justify-between min-h-[2.5rem] h-auto",
             className
           )}
           disabled={disabled}

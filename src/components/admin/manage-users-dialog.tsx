@@ -188,16 +188,18 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
             disabled={churchesLoading || isPending}
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="role">Ruolo</Label>
-           <Select name="role" onValueChange={handleSelectChange('role')} value={formData.role} required disabled={isPending}>
-            <SelectTrigger><SelectValue placeholder="Seleziona un ruolo" /></SelectTrigger>
-            <SelectContent>
-                <SelectItem value="volontario">Volontario</SelectItem>
-                <SelectItem value="leader">Leader</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col">
+          <Label htmlFor="role" className="mb-2">Ruolo</Label>
+           <div className="flex-grow flex items-center">
+            <Select name="role" onValueChange={handleSelectChange('role')} value={formData.role} required disabled={isPending}>
+              <SelectTrigger className="w-full"><SelectValue placeholder="Seleziona un ruolo" /></SelectTrigger>
+              <SelectContent>
+                  <SelectItem value="volontario">Volontario</SelectItem>
+                  <SelectItem value="leader">Leader</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+           </div>
         </div>
       </div>
       <DialogFooter>
