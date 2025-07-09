@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarTrigger, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from '@/components/ui/sidebar';
@@ -12,16 +12,24 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { CompleteProfileDialog } from '@/components/settings/complete-profile-dialog';
 
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       router.replace('/login');
+    }
+    if (!loading && user) {
+        const isComplete = user.phone && user.skills && user.service_preferences?.length > 0;
+        if (!isComplete) {
+            setIsProfileIncomplete(true);
+        }
     }
   }, [user, loading, router]);
 
@@ -39,6 +47,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // { href: "/dashboard/volunteers", icon: Users, label: "Volunteers" },
     { href: "/dashboard/settings", icon: Settings, label: "Impostazioni" },
   ];
+  
+  const handleProfileCompleted = async () => {
+    await refreshUser();
+    setIsProfileIncomplete(false);
+  };
 
   return (
     <SidebarProvider>
@@ -92,6 +105,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-4 md:p-6">
             {children}
         </main>
+         {isProfileIncomplete && (
+            <CompleteProfileDialog 
+                isOpen={isProfileIncomplete} 
+                onProfileCompleted={handleProfileCompleted}
+            />
+        )}
       </SidebarInset>
     </SidebarProvider>
   );

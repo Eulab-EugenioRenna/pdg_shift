@@ -8,7 +8,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -23,16 +22,18 @@ import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import type { RecordModel } from 'pocketbase';
 
-export function ManageProfileDialog() {
+interface CompleteProfileDialogProps {
+    isOpen: boolean;
+    onProfileCompleted: () => void;
+}
+
+export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompleteProfileDialogProps) {
   const { user, refreshUser } = useAuth();
-  const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
     name: '',
-    password: '',
-    passwordConfirm: '',
     phone: '',
     skills: '',
     service_preferences: [] as string[],
@@ -46,7 +47,7 @@ export function ManageProfileDialog() {
   const [templatesLoading, setTemplatesLoading] = useState(true);
 
   useEffect(() => {
-    if (open && user) {
+    if (isOpen && user) {
         setTemplatesLoading(true);
         getServiceTemplates()
             .then(setServiceTemplates)
@@ -55,8 +56,6 @@ export function ManageProfileDialog() {
 
         setFormData({
             name: user.name || '',
-            password: '',
-            passwordConfirm: '',
             phone: user.phone || '',
             skills: user.skills || '',
             service_preferences: user.service_preferences || [],
@@ -64,7 +63,7 @@ export function ManageProfileDialog() {
         setPreview(user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : null);
         setAvatarFile(null);
     }
-  }, [open, user, toast]);
+  }, [isOpen, user, toast]);
 
   const serviceOptions: Option[] = serviceTemplates.map(s => ({ value: s.id, label: s.name }));
 
@@ -92,19 +91,9 @@ export function ManageProfileDialog() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim()) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Il nome non può essere vuoto.' });
+    if (!formData.name.trim() || !formData.phone.trim() || !formData.skills.trim() || formData.service_preferences.length === 0) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Per favore, completa tutti i campi del profilo per continuare.' });
       return;
-    }
-
-    if (formData.password && formData.password !== formData.passwordConfirm) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Le password non coincidono.' });
-      return;
-    }
-    
-    if (formData.password && formData.password.length < 8) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'La nuova password deve avere almeno 8 caratteri.' });
-        return;
     }
 
     startTransition(async () => {
@@ -124,16 +113,11 @@ export function ManageProfileDialog() {
         if (avatarFile) {
             data.append('avatar', avatarFile);
         }
-        if (formData.password) {
-            data.append('password', formData.password);
-            data.append('passwordConfirm', formData.passwordConfirm);
-        }
 
         try {
             await updateUserProfile(user.id, data);
-            await refreshUser();
-            toast({ title: 'Successo', description: 'Profilo aggiornato con successo.' });
-            setOpen(false);
+            toast({ title: 'Grazie!', description: 'Profilo completato con successo.' });
+            onProfileCompleted();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Errore', description: error.message || 'Impossibile aggiornare il profilo.' });
         }
@@ -141,15 +125,17 @@ export function ManageProfileDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>Modifica Profilo</Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={isOpen}>
+      <DialogContent 
+        className="sm:max-w-md"
+        hideCloseButton={true}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+       >
         <DialogHeader>
-          <DialogTitle>Modifica Profilo</DialogTitle>
+          <DialogTitle>Completa il tuo profilo</DialogTitle>
           <DialogDescription>
-            Aggiorna le tue informazioni personali. Lascia i campi password vuoti per non modificarla.
+            Benvenuto in Grace Services! Per continuare, ti chiediamo di completare il tuo profilo. Questo ci aiuterà a suggerirti i turni più adatti a te.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
@@ -176,20 +162,15 @@ export function ManageProfileDialog() {
             <Label htmlFor="name">Nome e Cognome</Label>
             <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" value={user?.email || ''} disabled />
-          </div>
-
+          
            <div className="space-y-2">
             <Label htmlFor="phone">Numero di Telefono</Label>
-            <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isPending} />
+            <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isPending} required />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="skills">Competenze</Label>
-            <Textarea id="skills" name="skills" value={formData.skills} onChange={handleChange} disabled={isPending} placeholder="Es. Canto, chitarra, social..." />
+            <Textarea id="skills" name="skills" value={formData.skills} onChange={handleChange} disabled={isPending} placeholder="Es. Canto, chitarra, social..." required />
           </div>
 
           <div className="space-y-2">
@@ -203,22 +184,10 @@ export function ManageProfileDialog() {
                 disabled={templatesLoading || isPending}
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-                <Label htmlFor="password">Nuova Password</Label>
-                <Input id="password" name="password" type="password" value={formData.password} onChange={handleChange} disabled={isPending} />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="passwordConfirm">Conferma Password</Label>
-                <Input id="passwordConfirm" name="passwordConfirm" type="password" value={formData.passwordConfirm} onChange={handleChange} disabled={isPending} />
-            </div>
-          </div>
           
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Annulla</Button>
             <Button type="submit" disabled={isPending || templatesLoading}>
-              {isPending ? <Loader2 className="animate-spin" /> : 'Salva Modifiche'}
+              {isPending ? <Loader2 className="animate-spin" /> : 'Salva e Continua'}
             </Button>
           </DialogFooter>
         </form>
