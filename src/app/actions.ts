@@ -69,16 +69,29 @@ export async function addUserByAdmin(formData: FormData) {
      try {
         const email = formData.get('email') as string;
         if (!email) throw new Error('Email is required');
+        const churchId = formData.get('church') as string;
 
         const username = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Date.now().toString().slice(-4);
-        formData.append('username', username);
-        formData.append('emailVisibility', 'true');
         
+        const createData = {
+            username,
+            email,
+            emailVisibility: true,
+            password: formData.get('password'),
+            passwordConfirm: formData.get('passwordConfirm'),
+            name: formData.get('name'),
+            church: churchId ? [churchId] : [],
+            role: formData.get('role'),
+        };
+        
+        const record = await pb.collection('pdg_users').create(createData);
+
         const avatarResponse = await fetch('https://placehold.co/200x200.png');
         const avatarBlob = await avatarResponse.blob();
-        formData.append('avatar', avatarBlob, `${username}_avatar.png`);
+        const avatarFormData = new FormData();
+        avatarFormData.append('avatar', avatarBlob, `${username}_avatar.png`);
+        await pb.collection('pdg_users').update(record.id, avatarFormData);
 
-        const record = await pb.collection('pdg_users').create(formData);
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
         console.error("Error adding user:", error.data);
@@ -94,9 +107,14 @@ export async function addUserByAdmin(formData: FormData) {
     }
 }
 
-export async function updateUserByAdmin(id: string, formData: FormData) {
+export async function updateUserByAdmin(id: string, userData: {name: string, role: string, church: string}) {
     try {
-        const record = await pb.collection('pdg_users').update(id, formData);
+        const dataToUpdate = {
+            name: userData.name,
+            role: userData.role,
+            church: userData.church ? [userData.church] : []
+        };
+        const record = await pb.collection('pdg_users').update(id, dataToUpdate);
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
         console.error("Error updating user:", error);

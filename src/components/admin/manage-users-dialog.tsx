@@ -41,7 +41,7 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     password: '',
     passwordConfirm: '',
     role: user?.role || 'volontario',
-    church: user?.church || '',
+    church: (user?.church && Array.isArray(user.church)) ? user.church[0] : (user?.church || ''),
   });
   const [churches, setChurches] = useState<RecordModel[]>([]);
   const [churchesLoading, setChurchesLoading] = useState(true);
@@ -87,22 +87,22 @@ function UserForm({ user, onSave, onCancel }: { user: RecordModel | null; onSave
     }
 
     startTransition(async () => {
-      const data = new FormData();
-      data.append('name', formData.name.trim());
-      data.append('role', formData.role);
-      data.append('church', formData.church);
-
-      if (!user) { // Only for new users
-        data.append('email', formData.email.trim());
-        data.append('password', formData.password);
-        data.append('passwordConfirm', formData.passwordConfirm);
-      }
-      
       try {
         if (user) {
-          await updateUserByAdmin(user.id, data);
+          await updateUserByAdmin(user.id, {
+            name: formData.name.trim(),
+            role: formData.role,
+            church: formData.church,
+          });
           toast({ title: 'Successo', description: 'Utente aggiornato con successo.' });
         } else {
+          const data = new FormData();
+          data.append('name', formData.name.trim());
+          data.append('email', formData.email.trim());
+          data.append('password', formData.password);
+          data.append('passwordConfirm', formData.passwordConfirm);
+          data.append('role', formData.role);
+          data.append('church', formData.church);
           await addUserByAdmin(data);
           toast({ title: 'Successo', description: 'Utente aggiunto con successo.' });
         }
@@ -239,6 +239,15 @@ export function ManageUsersDialog() {
     return 'Gestione Utenti';
   }
 
+  const getExpandedChurchName = (user: RecordModel) => {
+    if (!user.expand?.church) return 'N/A';
+    // Handle both single and multi-relation for display
+    if (Array.isArray(user.expand.church)) {
+        return user.expand.church.map(c => c.name).join(', ') || 'N/A';
+    }
+    return (user.expand.church as RecordModel).name;
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -287,7 +296,7 @@ export function ManageUsersDialog() {
                             </TableCell>
                             <TableCell className="font-medium">{user.name}</TableCell>
                             <TableCell>{user.email}</TableCell>
-                            <TableCell>{user.expand?.church?.name || 'N/A'}</TableCell>
+                            <TableCell>{getExpandedChurchName(user)}</TableCell>
                             <TableCell className="capitalize">{user.role}</TableCell>
                             <TableCell className="text-right">
                                 <div className="flex gap-2 justify-end">

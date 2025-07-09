@@ -65,21 +65,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const username = data.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + Date.now().toString().slice(-4);
       
+      const createData = {
+          username,
+          email: data.email,
+          emailVisibility: true,
+          password: data.password,
+          passwordConfirm: data.passwordConfirm,
+          name: data.name,
+          church: data.church ? [data.church] : [],
+          role: 'volontario',
+      };
+      
+      const newUser = await pb.collection('pdg_users').create(createData);
+
       const avatarResponse = await fetch('https://placehold.co/200x200.png');
       const avatarBlob = await avatarResponse.blob();
-
-      const formData = new FormData();
-      formData.append('username', username);
-      formData.append('email', data.email);
-      formData.append('emailVisibility', 'true');
-      formData.append('password', data.password);
-      formData.append('passwordConfirm', data.passwordConfirm);
-      formData.append('name', data.name);
-      formData.append('church', data.church);
-      formData.append('role', 'volontario');
-      formData.append('avatar', avatarBlob, `${username}_avatar.png`);
-
-      const newUser = await pb.collection('pdg_users').create(formData);
+      const avatarFormData = new FormData();
+      avatarFormData.append('avatar', avatarBlob, `${username}_avatar.png`);
+      await pb.collection('pdg_users').update(newUser.id, avatarFormData);
       
       await login(data.email, data.password);
       return newUser;
