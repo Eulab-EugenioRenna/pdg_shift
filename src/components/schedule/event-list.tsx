@@ -24,40 +24,50 @@ interface EventListProps {
     dateRange?: DateRange;
 }
 
-const getNextOccurrenceDate = (event: RecordModel): Date | null => {
-    if (!event.is_recurring || event.recurring_day === null || event.recurring_day === undefined) return null;
+const generateRecurringInstances = (
+    event: RecordModel,
+    rangeStart: Date,
+    rangeEnd: Date
+): (RecordModel & { isRecurringInstance: boolean })[] => {
+    if (!event.is_recurring || event.recurring_day === null || event.recurring_day === undefined) {
+        return [];
+    }
 
+    const instances = [];
     const recurrenceStartDate = new Date(event.start_date);
-    recurrenceStartDate.setHours(0,0,0,0);
+    recurrenceStartDate.setHours(0, 0, 0, 0);
 
-    let today = new Date();
-    today.setHours(0,0,0,0);
+    let currentDate = new Date(rangeStart > recurrenceStartDate ? rangeStart : recurrenceStartDate);
     
-    let fromDate = today > recurrenceStartDate ? today : recurrenceStartDate;
-
     const recurringDay = parseInt(event.recurring_day, 10);
     
-    let nextDate = new Date(fromDate);
-    const fromDay = fromDate.getDay();
-    
-    const daysToAdd = (recurringDay - fromDay + 7) % 7;
-    
-    nextDate.setDate(nextDate.getDate() + daysToAdd);
+    const dayOfWeek = currentDate.getDay();
+    const daysToAdd = (recurringDay - dayOfWeek + 7) % 7;
+    currentDate.setDate(currentDate.getDate() + daysToAdd);
 
     const originalStartTime = new Date(event.start_date);
-    const now = new Date();
+    const originalEndTime = new Date(event.end_date);
+    const duration = originalEndTime.getTime() - originalStartTime.getTime();
 
-    if (nextDate.getTime() === today.getTime()) {
-        const nextOccurrenceWithTime = new Date(nextDate);
-        nextOccurrenceWithTime.setHours(originalStartTime.getHours(), originalStartTime.getMinutes());
+    while (currentDate <= rangeEnd) {
+        const newStartDate = new Date(currentDate);
+        newStartDate.setHours(originalStartTime.getHours(), originalStartTime.getMinutes(), originalStartTime.getSeconds());
         
-        if (nextOccurrenceWithTime < now) {
-            nextDate.setDate(nextDate.getDate() + 7);
-        }
+        const newEndDate = new Date(newStartDate.getTime() + duration);
+
+        instances.push({
+            ...event,
+            id: event.id,
+            start_date: newStartDate.toISOString(),
+            end_date: newEndDate.toISOString(),
+            isRecurringInstance: true,
+        });
+
+        currentDate.setDate(currentDate.getDate() + 7);
     }
-    
-    return nextDate;
-}
+
+    return instances;
+};
 
 
 export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
@@ -135,35 +145,17 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
             singleEvents.map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
         );
 
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const futureLimit = new Date();
+        futureLimit.setMonth(today.getMonth() + 3);
+
         const recurringInstances = recurringTemplates
-            .map(event => {
-                const nextOccurrenceDate = getNextOccurrenceDate(event);
-                
-                if (nextOccurrenceDate) {
-                    const dateKey = `${format(nextOccurrenceDate, 'yyyy-MM-dd')}-${event.church}`;
-                    if (singleEventDateKeys.has(dateKey)) {
-                        return null; 
-                    }
-
-                    const originalStartDate = new Date(event.start_date);
-                    const originalEndDate = new Date(event.end_date);
-                    const duration = originalEndDate.getTime() - originalStartDate.getTime();
-                    
-                    const newStartDate = new Date(nextOccurrenceDate);
-                    newStartDate.setHours(originalStartDate.getHours(), originalStartDate.getMinutes(), originalStartDate.getSeconds());
-                    
-                    const newEndDate = new Date(newStartDate.getTime() + duration);
-
-                    return {
-                        ...event,
-                        start_date: newStartDate.toISOString(),
-                        end_date: newEndDate.toISOString(),
-                        isRecurringInstance: true,
-                    };
-                }
-                return null;
-            })
-            .filter(Boolean) as (RecordModel & { isRecurringInstance: boolean })[];
+            .flatMap(event => generateRecurringInstances(event, today, futureLimit))
+            .filter(instance => {
+                const dateKey = `${format(new Date(instance.start_date), 'yyyy-MM-dd')}-${instance.church}`;
+                return !singleEventDateKeys.has(dateKey);
+            });
 
         const displayEvents = [...singleEvents, ...recurringInstances];
 
