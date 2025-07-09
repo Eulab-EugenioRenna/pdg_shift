@@ -23,9 +23,9 @@ export async function getChurches() {
     }
 }
 
-export async function addChurch(name: string) {
+export async function addChurch(formData: FormData) {
     try {
-        const record = await pb.collection('pdg_church').create({ name });
+        const record = await pb.collection('pdg_church').create(formData);
         return JSON.parse(JSON.stringify(record));
     } catch (error) {
         console.error("Error adding church:", error);
@@ -33,9 +33,9 @@ export async function addChurch(name: string) {
     }
 }
 
-export async function updateChurch(id: string, name: string) {
+export async function updateChurch(id: string, formData: FormData) {
     try {
-        const record = await pb.collection('pdg_church').update(id, { name });
+        const record = await pb.collection('pdg_church').update(id, formData);
         return JSON.parse(JSON.stringify(record));
     } catch (error) {
         console.error("Error updating church:", error);

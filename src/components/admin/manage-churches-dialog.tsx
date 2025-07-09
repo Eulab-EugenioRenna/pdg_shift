@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback } from 'react';
+import { useState, useEffect, useTransition, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,21 +23,121 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { getChurches, addChurch, updateChurch, deleteChurch } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
-import { Loader2, Trash2, Edit, Save, PlusCircle, Building, X } from 'lucide-react';
+import { Loader2, Trash2, Edit, PlusCircle, Building, Upload } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { pb } from '@/lib/pocketbase';
+
+// Form Component for Adding/Editing Churches
+function ChurchForm({ church, onSave, onCancel }: { church: RecordModel | null; onSave: () => void; onCancel: () => void }) {
+  const [name, setName] = useState(church?.name || '');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(church?.logo ? pb.getFileUrl(church, church.logo, { thumb: '100x100' }) : null);
+  const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Il nome della chiesa non può essere vuoto.' });
+      return;
+    }
+    if (!church && !logoFile) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Il logo è obbligatorio per una nuova chiesa.' });
+      return;
+    }
+
+    startTransition(async () => {
+      const formData = new FormData();
+      formData.append('name', name.trim());
+      if (logoFile) {
+        formData.append('logo', logoFile);
+      }
+
+      try {
+        if (church) {
+          await updateChurch(church.id, formData);
+          toast({ title: 'Successo', description: 'Chiesa aggiornata con successo.' });
+        } else {
+          await addChurch(formData);
+          toast({ title: 'Successo', description: 'Chiesa aggiunta con successo.' });
+        }
+        onSave();
+      } catch (error) {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Operazione fallita. Controlla i dati e riprova.' });
+      }
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6 py-4">
+      <div className="flex flex-col items-center gap-4">
+          <Avatar className="w-24 h-24">
+              <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Logo preview" />
+              <AvatarFallback><Building className="w-12 h-12" /></AvatarFallback>
+          </Avatar>
+          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" />
+              {preview ? 'Cambia Logo' : 'Carica Logo'}
+          </Button>
+          <Input 
+              ref={fileInputRef}
+              type="file" 
+              className="hidden" 
+              accept="image/*" 
+              onChange={handleFileChange} 
+          />
+      </div>
+      <div>
+        <Label htmlFor="church-name">Nome Chiesa</Label>
+        <Input 
+          id="church-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={isPending}
+          placeholder="Nome della chiesa"
+          required
+        />
+      </div>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
+        <Button type="submit" disabled={isPending}>
+          {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
 
 export function ManageChurchesDialog() {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<'list' | 'form'>('list');
+  const [churchToEdit, setChurchToEdit] = useState<RecordModel | null>(null);
+
   const [churches, setChurches] = useState<RecordModel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [newChurchName, setNewChurchName] = useState('');
-  const [editingChurch, setEditingChurch] = useState<{ id: string; name: string } | null>(null);
-  const [churchToDelete, setChurchToDelete] = useState<RecordModel | null>(null);
   
-  const [isPending, startTransition] = useTransition();
+  const [churchToDelete, setChurchToDelete] = useState<RecordModel | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const { toast } = useToast();
 
   const fetchAndSetChurches = useCallback(async () => {
@@ -55,57 +155,49 @@ export function ManageChurchesDialog() {
   useEffect(() => {
     if (open) {
       fetchAndSetChurches();
+      setView('list'); // Reset view on open
     }
   }, [open, fetchAndSetChurches]);
 
-  const handleAddChurch = () => {
-    if (!newChurchName.trim()) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Il nome della chiesa non può essere vuoto.' });
-      return;
-    }
-    startTransition(async () => {
-      try {
-        await addChurch(newChurchName.trim());
-        toast({ title: 'Successo', description: 'Chiesa aggiunta con successo.' });
-        setNewChurchName('');
-        fetchAndSetChurches();
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile aggiungere la chiesa.' });
-      }
-    });
-  };
+  const handleEdit = (church: RecordModel) => {
+    setChurchToEdit(church);
+    setView('form');
+  }
 
-  const handleUpdateChurch = () => {
-      if (!editingChurch || !editingChurch.name.trim()) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Il nome della chiesa non può essere vuoto.' });
-      return;
-    }
-    startTransition(async () => {
-      try {
-        await updateChurch(editingChurch.id, editingChurch.name.trim());
-        toast({ title: 'Successo', description: 'Chiesa aggiornata con successo.' });
-        setEditingChurch(null);
-        fetchAndSetChurches();
-      } catch (error) {
-        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile aggiornare la chiesa.' });
-      }
-    });
+  const handleAdd = () => {
+    setChurchToEdit(null);
+    setView('form');
+  }
+
+  const handleBackToList = () => {
+    setView('list');
+    setChurchToEdit(null);
+    fetchAndSetChurches();
   }
 
   const handleDeleteChurch = () => {
     if (!churchToDelete) return;
-
-    startTransition(async () => {
-        try {
-            await deleteChurch(churchToDelete.id);
-            toast({ title: 'Successo', description: 'Chiesa eliminata con successo.' });
-            setChurchToDelete(null);
-            fetchAndSetChurches();
-        } catch (error) {
-            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile eliminare la chiesa.' });
-        }
-    });
+    setIsDeleting(true);
+    deleteChurch(churchToDelete.id)
+      .then(() => {
+        toast({ title: 'Successo', description: 'Chiesa eliminata con successo.' });
+        fetchAndSetChurches();
+      })
+      .catch(() => {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile eliminare la chiesa.' });
+      })
+      .finally(() => {
+        setIsDeleting(false);
+        setChurchToDelete(null);
+      });
   };
+
+  const getDialogTitle = () => {
+    if (view === 'form') {
+      return churchToEdit ? 'Modifica Chiesa' : 'Aggiungi Nuova Chiesa';
+    }
+    return 'Gestione Chiese';
+  }
 
   return (
     <>
@@ -118,90 +210,80 @@ export function ManageChurchesDialog() {
         </DialogTrigger>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Gestione Chiese</DialogTitle>
-            <DialogDescription>
-              Aggiungi, modifica o elimina le chiese dalla piattaforma.
-            </DialogDescription>
+            <DialogTitle>{getDialogTitle()}</DialogTitle>
+             {view === 'list' && (
+                <DialogDescription>
+                    Aggiungi, modifica o elimina le chiese dalla piattaforma.
+                </DialogDescription>
+             )}
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Nome della nuova chiesa"
-                value={newChurchName}
-                onChange={(e) => setNewChurchName(e.target.value)}
-                disabled={isPending}
-                 onKeyDown={(e) => e.key === 'Enter' && handleAddChurch()}
-              />
-              <Button onClick={handleAddChurch} disabled={isPending || !newChurchName.trim()}>
-                {isPending ? <Loader2 className="animate-spin" /> : <PlusCircle />}
-                <span className="ml-2 hidden sm:inline">Aggiungi</span>
-              </Button>
-            </div>
-            <div className="rounded-md border max-h-80 overflow-y-auto">
-              {isLoading ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+
+          {view === 'list' ? (
+             <div className="space-y-4 py-4">
+                <div className="flex justify-end">
+                    <Button onClick={handleAdd}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Chiesa</Button>
                 </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome Chiesa</TableHead>
-                      <TableHead className="text-right w-[120px]">Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {churches.length > 0 ? churches.map((church) => (
-                      <TableRow key={church.id}>
-                        <TableCell>
-                          {editingChurch?.id === church.id ? (
-                            <Input
-                              value={editingChurch.name}
-                              onChange={(e) => setEditingChurch({ ...editingChurch, name: e.target.value })}
-                              autoFocus
-                              onKeyDown={(e) => e.key === 'Enter' && handleUpdateChurch()}
-                            />
-                          ) : (
-                            church.name
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {editingChurch?.id === church.id ? (
-                            <div className="flex gap-2 justify-end">
-                              <Button size="icon" onClick={handleUpdateChurch} disabled={isPending}>
-                                  <Save className="h-4 w-4"/>
-                              </Button>
-                              <Button size="icon" variant="outline" onClick={() => setEditingChurch(null)} disabled={isPending}>
-                                  <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2 justify-end">
-                              <Button size="icon" variant="ghost" onClick={() => setEditingChurch({id: church.id, name: church.name})}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setChurchToDelete(church)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )) : (
-                      <TableRow>
-                        <TableCell colSpan={2} className="text-center h-24">Nessuna chiesa trovata.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Chiudi</Button>
-            </DialogClose>
-          </DialogFooter>
+                <div className="rounded-md border max-h-80 overflow-y-auto">
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : (
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[60px]">Logo</TableHead>
+                          <TableHead>Nome Chiesa</TableHead>
+                          <TableHead className="text-right w-[120px]">Azioni</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {churches.length > 0 ? churches.map((church) => (
+                        <TableRow key={church.id}>
+                            <TableCell>
+                                <Avatar>
+                                    <AvatarImage src={church.logo ? pb.getFileUrl(church, church.logo, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={church.name} />
+                                    <AvatarFallback>{church.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                </Avatar>
+                            </TableCell>
+                            <TableCell className="font-medium">{church.name}</TableCell>
+                            <TableCell className="text-right">
+                                <div className="flex gap-2 justify-end">
+                                    <Button size="icon" variant="ghost" onClick={() => handleEdit(church)}>
+                                        <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setChurchToDelete(church)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                        )) : (
+                        <TableRow>
+                            <TableCell colSpan={3} className="text-center h-24">Nessuna chiesa trovata.</TableCell>
+                        </TableRow>
+                        )}
+                    </TableBody>
+                    </Table>
+                )}
+                </div>
+             </div>
+          ) : (
+            <ChurchForm 
+              church={churchToEdit}
+              onSave={handleBackToList}
+              onCancel={() => setView('list')}
+            />
+          )}
+
+          {view === 'list' && (
+            <DialogFooter>
+                <DialogClose asChild>
+                <Button variant="outline">Chiudi</Button>
+                </DialogClose>
+            </DialogFooter>
+          )}
+
         </DialogContent>
       </Dialog>
       <AlertDialog open={!!churchToDelete} onOpenChange={(isOpen) => !isOpen && setChurchToDelete(null)}>
@@ -215,8 +297,8 @@ export function ManageChurchesDialog() {
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Annulla</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteChurch} disabled={isPending} className="bg-destructive hover:bg-destructive/90">
-                    {isPending ? <Loader2 className="animate-spin" /> : "Elimina"}
+                <AlertDialogAction onClick={handleDeleteChurch} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+                    {isDeleting ? <Loader2 className="animate-spin" /> : "Elimina"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
