@@ -111,33 +111,14 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
         <DialogHeader>
           <DialogTitle>Aggiungi Servizio all'Evento</DialogTitle>
           <DialogDescription>
-            Crea un nuovo servizio personalizzato o aggiungine uno da un modello pre-configurato.
+            Aggiungi un servizio da un modello pre-configurato o creane uno nuovo.
           </DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="custom" className="w-full">
+        <Tabs defaultValue="template" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="custom">Personalizzato</TabsTrigger>
             <TabsTrigger value="template">Da Modello</TabsTrigger>
+            <TabsTrigger value="custom">Nuovo Servizio</TabsTrigger>
           </TabsList>
-          <TabsContent value="custom">
-            <form onSubmit={handleCustomSubmit} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="custom-name">Nome Servizio</Label>
-                <Input id="custom-name" value={customName} onChange={(e) => setCustomName(e.target.value)} disabled={isPending} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="custom-description">Descrizione (opzionale)</Label>
-                <Textarea id="custom-description" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} disabled={isPending} />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                <Button type="submit" disabled={isPending}>
-                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Crea Servizio
-                </Button>
-              </DialogFooter>
-            </form>
-          </TabsContent>
           <TabsContent value="template">
             <form onSubmit={handleTemplateSubmit} className="space-y-4 py-4">
                 <div className="space-y-2">
@@ -162,6 +143,25 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
                         Aggiungi Servizio
                     </Button>
                 </DialogFooter>
+            </form>
+          </TabsContent>
+          <TabsContent value="custom">
+            <form onSubmit={handleCustomSubmit} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="custom-name">Nome Servizio</Label>
+                <Input id="custom-name" value={customName} onChange={(e) => setCustomName(e.target.value)} disabled={isPending} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="custom-description">Descrizione (opzionale)</Label>
+                <Textarea id="custom-description" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} disabled={isPending} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
+                <Button type="submit" disabled={isPending}>
+                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Crea Servizio
+                </Button>
+              </DialogFooter>
             </form>
           </TabsContent>
         </Tabs>
