@@ -38,36 +38,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const refreshUser = useCallback(async () => {
-    if (!pb.authStore.model?.id) return;
+    if (!pb.authStore.isValid) return;
     try {
       await pb.collection('pdg_users').authRefresh({
         expand: 'church',
       });
     } catch (error) {
       console.error("Impossibile aggiornare l'utente, logout in corso:", error);
+      // The token is probably invalid, so log out.
       logout();
     }
   }, [logout]);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      if (pb.authStore.isValid) {
-        await refreshUser();
-      }
-      setLoading(false);
-    };
+    // 1. Set initial state from whatever is in the store.
+    setUser(pb.authStore.model);
+    setToken(pb.authStore.token);
 
-    initializeAuth();
-    
+    // 2. Subscribe to any FUTURE changes.
     const unsubscribe = pb.authStore.onChange((newToken, newUser) => {
       setToken(newToken);
       setUser(newUser);
-    }, true);
+    });
+
+    // 3. If we have a valid token, refresh it to get latest data + expands.
+    //    The result of this will be caught by the onChange subscription.
+    //    If we don't have a valid token, we're done loading.
+    if (pb.authStore.isValid) {
+      refreshUser().finally(() => {
+        setLoading(false);
+      });
+    } else {
+      setLoading(false);
+    }
 
     return () => {
       unsubscribe();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // We only want this to run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = useCallback(async (email: string, pass: string) => {
