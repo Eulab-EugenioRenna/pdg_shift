@@ -161,6 +161,7 @@ export async function createEvent(formData: FormData) {
     const churchId = formData.get('church') as string;
     const startDate = formData.get('start_date') as string;
     const endDate = formData.get('end_date') as string;
+    const templateId = formData.get('templateId') as string | null;
 
     if (!churchId || !startDate || !endDate) {
         throw new Error("Church, start date, and end date are required.");
@@ -176,13 +177,39 @@ export async function createEvent(formData: FormData) {
             throw new Error("An event already exists in this time range for the selected church.");
         }
 
+        // Remove templateId from formData before creating the event, as it's not a field in pdg_events
+        if (templateId) {
+            formData.delete('templateId');
+        }
+
         const record = await pb.collection('pdg_events').create(formData);
+
+        // If a template was used, create services from it
+        if (templateId) {
+            const eventTemplate = await pb.collection('pdg_event_templates').getOne(templateId, {
+                expand: 'service_templates'
+            });
+
+            if (eventTemplate.expand?.service_templates) {
+                for (const serviceTemplate of eventTemplate.expand.service_templates) {
+                    await pb.collection('pdg_services').create({
+                        name: serviceTemplate.name,
+                        description: serviceTemplate.description,
+                        event: record.id,
+                        church: churchId,
+                        // leader field is not set by default
+                    });
+                }
+            }
+        }
+
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
         console.error("Error creating event:", error);
         throw new Error(getErrorMessage(error));
     }
 }
+
 
 // Service Management Actions
 export async function getServicesForEvent(eventId: string) {
@@ -196,5 +223,84 @@ export async function getServicesForEvent(eventId: string) {
     } catch (error) {
         console.error("Error fetching services for event:", error);
         throw new Error("Failed to fetch services.");
+    }
+}
+
+// Service Template Management
+export async function getServiceTemplates() {
+    try {
+        const records = await pb.collection('pdg_service_templates').getFullList({ sort: 'name' });
+        return JSON.parse(JSON.stringify(records));
+    } catch (error) {
+        console.error("Error fetching service templates:", error);
+        throw new Error("Failed to fetch service templates.");
+    }
+}
+
+export async function addServiceTemplate(formData: FormData) {
+    try {
+        const record = await pb.collection('pdg_service_templates').create(formData);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error: any) {
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function updateServiceTemplate(id: string, formData: FormData) {
+    try {
+        const record = await pb.collection('pdg_service_templates').update(id, formData);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error: any) {
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function deleteServiceTemplate(id: string) {
+    try {
+        await pb.collection('pdg_service_templates').delete(id);
+        return { success: true };
+    } catch (error) {
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+
+// Event Template Management
+export async function getEventTemplates() {
+    try {
+        const records = await pb.collection('pdg_event_templates').getFullList({ sort: 'name', expand: 'service_templates' });
+        return JSON.parse(JSON.stringify(records));
+    } catch (error) {
+        console.error("Error fetching event templates:", error);
+        throw new Error("Failed to fetch event templates.");
+    }
+}
+
+export async function addEventTemplate(formData: FormData) {
+    try {
+        const record = await pb.collection('pdg_event_templates').create(formData);
+        const finalRecord = await pb.collection('pdg_event_templates').getOne(record.id, { expand: 'service_templates' });
+        return JSON.parse(JSON.stringify(finalRecord));
+    } catch (error: any) {
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function updateEventTemplate(id: string, formData: FormData) {
+    try {
+        await pb.collection('pdg_event_templates').update(id, formData);
+        const finalRecord = await pb.collection('pdg_event_templates').getOne(id, { expand: 'service_templates' });
+        return JSON.parse(JSON.stringify(finalRecord));
+    } catch (error: any) {
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function deleteEventTemplate(id: string) {
+    try {
+        await pb.collection('pdg_event_templates').delete(id);
+        return { success: true };
+    } catch (error) {
+        throw new Error(getErrorMessage(error));
     }
 }

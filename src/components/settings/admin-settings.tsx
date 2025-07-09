@@ -2,11 +2,13 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building, UserPlus, CalendarPlus, UserCog, Trash2 } from 'lucide-react';
+import { Building, UserPlus, UserCog, Trash2, ListTodo, ClipboardPlus } from 'lucide-react';
 import { ManageChurchesDialog } from '@/components/admin/manage-churches-dialog';
 import { ManageUsersDialog } from '@/components/admin/manage-users-dialog';
 import { ManageProfileDialog } from '@/components/settings/manage-profile-dialog';
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
+import { ManageServiceTemplatesDialog } from '@/components/admin/manage-service-templates-dialog';
+import { ManageEventTemplatesDialog } from '@/components/admin/manage-event-templates-dialog';
 
 export default function AdminSettings() {
     return (
@@ -20,7 +22,7 @@ export default function AdminSettings() {
                 </CardHeader>
             </Card>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2">
                 <Card>
                     <CardHeader>
                          <div className="flex items-center gap-4">
@@ -45,16 +47,28 @@ export default function AdminSettings() {
                         <ManageUsersDialog />
                     </CardContent>
                 </Card>
-                <Card>
+                 <Card>
                     <CardHeader>
                         <div className="flex items-center gap-4">
-                            <CalendarPlus className="w-8 h-8 text-primary" />
-                            <CardTitle>Gestione Turni</CardTitle>
+                            <ListTodo className="w-8 h-8 text-primary" />
+                            <CardTitle>Gestisci Tipi di Servizio</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-muted-foreground mb-4">Crea e configura i modelli per i turni di servizio.</p>
-                        <Button>Crea Turno</Button>
+                        <p className="text-muted-foreground mb-4">Definisci i ruoli e i servizi riutilizzabili (es. Lode, Accoglienza).</p>
+                        <ManageServiceTemplatesDialog />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-4">
+                            <ClipboardPlus className="w-8 h-8 text-primary" />
+                            <CardTitle>Gestisci Modelli Evento</CardTitle>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground mb-4">Crea modelli di evento con servizi pre-configurati.</p>
+                        <ManageEventTemplatesDialog />
                     </CardContent>
                 </Card>
             </div>
