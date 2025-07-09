@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { getEvents, deleteEvent, getChurches } from '@/app/actions';
+import { useState, useEffect, useMemo, useTransition } from 'react';
+import { getEvents, deleteEvent, getChurches, createEventOverride } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -71,6 +71,9 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
 
     const [eventToDelete, setEventToDelete] = useState<RecordModel | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const [overrideInfo, setOverrideInfo] = useState<{ event: RecordModel; date: Date } | null>(null);
+    const [isCreatingOverride, startOverrideTransition] = useTransition();
     
     const { toast } = useToast();
 
@@ -94,11 +97,9 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
             } else if (action === 'update') {
                 setEvents(prev => {
                     const listWithoutRecord = prev.filter(e => e.id !== record.id);
-                    // if it belongs here now (or was updated)
                     if (record.church === churchId) {
                         return [...listWithoutRecord, record].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
                     }
-                    // if it no longer belongs here
                     return listWithoutRecord;
                 });
             } else if (action === 'delete') {
@@ -127,35 +128,46 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
     }, [isEditDialogOpen]);
 
     const filteredEvents = useMemo(() => {
-        const displayEvents = events
-            .flatMap(event => {
-                if (event.is_recurring) {
-                    const nextOccurrenceDate = getNextOccurrenceDate(event);
-                    
-                    if (nextOccurrenceDate) {
-                        const originalStartDate = new Date(event.start_date);
-                        const originalEndDate = new Date(event.end_date);
-                        const duration = originalEndDate.getTime() - originalStartDate.getTime();
-                        
-                        const newStartDate = new Date(nextOccurrenceDate);
-                        newStartDate.setHours(originalStartDate.getHours(), originalStartDate.getMinutes(), originalStartDate.getSeconds());
-                        
-                        const newEndDate = new Date(newStartDate.getTime() + duration);
+        const singleEvents = events.filter(e => !e.is_recurring);
+        const recurringTemplates = events.filter(e => e.is_recurring);
 
-                        return [{
-                            ...event,
-                            start_date: newStartDate.toISOString(),
-                            end_date: newEndDate.toISOString(),
-                            isRecurringInstance: true,
-                        }];
+        const singleEventDateKeys = new Set(
+            singleEvents.map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
+        );
+
+        const recurringInstances = recurringTemplates
+            .map(event => {
+                const nextOccurrenceDate = getNextOccurrenceDate(event);
+                
+                if (nextOccurrenceDate) {
+                    const dateKey = `${format(nextOccurrenceDate, 'yyyy-MM-dd')}-${event.church}`;
+                    if (singleEventDateKeys.has(dateKey)) {
+                        return null; 
                     }
-                    return [];
-                }
-                return [event];
-            })
-            .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
 
-        return displayEvents.filter(event => {
+                    const originalStartDate = new Date(event.start_date);
+                    const originalEndDate = new Date(event.end_date);
+                    const duration = originalEndDate.getTime() - originalStartDate.getTime();
+                    
+                    const newStartDate = new Date(nextOccurrenceDate);
+                    newStartDate.setHours(originalStartDate.getHours(), originalStartDate.getMinutes(), originalStartDate.getSeconds());
+                    
+                    const newEndDate = new Date(newStartDate.getTime() + duration);
+
+                    return {
+                        ...event,
+                        start_date: newStartDate.toISOString(),
+                        end_date: newEndDate.toISOString(),
+                        isRecurringInstance: true,
+                    };
+                }
+                return null;
+            })
+            .filter(Boolean) as (RecordModel & { isRecurringInstance: boolean })[];
+
+        const displayEvents = [...singleEvents, ...recurringInstances];
+
+        const finalFilteredEvents = displayEvents.filter(event => {
             const matchSearch = searchTerm
                 ? event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   (event.description && event.description.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -177,12 +189,34 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
 
             return matchSearch && matchDateRange;
         });
+
+        return finalFilteredEvents.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
     }, [events, searchTerm, dateRange]);
 
 
     const handleEventUpdated = () => {
         // The subscription will handle the UI update.
     }
+    
+    const handleCreateOverride = () => {
+        if (!overrideInfo) return;
+        
+        startOverrideTransition(async () => {
+            try {
+                await createEventOverride(overrideInfo.event.id, overrideInfo.date.toISOString());
+                toast({ title: "Successo", description: "Variazione dell'evento creata. Ora puoi modificare i dettagli per questa data specifica." });
+                setOverrideInfo(null);
+            } catch (error: any) {
+                toast({ variant: "destructive", title: "Errore", description: error.message });
+            }
+        });
+    };
+    
+    const handleEditSeries = () => {
+        if (!overrideInfo) return;
+        setEventToEdit(overrideInfo.event);
+        setOverrideInfo(null);
+    };
 
     const handleDelete = async () => {
         if (!eventToDelete) return;
@@ -245,7 +279,17 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
                                         <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
-                                        <DropdownMenuItem onSelect={() => setEventToEdit(event)}>Modifica</DropdownMenuItem>
+                                        <DropdownMenuItem 
+                                            onSelect={() => {
+                                                if (event.isRecurringInstance) {
+                                                    setOverrideInfo({ event, date: new Date(event.start_date) });
+                                                } else {
+                                                    setEventToEdit(event);
+                                                }
+                                            }}
+                                        >
+                                            Modifica
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => setEventToDelete(event)} className="text-destructive">Elimina</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -285,6 +329,27 @@ export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
                     onEventUpserted={handleEventUpdated}
                 />
             )}
+
+            <AlertDialog open={!!overrideInfo} onOpenChange={() => setOverrideInfo(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Modifica Evento Ricorrente</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Stai modificando un'occorrenza di un evento ricorrente. Vuoi modificare solo questa data o l'intera serie di eventi?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-2 sm:gap-0">
+                        <AlertDialogCancel disabled={isCreatingOverride}>Annulla</AlertDialogCancel>
+                        <Button variant="outline" onClick={handleEditSeries} disabled={isCreatingOverride}>
+                            Modifica Serie
+                        </Button>
+                        <AlertDialogAction onClick={handleCreateOverride} disabled={isCreatingOverride}>
+                            {isCreatingOverride && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Crea Variazione per questa data
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <AlertDialog open={!!eventToDelete} onOpenChange={() => setEventToDelete(null)}>
                 <AlertDialogContent>

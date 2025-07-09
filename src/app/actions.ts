@@ -273,6 +273,60 @@ export async function deleteEvent(id: string) {
     }
 }
 
+export async function createEventOverride(originalEventId: string, occurrenceDateISO: string) {
+    try {
+        const templateEvent = await pb.collection('pdg_events').getOne(originalEventId);
+
+        const occurrenceDate = new Date(occurrenceDateISO);
+        const templateStartDate = new Date(templateEvent.start_date);
+        const templateEndDate = new Date(templateEvent.end_date);
+        const duration = templateEndDate.getTime() - templateStartDate.getTime();
+
+        const newStartDate = new Date(occurrenceDate);
+        newStartDate.setHours(templateStartDate.getHours(), templateStartDate.getMinutes(), templateStartDate.getSeconds());
+
+        const newEndDate = new Date(newStartDate.getTime() + duration);
+
+        const newEventData = {
+            church: templateEvent.church,
+            name: `[Variazione] ${templateEvent.name}`,
+            description: templateEvent.description,
+            start_date: newStartDate.toISOString(),
+            end_date: newEndDate.toISOString(),
+            is_recurring: false,
+            recurring_day: null,
+        };
+
+        const newEventRecord = await pb.collection('pdg_events').create(newEventData);
+
+        const templateServices = await pb.collection('pdg_services').getFullList({
+            filter: `event = "${originalEventId}"`,
+        });
+
+        if (templateServices.length > 0) {
+            const serviceCreationPromises = templateServices.map(service => {
+                const newServiceData = {
+                    church: service.church,
+                    event: newEventRecord.id,
+                    name: service.name,
+                    description: service.description,
+                    leader: service.leader,
+                };
+                return pb.collection('pdg_services').create(newServiceData);
+            });
+            await Promise.all(serviceCreationPromises);
+        }
+        
+        const finalRecord = await pb.collection('pdg_events').getOne(newEventRecord.id);
+        return JSON.parse(JSON.stringify(finalRecord));
+
+    } catch (error: any) {
+        console.error("Error creating event override:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+
 // Service Management Actions
 export async function getServicesForEvent(eventId: string) {
     try {
