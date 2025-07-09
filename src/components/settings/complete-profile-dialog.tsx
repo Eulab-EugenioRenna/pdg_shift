@@ -138,7 +138,7 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
             Benvenuto in Grace Services! Per continuare, ti chiediamo di completare il tuo profilo. Questo ci aiuterà a suggerirti i turni più adatti a te.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-4">
           <div className="flex flex-col items-center gap-4">
               <Avatar className="w-24 h-24">
                   <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />

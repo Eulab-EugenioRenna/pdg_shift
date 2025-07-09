@@ -178,7 +178,7 @@ export function ManageEventDialog({
                         }
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-4">
                     {!isEditMode && (
                         <div className="space-y-2">
                             <Label htmlFor="event-template">Modello (Opzionale)</Label>

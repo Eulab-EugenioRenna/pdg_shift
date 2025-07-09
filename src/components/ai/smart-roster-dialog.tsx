@@ -107,7 +107,7 @@ export function SmartRosterDialog() {
             Modifica i parametri qui sotto per scoprire come la nostra IA può aiutarti a trovare le persone giuste per il tuo servizio.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 max-h-[70vh] overflow-y-auto pr-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4 max-h-[70vh] overflow-y-auto px-4">
           <div>
             <Card>
               <CardHeader>

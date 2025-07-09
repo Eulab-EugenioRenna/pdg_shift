@@ -173,7 +173,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                     Modifica i dettagli, assegna un leader e componi il team per ogni posizione.
                 </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-4">
                     <div className="space-y-2">
                         <Label htmlFor="service-name">Nome Servizio</Label>
                         <Input id="service-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} required />
