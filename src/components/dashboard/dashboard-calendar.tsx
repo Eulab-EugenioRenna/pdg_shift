@@ -49,7 +49,7 @@ export function DashboardCalendar({ events, month, selected, onSelect }: Dashboa
                 hasEvent: eventDays,
             }}
             modifiersClassNames={{
-                hasEvent: "relative after:content-[''] after:absolute after:bottom-2 after:left-1/2 after:-translate-x-1/2 after:h-1.5 after:w-1.5 after:rounded-full after:bg-primary",
+                hasEvent: "relative after:content-[''] after:absolute after:bottom-2 after:left-1/2 after:-translate-x-1/2 after:h-2 after:w-2 after:rounded-full after:bg-primary after:transition-transform hover:after:scale-150",
             }}
         />
     );
