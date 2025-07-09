@@ -6,10 +6,17 @@ import type { RecordModel } from 'pocketbase';
 import { getChurches } from '@/app/actions';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, PlusCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { EventList } from '@/components/schedule/event-list';
 import { ManageEventDialog } from '@/components/schedule/manage-event-dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DateRange } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 export default function SchedulePage() {
     const { user } = useAuth();
@@ -17,6 +24,10 @@ export default function SchedulePage() {
     const [selectedChurch, setSelectedChurch] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+    // Filters state
+    const [searchTerm, setSearchTerm] = useState('');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
     const loadChurches = useCallback(async () => {
         if (!user) return;
@@ -47,8 +58,7 @@ export default function SchedulePage() {
     const hasMultipleChurches = churches.length > 1;
 
     const onEventUpserted = () => {
-        // This is now handled by subscriptions, but we can keep it for other potential uses
-        // or remove if it's confirmed to be fully redundant.
+        // This is now handled by subscriptions
     }
     
     if (isLoading) {
@@ -98,8 +108,60 @@ export default function SchedulePage() {
                 </div>
             </div>
 
+            <Card>
+                <CardContent className="pt-6 flex flex-col md:flex-row items-center gap-4">
+                     <Input
+                        placeholder="Cerca per nome evento..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full md:max-w-sm"
+                    />
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                id="date"
+                                variant={"outline"}
+                                className={cn(
+                                    "w-full md:w-[300px] justify-start text-left font-normal",
+                                    !dateRange && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {dateRange?.from ? (
+                                    dateRange.to ? (
+                                        <>
+                                            {format(dateRange.from, "d MMM y", { locale: it })} -{" "}
+                                            {format(dateRange.to, "d MMM y", { locale: it })}
+                                        </>
+                                    ) : (
+                                        format(dateRange.from, "d MMM y", { locale: it })
+                                    )
+                                ) : (
+                                    <span>Filtra per data</span>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                initialFocus
+                                mode="range"
+                                defaultMonth={dateRange?.from}
+                                selected={dateRange}
+                                onSelect={setDateRange}
+                                numberOfMonths={2}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                    {(searchTerm || dateRange) && (
+                        <Button variant="ghost" onClick={() => { setSearchTerm(''); setDateRange(undefined); }}>
+                            Reset Filtri
+                        </Button>
+                    )}
+                </CardContent>
+            </Card>
+
             {selectedChurch ? (
-                <EventList churchId={selectedChurch} />
+                <EventList churchId={selectedChurch} searchTerm={searchTerm} dateRange={dateRange} />
             ) : (
                  <Card>
                     <CardHeader>

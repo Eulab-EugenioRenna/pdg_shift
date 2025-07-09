@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getEvents, deleteEvent, getChurches } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,8 +16,15 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { ServiceList } from './service-list';
 import { pb } from '@/lib/pocketbase';
+import type { DateRange } from 'react-day-picker';
 
-export function EventList({ churchId }: { churchId: string }) {
+interface EventListProps {
+    churchId: string;
+    searchTerm: string;
+    dateRange?: DateRange;
+}
+
+export function EventList({ churchId, searchTerm, dateRange }: EventListProps) {
     const { user } = useAuth();
     const [events, setEvents] = useState<RecordModel[]>([]);
     const [churches, setChurches] = useState<RecordModel[]>([]);
@@ -83,6 +90,31 @@ export function EventList({ churchId }: { churchId: string }) {
         }
     }, [isEditDialogOpen]);
 
+    const filteredEvents = useMemo(() => {
+        return events.filter(event => {
+            const matchSearch = searchTerm
+                ? event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  (event.description && event.description.toLowerCase().includes(searchTerm.toLowerCase()))
+                : true;
+            
+            let matchDateRange = true;
+            if (dateRange?.from) {
+                const eventStart = new Date(event.start_date);
+                const eventEnd = new Date(event.end_date);
+
+                const filterFrom = new Date(dateRange.from);
+                filterFrom.setHours(0, 0, 0, 0);
+
+                const filterTo = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+                filterTo.setHours(23, 59, 59, 999);
+                
+                matchDateRange = eventStart <= filterTo && eventEnd >= filterFrom;
+            }
+
+            return matchSearch && matchDateRange;
+        });
+    }, [events, searchTerm, dateRange]);
+
 
     const handleEventUpdated = () => {
         // The subscription will handle the UI update.
@@ -114,7 +146,17 @@ export function EventList({ churchId }: { churchId: string }) {
         return (
             <Card>
                 <CardContent className="pt-6">
-                    <p className="text-center text-muted-foreground">Nessun evento trovato per questa chiesa.</p>
+                    <p className="text-center text-muted-foreground">Nessun evento trovato per questa chiesa. Crea il primo!</p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (filteredEvents.length === 0) {
+        return (
+            <Card>
+                <CardContent className="pt-6">
+                    <p className="text-center text-muted-foreground">Nessun evento corrisponde ai filtri selezionati.</p>
                 </CardContent>
             </Card>
         );
@@ -122,7 +164,7 @@ export function EventList({ churchId }: { churchId: string }) {
 
     return (
         <div className="space-y-4">
-            {events.map(event => (
+            {filteredEvents.map(event => (
                 <Card key={event.id}>
                     <CardHeader>
                         <div className="flex justify-between items-start">
