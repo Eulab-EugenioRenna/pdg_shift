@@ -53,7 +53,7 @@ export function DeleteAccountDialog() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Annulla</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} disabled={isPending} className="bg-destructive hover:bg-destructive/90">
+          <AlertDialogAction onClick={handleDelete} disabled={isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             {isPending ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : null}
             Sì, elimina il mio account
           </AlertDialogAction>
