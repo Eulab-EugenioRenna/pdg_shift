@@ -132,24 +132,21 @@ export async function addUserByAdmin(formData: FormData) {
 
 export async function updateUserByAdmin(id: string, formData: FormData) {
     try {
-        const textData: {[key:string]: any} = {
-            name: formData.get('name'),
-            role: formData.get('role'),
-            church: formData.getAll('church'),
-        };
-
-        await pb.collection('pdg_users').update(id, textData);
-
-        const avatarFile = formData.get('avatar') as File | null;
-
-        if (avatarFile && avatarFile.size > 0) {
-            const avatarFormData = new FormData();
-            avatarFormData.append('avatar', avatarFile);
-            await pb.collection('pdg_users').update(id, avatarFormData);
-        }
+        const updateData = new FormData();
+        updateData.append('name', formData.get('name') || '');
+        updateData.append('role', formData.get('role') || '');
         
-        const record = await pb.collection('pdg_users').getOne(id, { expand: 'church' });
-        return JSON.parse(JSON.stringify(record));
+        const churches = formData.getAll('church');
+        churches.forEach(churchId => updateData.append('church', churchId));
+        
+        const avatarFile = formData.get('avatar') as File | null;
+        if (avatarFile && avatarFile.size > 0) {
+            updateData.append('avatar', avatarFile);
+        }
+
+        await pb.collection('pdg_users').update(id, updateData);
+        const finalRecord = await pb.collection('pdg_users').getOne(id, { expand: 'church' });
+        return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
         console.error("Error updating user:", error);
         throw new Error(getErrorMessage(error));
@@ -162,6 +159,17 @@ export async function deleteUser(id: string) {
         return { success: true };
     } catch (error) {
         console.error("Error deleting user:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+// User Profile Actions
+export async function updateUserProfile(id: string, formData: FormData) {
+    try {
+        const record = await pb.collection('pdg_users').update(id, formData);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error: any) {
+        console.error("Error updating user profile:", error);
         throw new Error(getErrorMessage(error));
     }
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Building, UserPlus, CalendarPlus, UserCog, Trash2 } from 'lucide-react';
 import { ManageChurchesDialog } from '@/components/admin/manage-churches-dialog';
 import { ManageUsersDialog } from '@/components/admin/manage-users-dialog';
+import { ManageProfileDialog } from '@/components/settings/manage-profile-dialog';
 
 export default function AdminSettings() {
     return (
@@ -67,7 +68,7 @@ export default function AdminSettings() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground mb-4">Modifica le tue informazioni personali e preferenze.</p>
-                        <Button>Modifica Profilo</Button>
+                        <ManageProfileDialog />
                     </CardContent>
                 </Card>
                 <Card>

@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ListChecks, UserCog, Trash2 } from 'lucide-react';
+import { ManageProfileDialog } from '@/components/settings/manage-profile-dialog';
 
 export default function LeaderSettings() {
     return (
@@ -41,7 +42,7 @@ export default function LeaderSettings() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground mb-4">Modifica le tue informazioni personali e preferenze.</p>
-                        <Button>Modifica Profilo</Button>
+                        <ManageProfileDialog />
                     </CardContent>
                 </Card>
                 <Card>
