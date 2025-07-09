@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Building, UserPlus, CalendarPlus, UserCog, Trash2 } from 'lucide-react';
+import { ManageChurchesDialog } from '@/components/admin/manage-churches-dialog';
 
 export default function AdminSettings() {
     return (
@@ -26,7 +27,7 @@ export default function AdminSettings() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground mb-4">Aggiungi o modifica le chiese disponibili sulla piattaforma.</p>
-                        <Button>Crea Chiesa</Button>
+                        <ManageChurchesDialog />
                     </CardContent>
                 </Card>
                 <Card>
