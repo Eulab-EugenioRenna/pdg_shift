@@ -232,7 +232,9 @@ export async function getUsers(userId?: string, userRole?: string, churchId?: st
             const churchIds = coordinator.church || [];
             if (churchIds.length === 0) return [];
             
-            filter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
+            const churchIdFilter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
+            filter = churchIdFilter;
+
         } else if (churchId) {
             filter = `church ?~ "${churchId}"`;
         }
@@ -297,12 +299,6 @@ export async function addUserByAdmin(formData: FormData) {
 
 export async function updateUserByAdmin(id: string, formData: FormData) {
     try {
-        // Security check: prevent coordinators from editing superusers
-        const targetUser = await pb.collection('pdg_users').getOne(id);
-        if (targetUser.role === 'superuser') {
-            throw new Error("Azione non permessa. Non puoi modificare un Superuser.");
-        }
-
         await pb.collection('pdg_users').update(id, formData);
         const finalRecord = await pb.collection('pdg_users').getOne(id, { expand: 'church' });
         return JSON.parse(JSON.stringify(finalRecord));

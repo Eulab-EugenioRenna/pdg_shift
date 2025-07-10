@@ -189,8 +189,9 @@ export function ManageUsersDialog() {
   
   const canManageUser = (targetUser: RecordModel) => {
     if (!currentUser) return false;
+    if (targetUser.role === 'superuser') return false; // Cannot manage superusers
     if (currentUser.role === 'superuser') return true;
-    if (currentUser.role === 'coordinatore' && targetUser.role !== 'superuser') return true;
+    if (currentUser.role === 'coordinatore') return true;
     return false;
   }
 
