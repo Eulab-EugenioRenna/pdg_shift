@@ -41,7 +41,8 @@ export default function SchedulePage() {
             if (user.role === 'superuser') {
                 userChurches = await getChurches();
             } else {
-                 userChurches = await getChurches(user.id, user.role);
+                 const coordinator = await pb.collection('pdg_users').getOne(user.id, { expand: 'church' });
+                 userChurches = coordinator.expand?.church || [];
             }
             setChurches(userChurches);
             if (userChurches.length > 0) {
@@ -83,15 +84,6 @@ export default function SchedulePage() {
                     <p className="text-muted-foreground">Visualizza e gestisci gli eventi e i servizi della chiesa.</p>
                 </div>
                  <div className="flex items-center gap-4">
-                    {churchOptions.length > 1 && (
-                        <MultiSelect
-                            options={churchOptions}
-                            selected={selectedChurches}
-                            onChange={setSelectedChurches}
-                            placeholder="Seleziona una o più chiese"
-                            className="w-full md:w-[280px]"
-                        />
-                    )}
                     {canCreateEvent && (
                         <>
                            <Button 
@@ -121,8 +113,17 @@ export default function SchedulePage() {
                         placeholder="Cerca per nome evento..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:max-w-sm"
+                        className="w-full md:max-w-xs"
                     />
+                    {churchOptions.length > 1 && (
+                        <MultiSelect
+                            options={churchOptions}
+                            selected={selectedChurches}
+                            onChange={setSelectedChurches}
+                            placeholder="Seleziona una o più chiese"
+                            className="w-full md:w-[280px]"
+                        />
+                    )}
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button

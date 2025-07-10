@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -9,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface Option {
   value: string;
@@ -33,13 +36,34 @@ function MultiSelect({
   disabled = false,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
+  const [searchTerm, setSearchTerm] = React.useState("");
 
   const handleUnselect = (value: string) => {
     onChange(selected.filter((s) => s !== value));
   };
 
+  const filteredOptions = options.filter(option => 
+    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allFilteredValues = filteredOptions.map(o => o.value);
+      const newSelected = [...new Set([...selected, ...allFilteredValues])];
+      onChange(newSelected);
+    } else {
+      const filteredValuesSet = new Set(filteredOptions.map(o => o.value));
+      onChange(selected.filter(s => !filteredValuesSet.has(s)));
+    }
+  };
+
+  const areAllFilteredSelected = filteredOptions.length > 0 && filteredOptions.every(o => selected.includes(o.value));
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(isOpen) => {
+      setOpen(isOpen);
+      if (!isOpen) setSearchTerm(''); // Reset search on close
+    }}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -77,9 +101,31 @@ function MultiSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+         <div className="p-2">
+            <Input 
+                placeholder="Cerca..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-9"
+            />
+        </div>
+        <div className="flex items-center space-x-2 border-t border-b px-3 py-2">
+            <Checkbox 
+                id="select-all" 
+                checked={areAllFilteredSelected}
+                onCheckedChange={handleSelectAll}
+                disabled={filteredOptions.length === 0}
+            />
+            <Label
+                htmlFor="select-all"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+                Seleziona Tutto
+            </Label>
+        </div>
         <ScrollArea className="max-h-60">
             <div className="p-2">
-            {options.map((option) => {
+            {filteredOptions.length > 0 ? filteredOptions.map((option) => {
               const isSelected = selected.includes(option.value);
               return (
                 <div
@@ -110,7 +156,9 @@ function MultiSelect({
                   </Label>
                 </div>
               );
-            })}
+            }) : (
+                <p className="p-2 text-center text-sm text-muted-foreground">Nessun risultato.</p>
+            )}
           </div>
         </ScrollArea>
       </PopoverContent>
