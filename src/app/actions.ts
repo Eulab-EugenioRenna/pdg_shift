@@ -173,7 +173,7 @@ export async function getUsers() {
 export async function getLeaders(churchId: string) {
     try {
         const records = await pb.collection('pdg_users').getFullList({
-            filter: `role = "leader" && church ?~ "${churchId}"`,
+            filter: `(role = "leader" || role = "admin") && church ?~ "${churchId}"`,
             sort: 'name',
         });
         return JSON.parse(JSON.stringify(records));
