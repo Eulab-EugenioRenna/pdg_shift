@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition, useEffect, useMemo } from 'react';
@@ -38,6 +39,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
     const [description, setDescription] = useState('');
     const [leaderId, setLeaderId] = useState('');
     const [teamAssignments, setTeamAssignments] = useState<Record<string, string>>({});
+    const [newPositions, setNewPositions] = useState('');
     
     const [leaders, setLeaders] = useState<RecordModel[]>([]);
     const [allUsers, setAllUsers] = useState<RecordModel[]>([]);
@@ -48,6 +50,8 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
 
     const [aiSuggestions, setAiSuggestions] = useState<SuggestTeamOutput | null>(null);
     const [isSuggesting, startAiTransition] = useTransition();
+
+    const positions = service?.positions || [];
 
     useEffect(() => {
         if (isOpen && churchId) {
@@ -79,13 +83,14 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             setLeaderId(service.leader || '');
             setTeamAssignments(service.team_assignments || {});
             setAiSuggestions(null); // Reset suggestions when opening
+            setNewPositions('');
         }
     }, [isOpen, service, churchId, toast, eventDate]);
 
     const handleGetAiSuggestions = () => {
         if (!service) return;
 
-        const openPositions = (service.positions || []).filter((pos: string) => !teamAssignments[pos] || teamAssignments[pos] === 'unassign');
+        const openPositions = positions.filter((pos: string) => !teamAssignments[pos] || teamAssignments[pos] === 'unassign');
 
         if (openPositions.length === 0) {
             toast({ title: 'Tutto coperto!', description: "Non ci sono posizioni aperte da riempire." });
@@ -159,12 +164,16 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             const teamIds = Object.values(finalAssignments).filter(id => id);
             const uniqueTeamIds = [...new Set(teamIds)];
 
+            const positionsArray = newPositions.split(',').map(p => p.trim()).filter(Boolean);
+            const finalPositions = positions.length > 0 ? positions : positionsArray;
+
             const serviceData = {
                 name,
                 description,
                 leader: leaderId === 'unassign' ? null : leaderId,
                 team_assignments: finalAssignments,
                 team: uniqueTeamIds,
+                positions: finalPositions,
             };
 
             try {
@@ -177,8 +186,6 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             }
         });
     };
-    
-    const positions = service?.positions || [];
     
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -221,7 +228,8 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                             <CardDescription>Assegna un volontario ad ogni posizione richiesta.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {Array.isArray(positions) && positions.length > 0 ? positions.map((pos: string) => (
+                            {Array.isArray(positions) && positions.length > 0 ? (
+                                positions.map((pos: string) => (
                                 <div key={pos} className="grid grid-cols-3 items-center gap-4">
                                     <Label htmlFor={`pos-${pos}`} className="text-right">{pos}</Label>
                                     <Select
@@ -244,7 +252,22 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            )) : <p className="text-sm text-muted-foreground">Nessuna posizione definita per questo servizio.</p>}
+                            ))
+                            ) : (
+                                <div className="space-y-2">
+                                    <Label htmlFor="new-positions">Aggiungi Posizioni</Label>
+                                    <Textarea
+                                        id="new-positions"
+                                        value={newPositions}
+                                        onChange={(e) => setNewPositions(e.target.value)}
+                                        placeholder="Elenco di posizioni separate da virgola (es. Voce, Chitarra, Batteria)"
+                                        disabled={isPending || dataLoading}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        Una volta salvate, potrai assegnare i volontari a queste posizioni.
+                                    </p>
+                                </div>
+                            )}
 
                             {Array.isArray(positions) && positions.length > 0 && (
                                 <>
