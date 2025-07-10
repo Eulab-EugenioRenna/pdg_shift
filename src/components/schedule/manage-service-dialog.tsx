@@ -226,7 +226,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                             <CardDescription>Assegna un volontario ad ogni posizione richiesta.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {positions.length > 0 ? positions.map((pos: string) => (
+                            {Array.isArray(positions) && positions.length > 0 ? positions.map((pos: string) => (
                                 <div key={pos} className="grid grid-cols-3 items-center gap-4">
                                     <Label htmlFor={`pos-${pos}`} className="text-right">{pos}</Label>
                                     <Select
@@ -251,7 +251,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                 </div>
                             )) : <p className="text-sm text-muted-foreground">Nessuna posizione definita per questo servizio.</p>}
 
-                            {positions.length > 0 && (
+                            {Array.isArray(positions) && positions.length > 0 && (
                                 <>
                                     <Button type="button" variant="outline" onClick={handleGetAiSuggestions} disabled={isSuggesting || dataLoading} className="mt-4 w-full">
                                         {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
