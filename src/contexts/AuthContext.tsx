@@ -109,24 +109,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const allChurches = await getChurches();
             const allChurchIds = allChurches.map((c: RecordModel) => c.id);
             
-            const formData = new FormData();
-            formData.append('name', authData.meta.name);
-            formData.append('role', 'volontario');
-            formData.append('emailVisibility', 'true');
-            allChurchIds.forEach((id: string) => formData.append('church', id));
+            const updateData = {
+                name: authData.meta.name,
+                role: 'volontario',
+                emailVisibility: true,
+                church: allChurchIds
+            };
+
+            await pb.collection('pdg_users').update(authData.record.id, updateData);
             
             if (authData.meta.avatarUrl) {
                 try {
                     const avatarResponse = await fetch(authData.meta.avatarUrl);
-                    const avatarBlob = await avatarResponse.blob();
-                    formData.append('avatar', avatarBlob);
+                    if (avatarResponse.ok) {
+                        const avatarBlob = await avatarResponse.blob();
+                        const avatarFormData = new FormData();
+                        avatarFormData.append('avatar', avatarBlob);
+                        await pb.collection('pdg_users').update(authData.record.id, avatarFormData);
+                    }
                 } catch (avatarError) {
                     console.error("Failed to fetch or update avatar:", avatarError);
                 }
             }
-            
-            // Single update call with all data
-            await pb.collection('pdg_users').update(authData.record.id, formData);
         }
       
         await refreshUser();
