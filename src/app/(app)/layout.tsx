@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarTrigger, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from '@/components/ui/sidebar';
-import { Home, Calendar, Users, Settings, LogOut } from 'lucide-react';
+import { Home, Calendar, Settings, LogOut } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Icons } from '@/components/icons';
@@ -21,26 +21,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/login');
-    }
-    if (!loading && user) {
-        const isComplete = user.phone && user.skills && user.service_preferences?.length > 0;
-        if (!isComplete) {
-            setIsProfileIncomplete(true);
-        }
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const menuItems = useMemo(() => {
     const allItems = [
       { href: "/dashboard", icon: Home, label: "Dashboard" },
@@ -54,7 +34,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     return allItems;
   }, [user?.role]);
-  
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+    if (!loading && user) {
+        const isComplete = user.phone && user.skills && user.service_preferences?.length > 0;
+        if (!isComplete) {
+            setIsProfileIncomplete(true);
+        }
+    }
+  }, [user, loading, router]);
+
   const handleProfileCompleted = async () => {
     await refreshUser();
     setIsProfileIncomplete(false);
@@ -65,6 +57,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       return pathname === itemHref;
     }
     return pathname.startsWith(itemHref);
+  }
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
