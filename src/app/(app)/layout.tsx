@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarTrigger, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from '@/components/ui/sidebar';
@@ -41,12 +41,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const menuItems = [
-    { href: "/dashboard", icon: Home, label: "Dashboard" },
-    { href: "/dashboard/schedule", icon: Calendar, label: "Programma" },
-    // { href: "/dashboard/volunteers", icon: Users, label: "Volunteers" },
-    { href: "/dashboard/settings", icon: Settings, label: "Impostazioni" },
-  ];
+  const menuItems = useMemo(() => {
+    const allItems = [
+      { href: "/dashboard", icon: Home, label: "Dashboard" },
+      { href: "/dashboard/schedule", icon: Calendar, label: "Programma" },
+      { href: "/dashboard/settings", icon: Settings, label: "Impostazioni" },
+    ];
+
+    if (user?.role === 'volontario') {
+      return allItems.filter(item => item.href !== '/dashboard/schedule');
+    }
+
+    return allItems;
+  }, [user?.role]);
   
   const handleProfileCompleted = async () => {
     await refreshUser();
