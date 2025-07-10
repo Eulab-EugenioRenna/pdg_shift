@@ -14,13 +14,14 @@ import { pb } from '@/lib/pocketbase';
 import { MultiSelect, type Option } from '@/components/ui/multi-select';
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, loginWithProvider } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSocialLoading, setIsSocialLoading] = useState(false);
   const [churches, setChurches] = useState<any[]>([]);
   const [selectedChurches, setSelectedChurches] = useState<string[]>([]);
   const [churchesLoading, setChurchesLoading] = useState(true);
@@ -68,6 +69,18 @@ export default function RegisterPage() {
       setIsLoading(false);
     }
   };
+
+  const handleSocialLogin = async (provider: 'google') => {
+    setIsSocialLoading(true);
+    try {
+      await loginWithProvider(provider);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSocialLoading(false);
+    }
+  };
+
 
   return (
      <main className="flex items-center justify-center min-h-screen bg-background p-4">
@@ -119,14 +132,30 @@ export default function RegisterPage() {
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Crea account
               </Button>
-              <div className="text-center text-sm">
+            </CardFooter>
+          </form>
+           <div className="relative mb-4">
+              <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">
+                      Oppure registrati con
+                  </span>
+              </div>
+          </div>
+          <CardFooter className="flex flex-col gap-4">
+             <Button variant="outline" className="w-full" onClick={() => handleSocialLogin('google')} disabled={isLoading || isSocialLoading}>
+                 {isSocialLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Icons.google className="mr-2 h-4 w-4" />}
+                 Google
+             </Button>
+            <div className="text-center text-sm">
                 Hai già un account?{' '}
                 <Link href="/login" className="underline">
                   Accedi
                 </Link>
               </div>
-            </CardFooter>
-          </form>
+          </CardFooter>
         </Card>
       </div>
     </main>

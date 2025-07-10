@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { pb } from '@/lib/pocketbase';
 import type { RecordModel, Admin } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
+import { getChurches } from '@/app/actions';
 
 // Define the shape of the user object
 export type User = RecordModel | Admin | null;
@@ -16,6 +17,7 @@ export interface AuthContextType {
   token: string;
   loading: boolean;
   login: (email: string, pass: string) => Promise<any>;
+  loginWithProvider: (provider: 'google') => Promise<void>;
   logout: () => void;
   register: (data: any) => Promise<any>;
   refreshUser: () => Promise<void>;
@@ -96,6 +98,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [router, toast]);
 
+  const loginWithProvider = useCallback(async (provider: 'google') => {
+    setLoading(true);
+    try {
+      const authData = await pb.collection('pdg_users').authWithOAuth2({ 
+        provider,
+        expand: 'church',
+      });
+
+      // if this is a new user, update their role and church
+      if (authData.meta?.isNew) {
+        const allChurches = await getChurches();
+        const allChurchIds = allChurches.map((c: RecordModel) => c.id);
+
+        await pb.collection('pdg_users').update(authData.record.id, {
+          role: 'volontario',
+          church: allChurchIds,
+        });
+      }
+
+      toast({ title: "Successo", description: "Login effettuato con successo." });
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error("Social login error:", error);
+      toast({ variant: 'destructive', title: 'Login Fallito', description: "Impossibile accedere con il provider social." });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, [router, toast]);
+
+
   const register = useCallback(async (data: any) => {
     setLoading(true);
     try {
@@ -147,6 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     register,
     refreshUser,
+    loginWithProvider,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
