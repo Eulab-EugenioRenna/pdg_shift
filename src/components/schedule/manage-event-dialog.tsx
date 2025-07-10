@@ -55,6 +55,7 @@ export function ManageEventDialog({
 
     const [eventTemplates, setEventTemplates] = useState<RecordModel[]>([]);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+    const [templatesLoading, setTemplatesLoading] = useState(false);
     
     const isEditMode = !!eventToEdit;
 
@@ -85,13 +86,21 @@ export function ManageEventDialog({
     
     useEffect(() => {
         if (isOpen) {
-            getEventTemplates()
-                .then(setEventTemplates)
-                .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' }));
-            resetForm();
+          resetForm();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, eventToEdit, selectedChurchId]);
+
+    useEffect(() => {
+        if (isOpen && church) {
+            setTemplatesLoading(true);
+            getEventTemplates(church)
+                .then(setEventTemplates)
+                .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento per questa chiesa.' }))
+                .finally(() => setTemplatesLoading(false));
+        }
+    }, [isOpen, church, toast]);
+
 
     const handleTemplateChange = (templateId: string) => {
         const template = eventTemplates.find(t => t.id === templateId);
@@ -179,12 +188,29 @@ export function ManageEventDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-4">
+                    {userChurches.length > 1 && (
+                        <div className="space-y-2">
+                            <Label htmlFor="event-church">Chiesa</Label>
+                            <Select onValueChange={setChurch} value={church} required disabled={isPending || isEditMode}>
+                                <SelectTrigger id="event-church">
+                                    <SelectValue placeholder="Seleziona una chiesa" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {userChurches.map((c) => (
+                                        <SelectItem key={c.id} value={c.id}>
+                                            {c.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                     {!isEditMode && (
                         <div className="space-y-2">
                             <Label htmlFor="event-template">Modello (Opzionale)</Label>
-                            <Select onValueChange={handleTemplateChange} value={selectedTemplateId} disabled={isPending || eventTemplates.length === 0}>
+                            <Select onValueChange={handleTemplateChange} value={selectedTemplateId} disabled={isPending || templatesLoading || eventTemplates.length === 0}>
                                 <SelectTrigger id="event-template">
-                                    <SelectValue placeholder="Seleziona un modello" />
+                                    <SelectValue placeholder={templatesLoading ? "Caricamento..." : "Seleziona un modello"} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {eventTemplates.map((t) => (
@@ -205,25 +231,7 @@ export function ManageEventDialog({
                         <Label htmlFor="event-description">Descrizione (opzionale)</Label>
                         <Textarea id="event-description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={isPending} />
                     </div>
-                    
-                    {userChurches.length > 1 && (
-                        <div className="space-y-2">
-                            <Label htmlFor="event-church">Chiesa</Label>
-                            <Select onValueChange={setChurch} value={church} required disabled={isPending}>
-                                <SelectTrigger id="event-church">
-                                    <SelectValue placeholder="Seleziona una chiesa" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {userChurches.map((c) => (
-                                        <SelectItem key={c.id} value={c.id}>
-                                            {c.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-                    
+
                      <div className="space-y-2">
                         <Label htmlFor="event-date">Data {isRecurring ? 'di inizio ricorrenza' : ''}</Label>
                         <Popover>
@@ -296,3 +304,5 @@ export function ManageEventDialog({
         </Dialog>
     );
 }
+
+    

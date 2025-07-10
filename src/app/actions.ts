@@ -507,26 +507,13 @@ export async function deleteServiceTemplate(id: string) {
 // Event Template Management
 export async function getEventTemplates(churchId?: string) {
     try {
+        const filter = churchId ? `churches ?~ "${churchId}"` : '';
         const allTemplates = await pb.collection('pdg_event_templates').getFullList({ 
             sort: 'name', 
-            expand: 'service_templates,service_templates.church' 
+            expand: 'service_templates,churches',
+            filter,
         });
-
-        if (!churchId) {
-            return JSON.parse(JSON.stringify(allTemplates));
-        }
-
-        const filteredTemplates = allTemplates.filter(template => {
-            if (!template.expand?.service_templates || template.expand.service_templates.length === 0) {
-                return true; // Include templates with no services, they are universal
-            }
-            // Include template if at least one of its services is available for the given church
-            return template.expand.service_templates.some((st: RecordModel) => 
-                st.expand?.church?.some((c: RecordModel) => c.id === churchId)
-            );
-        });
-
-        return JSON.parse(JSON.stringify(filteredTemplates));
+        return JSON.parse(JSON.stringify(allTemplates));
     } catch (error) {
         console.error("Error fetching event templates:", error);
         throw new Error("Failed to fetch event templates.");
@@ -536,7 +523,7 @@ export async function getEventTemplates(churchId?: string) {
 export async function addEventTemplate(formData: FormData) {
     try {
         const record = await pb.collection('pdg_event_templates').create(formData);
-        const finalRecord = await pb.collection('pdg_event_templates').getOne(record.id, { expand: 'service_templates' });
+        const finalRecord = await pb.collection('pdg_event_templates').getOne(record.id, { expand: 'service_templates,churches' });
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
         throw new Error(getErrorMessage(error));
@@ -546,7 +533,7 @@ export async function addEventTemplate(formData: FormData) {
 export async function updateEventTemplate(id: string, formData: FormData) {
     try {
         await pb.collection('pdg_event_templates').update(id, formData);
-        const finalRecord = await pb.collection('pdg_event_templates').getOne(id, { expand: 'service_templates' });
+        const finalRecord = await pb.collection('pdg_event_templates').getOne(id, { expand: 'service_templates,churches' });
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
         throw new Error(getErrorMessage(error));
@@ -627,3 +614,5 @@ export async function deleteUnavailability(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
+
+    

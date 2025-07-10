@@ -25,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { getEventTemplates, addEventTemplate, updateEventTemplate, deleteEventTemplate, getServiceTemplates } from '@/app/actions';
+import { getEventTemplates, addEventTemplate, updateEventTemplate, deleteEventTemplate, getServiceTemplates, getChurches } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
 import { Loader2, Trash2, Edit, PlusCircle, ClipboardPlus, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -38,21 +38,48 @@ import { pb } from '@/lib/pocketbase';
 function EventTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
+  const [selectedChurches, setSelectedChurches] = useState<string[]>(template?.churches || []);
   const [selectedServices, setSelectedServices] = useState<string[]>(template?.service_templates || []);
   
-  const [serviceTemplates, setServiceTemplates] = useState<RecordModel[]>([]);
-  const [servicesLoading, setServicesLoading] = useState(true);
+  const [allChurches, setAllChurches] = useState<RecordModel[]>([]);
+  const [allServiceTemplates, setAllServiceTemplates] = useState<RecordModel[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const serviceOptions: Option[] = serviceTemplates.map(s => ({ value: s.id, label: `${s.name} (${s.expand.church.name})` }));
+  const churchOptions: Option[] = allChurches.map(c => ({ value: c.id, label: c.name }));
+
+  const filteredServiceOptions: Option[] = useMemo(() => {
+    if (selectedChurches.length === 0) {
+      return allServiceTemplates.map(s => ({ value: s.id, label: `${s.name} (${(s.expand?.church || []).map((c: any) => c.name).join(', ')})` }));
+    }
+    return allServiceTemplates
+      .filter(st => st.church.some((churchId: string) => selectedChurches.includes(churchId)))
+      .map(s => ({ value: s.id, label: `${s.name} (${(s.expand?.church || []).map((c: any) => c.name).join(', ')})` }));
+  }, [selectedChurches, allServiceTemplates]);
 
   useEffect(() => {
-    getServiceTemplates()
-      .then(setServiceTemplates)
-      .finally(() => setServicesLoading(false));
-  }, []);
+    setDataLoading(true);
+    Promise.all([
+      getChurches(),
+      getServiceTemplates()
+    ]).then(([churchesData, servicesData]) => {
+      setAllChurches(churchesData);
+      setAllServiceTemplates(servicesData);
+    }).catch(() => {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati necessari.'})
+    }).finally(() => {
+      setDataLoading(false);
+    });
+  }, [toast]);
+
+  useEffect(() => {
+    // When selected churches change, filter the selected services
+    const validServiceIds = new Set(filteredServiceOptions.map(opt => opt.value));
+    setSelectedServices(prev => prev.filter(serviceId => validServiceIds.has(serviceId)));
+  }, [selectedChurches, filteredServiceOptions]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,11 +87,17 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
       toast({ variant: 'destructive', title: 'Errore', description: 'Il nome del modello non può essere vuoto.' });
       return;
     }
+     if (selectedChurches.length === 0) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Seleziona almeno una chiesa.' });
+      return;
+    }
 
     startTransition(async () => {
       const formData = new FormData();
       formData.append('name', name.trim());
       formData.append('description', description.trim());
+      
+      selectedChurches.forEach(id => formData.append('churches', id));
       selectedServices.forEach(id => formData.append('service_templates', id));
 
       try {
@@ -106,19 +139,36 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
         />
       </div>
       <div>
+        <Label htmlFor="church-select">Chiese Applicabili</Label>
+        <MultiSelect
+            id="church-select"
+            options={churchOptions}
+            selected={selectedChurches}
+            onChange={setSelectedChurches}
+            placeholder={dataLoading ? "Caricamento..." : "Seleziona le chiese"}
+            disabled={dataLoading || isPending}
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Questo modello sarà disponibile solo per le chiese selezionate.
+        </p>
+      </div>
+      <div>
         <Label htmlFor="service-templates">Tipi di Servizio inclusi</Label>
         <MultiSelect
             id="service-templates"
-            options={serviceOptions}
+            options={filteredServiceOptions}
             selected={selectedServices}
             onChange={setSelectedServices}
-            placeholder={servicesLoading ? "Caricamento..." : "Seleziona i servizi"}
-            disabled={servicesLoading || isPending}
+            placeholder={dataLoading ? "Caricamento..." : "Seleziona i servizi"}
+            disabled={dataLoading || isPending || selectedChurches.length === 0}
         />
+         <p className="text-xs text-muted-foreground mt-1">
+          Vengono mostrati solo i servizi compatibili con le chiese selezionate.
+        </p>
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
-        <Button type="submit" disabled={isPending || servicesLoading}>
+        <Button type="submit" disabled={isPending || dataLoading}>
           {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
         </Button>
       </DialogFooter>
@@ -157,7 +207,7 @@ export function ManageEventTemplatesDialog() {
     const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
         if (action === 'create' || action === 'update') {
             try {
-                const fullRecord = await pb.collection('pdg_event_templates').getOne(record.id, { expand: 'service_templates' });
+                const fullRecord = await pb.collection('pdg_event_templates').getOne(record.id, { expand: 'service_templates,churches' });
                 if (action === 'create') {
                     setTemplates(prev => [...prev, fullRecord]);
                 } else { // update
@@ -298,7 +348,8 @@ export function ManageEventTemplatesDialog() {
                             </span>
                             <span className="md:hidden">Nome Modello</span>
                           </TableHead>
-                          <TableHead className="w-2/3 px-2">Servizi Inclusi</TableHead>
+                          <TableHead className="w-1/3 px-2">Chiese</TableHead>
+                          <TableHead className="w-1/3 px-2">Servizi Inclusi</TableHead>
                           <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -306,6 +357,13 @@ export function ManageEventTemplatesDialog() {
                         {processedTemplates.length > 0 ? processedTemplates.map((template) => (
                         <TableRow key={template.id}>
                             <TableCell className="font-medium p-2 whitespace-nowrap">{template.name}</TableCell>
+                            <TableCell className="p-2">
+                                <div className='flex flex-wrap gap-1'>
+                                    {template.expand?.churches?.map((c: RecordModel) => (
+                                        <Badge key={c.id} variant="secondary">{c.name}</Badge>
+                                    )) || 'N/A'}
+                                </div>
+                            </TableCell>
                             <TableCell className="p-2">
                                 <div className='flex flex-wrap gap-1'>
                                     {template.expand?.service_templates?.map((st: RecordModel) => (
@@ -326,7 +384,7 @@ export function ManageEventTemplatesDialog() {
                         </TableRow>
                         )) : (
                         <TableRow>
-                            <TableCell colSpan={3} className="text-center h-24">Nessun modello di evento trovato.</TableCell>
+                            <TableCell colSpan={4} className="text-center h-24">Nessun modello di evento trovato.</TableCell>
                         </TableRow>
                         )}
                     </TableBody>
@@ -371,3 +429,5 @@ export function ManageEventTemplatesDialog() {
     </>
   );
 }
+
+    
