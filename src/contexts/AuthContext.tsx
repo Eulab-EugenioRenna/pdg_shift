@@ -101,49 +101,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithProvider = useCallback(async (provider: 'google') => {
     setLoading(true);
     try {
-      const authData = await pb.collection('pdg_users').authWithOAuth2({ 
-        provider,
-      });
+        const authData = await pb.collection('pdg_users').authWithOAuth2({ 
+            provider,
+        });
 
-      if (authData.meta?.isNew) {
-        const allChurches = await getChurches();
-        const allChurchIds = allChurches.map((c: RecordModel) => c.id);
-        
-        const updateData: any = {
-          name: authData.meta.name,
-          role: 'volontario',
-          church: allChurchIds,
-          emailVisibility: true,
-        };
-        
-        await pb.collection('pdg_users').update(authData.record.id, updateData);
-
-        // Fetch avatar from URL and update user
-        if (authData.meta.avatarUrl) {
-            try {
-                const avatarResponse = await fetch(authData.meta.avatarUrl);
-                const avatarBlob = await avatarResponse.blob();
-                const formData = new FormData();
-                formData.append('avatar', avatarBlob);
-                
-                // Update user with avatar
-                await pb.collection('pdg_users').update(authData.record.id, formData);
-            } catch (avatarError) {
-                console.error("Failed to fetch or update avatar:", avatarError);
+        if (authData.meta?.isNew) {
+            const allChurches = await getChurches();
+            const allChurchIds = allChurches.map((c: RecordModel) => c.id);
+            
+            const formData = new FormData();
+            formData.append('name', authData.meta.name);
+            formData.append('role', 'volontario');
+            formData.append('emailVisibility', 'true');
+            allChurchIds.forEach((id: string) => formData.append('church', id));
+            
+            if (authData.meta.avatarUrl) {
+                try {
+                    const avatarResponse = await fetch(authData.meta.avatarUrl);
+                    const avatarBlob = await avatarResponse.blob();
+                    formData.append('avatar', avatarBlob);
+                } catch (avatarError) {
+                    console.error("Failed to fetch or update avatar:", avatarError);
+                }
             }
+            
+            // Single update call with all data
+            await pb.collection('pdg_users').update(authData.record.id, formData);
         }
-      }
       
-      await refreshUser();
+        await refreshUser();
       
-      toast({ title: "Successo", description: "Login effettuato con successo." });
-      router.push('/dashboard');
+        toast({ title: "Successo", description: "Login effettuato con successo." });
+        router.push('/dashboard');
     } catch (error: any) {
-      console.error("Social login error:", error);
-      toast({ variant: 'destructive', title: 'Login Fallito', description: "Impossibile accedere con il provider social." });
-      throw error;
+        console.error("Social login error:", error);
+        toast({ variant: 'destructive', title: 'Login Fallito', description: "Impossibile accedere con il provider social." });
+        throw error;
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   }, [router, toast, refreshUser]);
 
