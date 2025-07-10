@@ -299,6 +299,7 @@ export async function createEvent(formData: FormData) {
                         church: churchId,
                         positions: serviceTemplate.positions || [],
                         team_assignments: {},
+                        leader: serviceTemplate.leader || null,
                     });
                 }
             }
@@ -428,10 +429,6 @@ export async function getServicesForEvent(eventId: string) {
 }
 
 export async function createService(serviceData: any) {
-    if (!serviceData.leader) {
-        throw new Error("È obbligatorio assegnare un leader per creare un servizio.");
-    }
-
     try {
         const record = await pb.collection('pdg_services').create(serviceData);
         const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader' });
@@ -464,9 +461,14 @@ export async function deleteService(id: string) {
 }
 
 // Service Template Management
-export async function getServiceTemplates() {
+export async function getServiceTemplates(churchId?: string) {
     try {
-        const records = await pb.collection('pdg_service_templates').getFullList({ sort: 'name' });
+        const filter = churchId ? `church = "${churchId}"` : '';
+        const records = await pb.collection('pdg_service_templates').getFullList({ 
+            sort: 'name',
+            expand: 'church,leader',
+            filter
+        });
         return JSON.parse(JSON.stringify(records));
     } catch (error) {
         console.error("Error fetching service templates:", error);

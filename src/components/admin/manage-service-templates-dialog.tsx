@@ -25,25 +25,57 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { getServiceTemplates, addServiceTemplate, updateServiceTemplate, deleteServiceTemplate } from '@/app/actions';
+import { getServiceTemplates, addServiceTemplate, updateServiceTemplate, deleteServiceTemplate, getChurches, getLeaders } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
 import { Loader2, Trash2, Edit, PlusCircle, ListTodo, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '../ui/textarea';
 import { pb } from '@/lib/pocketbase';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 
 function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
   const [positions, setPositions] = useState(template?.positions?.join(', ') || '');
+  const [churchId, setChurchId] = useState(template?.church || '');
+  const [leaderId, setLeaderId] = useState(template?.leader || '');
+
+  const [churches, setChurches] = useState<RecordModel[]>([]);
+  const [leaders, setLeaders] = useState<RecordModel[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
+  useEffect(() => {
+    getChurches()
+        .then(setChurches)
+        .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare le chiese.'}))
+        .finally(() => setDataLoading(false));
+  }, [toast]);
+  
+  useEffect(() => {
+    if (churchId) {
+        setDataLoading(true);
+        getLeaders(churchId)
+            .then(setLeaders)
+            .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i leader per questa chiesa.'}))
+            .finally(() => setDataLoading(false));
+    } else {
+        setLeaders([]);
+    }
+  }, [churchId, toast]);
+
+  const handleChurchChange = (value: string) => {
+    setChurchId(value);
+    setLeaderId(''); // Reset leader when church changes
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Il nome del tipo di servizio non può essere vuoto.' });
+    if (!name.trim() || !churchId) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Nome e Chiesa sono obbligatori.' });
       return;
     }
 
@@ -52,6 +84,8 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
         name: name.trim(),
         description: description.trim(),
         positions: positions.split(',').map(p => p.trim()).filter(Boolean),
+        church: churchId,
+        leader: leaderId || null,
       };
 
       try {
@@ -82,6 +116,19 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
           required
         />
       </div>
+      <div>
+        <Label htmlFor="church-select">Chiesa</Label>
+        <Select onValueChange={handleChurchChange} value={churchId} disabled={isPending || dataLoading} required>
+            <SelectTrigger id="church-select">
+                <SelectValue placeholder="Seleziona una chiesa..." />
+            </SelectTrigger>
+            <SelectContent>
+                {churches.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+      </div>
        <div>
         <Label htmlFor="template-description">Descrizione (Opzionale)</Label>
         <Textarea 
@@ -105,9 +152,23 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
           Inserisci le posizioni richieste per questo servizio, separate da una virgola.
         </p>
       </div>
+      <div>
+        <Label htmlFor="leader-select">Leader Predefinito (Opzionale)</Label>
+        <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading || !churchId || leaders.length === 0}>
+            <SelectTrigger id="leader-select">
+                <SelectValue placeholder={!churchId ? "Prima seleziona una chiesa" : "Seleziona un leader..."} />
+            </SelectTrigger>
+            <SelectContent>
+                 <SelectItem value="">Nessun leader predefinito</SelectItem>
+                {leaders.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+      </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending || dataLoading}>
           {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
         </Button>
       </DialogFooter>
@@ -143,11 +204,12 @@ export function ManageServiceTemplatesDialog() {
         })
         .finally(() => setIsLoading(false));
 
-    const handleSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
+    const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
+        const fullRecord = await pb.collection('pdg_service_templates').getOne(record.id, { expand: 'church,leader'});
         if (action === 'create') {
-            setTemplates(prev => [...prev, record]);
+            setTemplates(prev => [...prev, fullRecord]);
         } else if (action === 'update') {
-            setTemplates(prev => prev.map(t => t.id === record.id ? record : t));
+            setTemplates(prev => prev.map(t => t.id === fullRecord.id ? fullRecord : t));
         } else if (action === 'delete') {
             setTemplates(prev => prev.filter(t => t.id !== record.id));
         }
@@ -280,7 +342,8 @@ export function ManageServiceTemplatesDialog() {
                              </span>
                              <span className="md:hidden">Nome</span>
                           </TableHead>
-                          <TableHead className="w-2/3 px-2">Descrizione</TableHead>
+                          <TableHead className="w-1/3 px-2">Chiesa</TableHead>
+                           <TableHead className="w-1/3 px-2">Leader Predefinito</TableHead>
                           <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -288,7 +351,8 @@ export function ManageServiceTemplatesDialog() {
                         {processedTemplates.length > 0 ? processedTemplates.map((template) => (
                         <TableRow key={template.id}>
                             <TableCell className="font-medium p-2 whitespace-nowrap">{template.name}</TableCell>
-                            <TableCell className="text-muted-foreground p-2 whitespace-nowrap truncate">{template.description}</TableCell>
+                             <TableCell className="p-2 whitespace-nowrap">{template.expand?.church?.name || 'N/A'}</TableCell>
+                            <TableCell className="p-2 whitespace-nowrap">{template.expand?.leader?.name || 'Nessuno'}</TableCell>
                             <TableCell className="text-right p-2">
                                 <div className="flex gap-2 justify-end">
                                     <Button size="icon" variant="ghost" onClick={() => handleEdit(template)}>
@@ -302,7 +366,7 @@ export function ManageServiceTemplatesDialog() {
                         </TableRow>
                         )) : (
                         <TableRow>
-                            <TableCell colSpan={3} className="text-center h-24">Nessun tipo di servizio trovato.</TableCell>
+                            <TableCell colSpan={4} className="text-center h-24">Nessun tipo di servizio trovato.</TableCell>
                         </TableRow>
                         )}
                     </TableBody>

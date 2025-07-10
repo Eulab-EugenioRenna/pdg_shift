@@ -45,12 +45,14 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
     // Data
     const [leaders, setLeaders] = useState<RecordModel[]>([]);
     const [dataLoading, setDataLoading] = useState(true);
+    
+    const selectedTemplate = serviceTemplates.find(t => t.id === selectedTemplateId);
 
     useEffect(() => {
         if (isOpen) {
             setDataLoading(true);
             Promise.all([
-                getServiceTemplates(),
+                getServiceTemplates(churchId),
                 getLeaders(churchId)
             ])
             .then(([templates, leadersData]) => {
@@ -68,6 +70,13 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             setTemplateLeaderId('');
         }
     }, [isOpen, churchId, toast]);
+    
+     useEffect(() => {
+        if (selectedTemplate) {
+            setTemplateLeaderId(selectedTemplate.leader || '');
+        }
+    }, [selectedTemplate]);
+
 
     const handleCustomSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -114,16 +123,15 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
         }
         
         startTransition(async () => {
-            const template = serviceTemplates.find(t => t.id === selectedTemplateId);
-            if (!template) return;
+            if (!selectedTemplate) return;
 
             const serviceData = {
-                name: template.name,
-                description: template.description,
+                name: selectedTemplate.name,
+                description: selectedTemplate.description,
                 event: eventId,
                 church: churchId,
                 leader: templateLeaderId,
-                positions: template.positions || [],
+                positions: selectedTemplate.positions || [],
                 team_assignments: {},
             };
             
@@ -161,11 +169,11 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
                             <SelectValue placeholder="Seleziona un modello..." />
                         </SelectTrigger>
                         <SelectContent>
-                            {serviceTemplates.map((t) => (
+                            {serviceTemplates.length > 0 ? serviceTemplates.map((t) => (
                                 <SelectItem key={t.id} value={t.id}>
                                     {t.name}
                                 </SelectItem>
-                            ))}
+                            )) : <p className="text-sm text-muted-foreground p-2">Nessun modello per questa chiesa.</p>}
                         </SelectContent>
                     </Select>
                 </div>
@@ -184,7 +192,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
                 </div>
                  <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                    <Button type="submit" disabled={isPending || dataLoading}>
+                    <Button type="submit" disabled={isPending || dataLoading || !selectedTemplateId}>
                     {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Aggiungi Servizio
                     </Button>

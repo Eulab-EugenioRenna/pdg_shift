@@ -46,7 +46,7 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const serviceOptions: Option[] = serviceTemplates.map(s => ({ value: s.id, label: s.name }));
+  const serviceOptions: Option[] = serviceTemplates.map(s => ({ value: s.id, label: `${s.name} (${s.expand.church.name})` }));
 
   useEffect(() => {
     getServiceTemplates()
@@ -264,7 +264,7 @@ export function ManageEventTemplatesDialog() {
             <DialogTitle>{getDialogTitle()}</DialogTitle>
              {view === 'list' && (
                 <DialogDescription>
-                    Aggiungi, modifica o elimina modelli di evento pre-configurati.
+                    Aggiungi, modifica o elimina modelli di evento con servizi pre-configurati.
                 </DialogDescription>
              )}
           </DialogHeader>
