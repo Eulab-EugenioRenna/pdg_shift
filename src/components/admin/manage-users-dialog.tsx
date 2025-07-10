@@ -252,11 +252,11 @@ export function ManageUsersDialog() {
                 {isLoading ? (
                     <div className="flex items-center justify-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : (
-                    <Table>
+                    <Table className="table-fixed">
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                          <TableHead className="w-[60px]">Avatar</TableHead>
-                          <TableHead>
+                          <TableHead className="w-[60px] px-2">Avatar</TableHead>
+                          <TableHead className="w-1/4 px-2">
                             <span className="hidden md:inline-flex">
                                 <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
                                     Nome
@@ -265,7 +265,7 @@ export function ManageUsersDialog() {
                             </span>
                             <span className="md:hidden">Nome</span>
                           </TableHead>
-                          <TableHead>
+                          <TableHead className="w-1/4 px-2">
                             <span className="hidden md:inline-flex">
                                 <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
                                     Email
@@ -274,8 +274,8 @@ export function ManageUsersDialog() {
                             </span>
                             <span className="md:hidden">Email</span>
                           </TableHead>
-                          <TableHead>Chiesa</TableHead>
-                          <TableHead>
+                          <TableHead className="w-1/4 px-2">Chiesa</TableHead>
+                          <TableHead className="w-1/4 px-2">
                             <span className="hidden md:inline-flex">
                                 <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
                                     Ruolo
@@ -284,23 +284,23 @@ export function ManageUsersDialog() {
                             </span>
                              <span className="md:hidden">Ruolo</span>
                           </TableHead>
-                          <TableHead className="text-right w-[120px]">Azioni</TableHead>
+                          <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {processedUsers.length > 0 ? processedUsers.map((user) => (
                         <TableRow key={user.id}>
-                            <TableCell>
+                            <TableCell className="p-2">
                                 <Avatar>
                                     <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
                                     <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                             </TableCell>
-                            <TableCell className="font-medium">{user.name}</TableCell>
-                            <TableCell>{user.email}</TableCell>
-                            <TableCell><ChurchList user={user} /></TableCell>
-                            <TableCell className="capitalize">{user.role}</TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="font-medium p-2 whitespace-nowrap">{user.name}</TableCell>
+                            <TableCell className="p-2 whitespace-nowrap truncate">{user.email}</TableCell>
+                            <TableCell className="p-2 whitespace-nowrap"><ChurchList user={user} /></TableCell>
+                            <TableCell className="capitalize p-2 whitespace-nowrap">{user.role}</TableCell>
+                            <TableCell className="text-right p-2">
                                 <div className="flex gap-2 justify-end">
                                     <Button size="icon" variant="ghost" onClick={() => handleEdit(user)}><Edit className="h-4 w-4" /></Button>
                                     <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)}><Trash2 className="h-4 w-4" /></Button>

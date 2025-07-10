@@ -189,8 +189,8 @@ export function ManageChurchesDialog() {
                     <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                          <TableHead className="w-[60px]">Logo</TableHead>
-                          <TableHead>
+                          <TableHead className="w-[60px] px-2">Logo</TableHead>
+                          <TableHead className="px-2">
                              <span className="hidden md:inline-flex">
                                 <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
                                     Nome Chiesa
@@ -199,20 +199,20 @@ export function ManageChurchesDialog() {
                              </span>
                              <span className="md:hidden">Nome Chiesa</span>
                           </TableHead>
-                          <TableHead className="text-right w-[120px]">Azioni</TableHead>
+                          <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {processedChurches.length > 0 ? processedChurches.map((church) => (
                         <TableRow key={church.id}>
-                            <TableCell>
+                            <TableCell className="p-2">
                                 <Avatar>
                                     <AvatarImage src={church.logo ? pb.getFileUrl(church, church.logo, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={church.name} />
                                     <AvatarFallback>{church.name?.charAt(0).toUpperCase()}</AvatarFallback>
                                 </Avatar>
                             </TableCell>
-                            <TableCell className="font-medium">{church.name}</TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="font-medium p-2 whitespace-nowrap">{church.name}</TableCell>
+                            <TableCell className="text-right p-2">
                                 <div className="flex gap-2 justify-end">
                                     <Button size="icon" variant="ghost" onClick={() => handleEdit(church)}>
                                         <Edit className="h-4 w-4" />

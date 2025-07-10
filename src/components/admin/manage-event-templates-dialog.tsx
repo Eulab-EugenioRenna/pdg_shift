@@ -286,10 +286,10 @@ export function ManageEventTemplatesDialog() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                 ) : (
-                    <Table>
+                    <Table className="table-fixed">
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
-                          <TableHead>
+                          <TableHead className="w-1/3 px-2">
                             <span className="hidden md:inline-flex">
                                 <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
                                     Nome Modello
@@ -298,22 +298,22 @@ export function ManageEventTemplatesDialog() {
                             </span>
                             <span className="md:hidden">Nome Modello</span>
                           </TableHead>
-                          <TableHead>Servizi Inclusi</TableHead>
-                          <TableHead className="text-right w-[120px]">Azioni</TableHead>
+                          <TableHead className="w-2/3 px-2">Servizi Inclusi</TableHead>
+                          <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {processedTemplates.length > 0 ? processedTemplates.map((template) => (
                         <TableRow key={template.id}>
-                            <TableCell className="font-medium">{template.name}</TableCell>
-                            <TableCell>
+                            <TableCell className="font-medium p-2 whitespace-nowrap">{template.name}</TableCell>
+                            <TableCell className="p-2">
                                 <div className='flex flex-wrap gap-1'>
                                     {template.expand?.service_templates?.map((st: RecordModel) => (
                                         <Badge key={st.id} variant="secondary">{st.name}</Badge>
                                     )) || 'N/A'}
                                 </div>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right p-2">
                                 <div className="flex gap-2 justify-end">
                                     <Button size="icon" variant="ghost" onClick={() => handleEdit(template)}>
                                         <Edit className="h-4 w-4" />
