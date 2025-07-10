@@ -118,7 +118,7 @@ export default function SchedulePage() {
                         placeholder="Cerca per nome evento..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:w-auto md:max-w-xs"
+                        className="w-full md:w-auto"
                     />
                     <Popover>
                         <PopoverTrigger asChild>
@@ -126,7 +126,7 @@ export default function SchedulePage() {
                                 id="date"
                                 variant={"outline"}
                                 className={cn(
-                                    "w-full md:w-[300px] justify-start text-left font-normal",
+                                    "w-full md:w-[250px] justify-start text-left font-normal",
                                     !dateRange && "text-muted-foreground"
                                 )}
                             >
