@@ -88,17 +88,31 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents }: 
     const [isCreatingOverride, startOverrideTransition] = useTransition();
     
     const { toast } = useToast();
+    
+    const fetchAndSetEvents = () => {
+        if (churchIds.length === 0) {
+            setEvents([]);
+            setIsLoading(false);
+            return;
+        }
+        setIsLoading(true);
+        const churchFilter = `(${churchIds.map(id => `church = "${id}"`).join(' || ')})`;
+        getEvents(churchFilter)
+            .then(eventsData => setEvents(eventsData))
+            .finally(() => setIsLoading(false));
+    };
 
     useEffect(() => {
         if (churchIds.length === 0) {
             setEvents([]);
+            setIsLoading(false);
             return;
         };
 
         setIsLoading(true);
-
-        const churchFilter = `(${churchIds.map(id => `church = "${id}"`).join(' || ')})`;
         
+        const churchFilter = `(${churchIds.map(id => `church = "${id}"`).join(' || ')})`;
+
         Promise.all([
             getEvents(churchFilter),
             user?.role === 'superuser' ? getChurches() : getChurches(user?.id, user?.role)
@@ -108,29 +122,17 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents }: 
         }).finally(() => {
             setIsLoading(false);
         });
-        
-        const handleEventSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
-            if (action === 'create' && churchIds.includes(record.church)) {
-                setEvents(prev => [...prev, record].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()));
-            } else if (action === 'update') {
-                setEvents(prev => {
-                    const listWithoutRecord = prev.filter(e => e.id !== record.id);
-                    if (churchIds.includes(record.church)) {
-                        return [...listWithoutRecord, record].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
-                    }
-                    return listWithoutRecord;
-                });
-            } else if (action === 'delete') {
-                setEvents(prev => prev.filter(e => e.id !== record.id));
-            }
-        };
+
+        const handleEventSubscription = () => fetchAndSetEvents();
 
         pb.collection('pdg_events').subscribe('*', handleEventSubscription);
+        pb.collection('pdg_services').subscribe('*', handleEventSubscription);
 
         return () => {
             pb.collection('pdg_events').unsubscribe('*');
+            pb.collection('pdg_services').unsubscribe('*');
         };
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [churchIds, user]);
     
     useEffect(() => {
