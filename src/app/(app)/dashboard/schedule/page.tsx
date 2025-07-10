@@ -126,7 +126,7 @@ export default function SchedulePage() {
                                 id="date"
                                 variant={"outline"}
                                 className={cn(
-                                    "w-full md:w-[250px] justify-start text-left font-normal",
+                                    "w-full md:w-[200px] justify-start text-left font-normal",
                                     !dateRange && "text-muted-foreground"
                                 )}
                             >
