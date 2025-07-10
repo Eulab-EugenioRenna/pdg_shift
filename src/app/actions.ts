@@ -6,6 +6,7 @@
 
 
 
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -58,7 +59,6 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         let allServicesForEvents: RecordModel[] = [];
 
         if (userRole === 'volontario') {
-            // Volunteer sees only services they are assigned to.
             const servicesAsLeader = await pb.collection('pdg_services').getFullList({
                 filter: `leader = "${userId}"`,
                 fields: 'id, event',
@@ -69,13 +69,16 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             });
 
             const allUserServices = [...servicesAsLeader, ...servicesAsTeamMember];
-            const serviceIds = [...new Set(allUserServices.map(s => s.id))];
-
-            if (serviceIds.length === 0) {
+            
+            if (allUserServices.length === 0) {
                  return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
             }
 
             const uniqueEventIds = [...new Set(allUserServices.map(s => s.event))];
+
+            if (uniqueEventIds.length === 0) {
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+            }
 
             const eventFilter = `(${uniqueEventIds.map(id => `id="${id}"`).join(' || ')}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
             const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter });
@@ -735,4 +738,5 @@ export async function deleteUnavailability(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
+
 
