@@ -541,3 +541,69 @@ export async function deleteEventTemplate(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
+
+// User Availability Actions
+export async function getUnavailabilityForUser(userId: string): Promise<RecordModel[]> {
+    try {
+        const records = await pb.collection('pdg_unavailability').getFullList({
+            filter: `user = "${userId}"`,
+            sort: '-start_date',
+        });
+        return JSON.parse(JSON.stringify(records));
+    } catch (error) {
+        console.error("Error fetching unavailability:", error);
+        throw new Error("Failed to fetch unavailability.");
+    }
+}
+
+export async function getAllUnavailabilities(userIds: string[], forDate: string): Promise<Record<string, boolean>> {
+    if (userIds.length === 0) {
+        return {};
+    }
+    const userFilter = `(${userIds.map(id => `user = "${id}"`).join(' || ')})`;
+    const dateFilter = `start_date <= "${forDate}" && end_date >= "${forDate}"`;
+    try {
+        const records = await pb.collection('pdg_unavailability').getFullList({
+            filter: `${userFilter} && ${dateFilter}`,
+        });
+        
+        const unavailabilityMap: Record<string, boolean> = {};
+        userIds.forEach(id => unavailabilityMap[id] = false); // Assume all are available
+        records.forEach(record => {
+            unavailabilityMap[record.user] = true; // Mark as unavailable
+        });
+        
+        return unavailabilityMap;
+
+    } catch (error) {
+        console.error("Error fetching all unavailabilities:", error);
+        return {};
+    }
+}
+
+export async function addUnavailability(data: any): Promise<RecordModel> {
+    try {
+        const record = await pb.collection('pdg_unavailability').create(data);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error: any) {
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function updateUnavailability(id: string, data: any): Promise<RecordModel> {
+    try {
+        const record = await pb.collection('pdg_unavailability').update(id, data);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error: any) {
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function deleteUnavailability(id: string) {
+    try {
+        await pb.collection('pdg_unavailability').delete(id);
+        return { success: true };
+    } catch (error: any) {
+        throw new Error(getErrorMessage(error));
+    }
+}

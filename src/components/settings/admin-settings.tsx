@@ -78,7 +78,7 @@ export default function AdminSettings() {
                     <CardHeader>
                         <div className="flex items-center gap-4">
                             <UserCog className="w-8 h-8 text-primary" />
-                            <CardTitle>Profilo</CardTitle>
+                            <CardTitle>Il Mio Profilo</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent>

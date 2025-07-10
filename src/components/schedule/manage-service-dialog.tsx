@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { updateService, getLeaders, getUsers, getAiTeamSuggestions, getServiceTemplates } from '@/app/actions';
+import { updateService, getLeaders, getUsers, getAiTeamSuggestions, getServiceTemplates, getAllUnavailabilities } from '@/app/actions';
 import { Loader2, Wand2 } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -43,6 +43,8 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
     const [allUsers, setAllUsers] = useState<RecordModel[]>([]);
     const [serviceTemplates, setServiceTemplates] = useState<RecordModel[]>([]);
     const [dataLoading, setDataLoading] = useState(true);
+    
+    const [unavailabilityMap, setUnavailabilityMap] = useState<Record<string, boolean>>({});
 
     const [aiSuggestions, setAiSuggestions] = useState<SuggestTeamOutput | null>(null);
     const [isSuggesting, startAiTransition] = useTransition();
@@ -54,10 +56,16 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                 getLeaders(churchId),
                 getUsers(),
                 getServiceTemplates(),
-            ]).then(([leadersData, usersData, templatesData]) => {
+            ]).then(async ([leadersData, usersData, templatesData]) => {
                 setLeaders(leadersData);
                 setAllUsers(usersData);
                 setServiceTemplates(templatesData);
+                
+                const userIds = usersData.map(u => u.id);
+                const eventDateFormatted = new Date(eventDate).toISOString().split('T')[0];
+                const unavail = await getAllUnavailabilities(userIds, eventDateFormatted);
+                setUnavailabilityMap(unavail);
+
             }).catch(() => {
                 toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati necessari.' });
             }).finally(() => {
@@ -72,7 +80,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             setTeamAssignments(service.team_assignments || {});
             setAiSuggestions(null); // Reset suggestions when opening
         }
-    }, [isOpen, service, churchId, toast]);
+    }, [isOpen, service, churchId, toast, eventDate]);
 
     const handleGetAiSuggestions = () => {
         if (!service) return;
@@ -86,21 +94,22 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
 
         startAiTransition(async () => {
             const serviceTemplatesMap = new Map(serviceTemplates.map((t) => [t.id, t.name]));
-            const volunteerData = allUsers
-                .filter(u => u.role === 'volontario' && u.church?.includes(churchId))
-                .map(user => {
-                    const preferences = (user.service_preferences || [])
-                        .map((id: string) => serviceTemplatesMap.get(id))
-                        .filter(Boolean)
-                        .join(', ');
+            const relevantVolunteers = allUsers.filter(u => u.role === 'volontario' && u.church?.includes(churchId));
 
-                    return {
-                        volunteerName: user.name,
-                        availability: "disponibile", // Placeholder until availability is tracked
-                        skills: user.skills || 'Nessuna competenza specificata',
-                        preferences: preferences || 'Nessuna preferenza specificata',
-                    };
-                });
+            const volunteerData = relevantVolunteers.map(user => {
+                const isUnavailable = unavailabilityMap[user.id] || false;
+                const preferences = (user.service_preferences || [])
+                    .map((id: string) => serviceTemplatesMap.get(id))
+                    .filter(Boolean)
+                    .join(', ');
+
+                return {
+                    volunteerName: user.name,
+                    availability: isUnavailable ? "non disponibile" : "disponibile",
+                    skills: user.skills || 'Nessuna competenza specificata',
+                    preferences: preferences || 'Nessuna preferenza specificata',
+                };
+            });
             
             try {
                 const result = await getAiTeamSuggestions({
@@ -163,6 +172,10 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
     };
     
     const positions = service?.positions || [];
+    
+    const selectableUsers = useMemo(() => {
+        return allUsers.filter(u => u.role === 'volontario' || u.role === 'leader');
+    }, [allUsers]);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -218,9 +231,13 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="unassign">Non assegnato</SelectItem>
-                                            {allUsers.filter(u => u.role === 'volontario' || u.role === 'leader').map((u) => (
-                                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                                            ))}
+                                            {selectableUsers.map((u) => {
+                                                const isUnavailable = unavailabilityMap[u.id];
+                                                return (
+                                                <SelectItem key={u.id} value={u.id}>
+                                                    {u.name} {isUnavailable ? '(Non Disp.)' : '(Disp.)'}
+                                                </SelectItem>
+                                            )})}
                                         </SelectContent>
                                     </Select>
                                 </div>

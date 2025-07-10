@@ -6,6 +6,7 @@ import LeaderSettings from '@/components/settings/leader-settings';
 import VolunteerSettings from '@/components/settings/volunteer-settings';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
+import { ManageAvailabilityCard } from '@/components/settings/manage-availability-card';
 
 export default function SettingsPage() {
     const { user, loading } = useAuth();
@@ -47,6 +48,7 @@ export default function SettingsPage() {
                 <p className="text-muted-foreground">Gestisci le impostazioni del tuo account e dell'applicazione.</p>
             </div>
             {renderSettingsByRole()}
+            <ManageAvailabilityCard />
         </div>
     );
 }
