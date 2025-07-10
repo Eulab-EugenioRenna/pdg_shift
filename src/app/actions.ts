@@ -5,6 +5,7 @@
 
 
 
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -42,7 +43,7 @@ export interface DashboardEvent extends RecordModel {
     }
 }
 
-export async function getDashboardData(userRole: string, userChurchIds: string[], startDateISO: string, endDateISO: string): Promise<{
+export async function getDashboardData(userId: string, userRole: string, userChurchIds: string[], startDateISO: string, endDateISO: string): Promise<{
     events: DashboardEvent[];
     stats: {
         upcomingEvents: number;
@@ -50,48 +51,88 @@ export async function getDashboardData(userRole: string, userChurchIds: string[]
     }
 }> {
     try {
-        let churchFilter: string;
-        if (userRole === 'superuser') {
-            const allChurches = await getChurches(undefined, 'superuser');
-            const allChurchIds = allChurches.map(c => c.id);
-            if(allChurchIds.length === 0) return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
-            churchFilter = `(${allChurchIds.map(id => `church="${id}"`).join(' || ')})`;
-        } else {
-            if (!userChurchIds || userChurchIds.length === 0) {
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
-            }
-            churchFilter = `(${userChurchIds.map(id => `church="${id}"`).join(' || ')})`;
-        }
-        
         const sDate = new Date(startDateISO);
         const eDate = new Date(endDateISO);
 
-        const filter = `(${churchFilter}) && is_recurring = false && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
-        
-        const eventInstances = await pb.collection('pdg_events').getFullList({
-            filter: filter,
-            sort: 'start_date',
-        });
-        
-        const eventIds = eventInstances.map(e => e.id);
+        let eventIds: string[] = [];
+        let allServicesForEvents: RecordModel[] = [];
 
-        if (eventIds.length === 0) {
-            return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+        if (userRole === 'volontario') {
+            // Volunteer sees only services they are assigned to.
+            const servicesAsLeader = await pb.collection('pdg_services').getFullList({
+                filter: `leader = "${userId}"`,
+                fields: 'id, event',
+            });
+            const servicesAsTeamMember = await pb.collection('pdg_services').getFullList({
+                filter: `team ~ "${userId}"`,
+                fields: 'id, event',
+            });
+
+            const allUserServices = [...servicesAsLeader, ...servicesAsTeamMember];
+            const serviceIds = [...new Set(allUserServices.map(s => s.id))];
+
+            if (serviceIds.length === 0) {
+                 return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+            }
+
+            const uniqueEventIds = [...new Set(allUserServices.map(s => s.event))];
+
+            const eventFilter = `(${uniqueEventIds.map(id => `id="${id}"`).join(' || ')}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
+            const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter });
+            
+            eventIds = eventInstances.map(e => e.id);
+            if (eventIds.length === 0) {
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+            }
+            
+            const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
+             allServicesForEvents = await pb.collection('pdg_services').getFullList({
+                filter: eventIdFilter,
+                expand: 'leader,team'
+            });
+
+        } else {
+            // Superuser, Coordinator, Leader
+            let churchFilter: string;
+            if (userRole === 'superuser') {
+                const allChurches = await getChurches(undefined, 'superuser');
+                const allChurchIds = allChurches.map(c => c.id);
+                if(allChurchIds.length === 0) return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+                churchFilter = `(${allChurchIds.map(id => `church="${id}"`).join(' || ')})`;
+            } else { // Coordinatore or Leader
+                if (!userChurchIds || userChurchIds.length === 0) {
+                    return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+                }
+                churchFilter = `(${userChurchIds.map(id => `church="${id}"`).join(' || ')})`;
+            }
+            
+            const eventFilter = `(${churchFilter}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
+            const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter });
+            
+            eventIds = eventInstances.map(e => e.id);
+            if (eventIds.length === 0) {
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+            }
+            const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
+            allServicesForEvents = await pb.collection('pdg_services').getFullList({
+                filter: eventIdFilter,
+                expand: 'leader,team'
+            });
         }
-
-        const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
-        const allServices = await pb.collection('pdg_services').getFullList({
-            filter: eventIdFilter,
-            expand: 'leader,team'
+        
+        // This part is now common for all roles
+        const finalEvents = await pb.collection('pdg_events').getFullList({
+            filter: `(${eventIds.map(id => `id="${id}"`).join(' || ')})`,
+            sort: 'start_date',
         });
 
         let openPositions = 0;
-        allServices.forEach(s => {
+        allServicesForEvents.forEach(s => {
             if (!s.expand?.leader) openPositions++;
         });
-
-        const eventsWithServices = eventInstances.map(eventInstance => {
-            const relatedServices = allServices.filter(s => s.event === eventInstance.id);
+        
+        const eventsWithServices = finalEvents.map(eventInstance => {
+            const relatedServices = allServicesForEvents.filter(s => s.event === eventInstance.id);
             return {
                 ...eventInstance,
                 expand: {
@@ -99,11 +140,15 @@ export async function getDashboardData(userRole: string, userChurchIds: string[]
                 }
             };
         });
+        
+        const filteredEventsWithServices = userRole === 'volontario' 
+            ? eventsWithServices.filter(e => e.expand.services.length > 0)
+            : eventsWithServices;
 
         return {
-            events: JSON.parse(JSON.stringify(eventsWithServices)),
+            events: JSON.parse(JSON.stringify(filteredEventsWithServices)),
             stats: {
-                upcomingEvents: eventsWithServices.length,
+                upcomingEvents: filteredEventsWithServices.length,
                 openPositions,
             }
         };
@@ -506,9 +551,7 @@ export async function deleteService(id: string) {
 export async function getServiceTemplates(userId?: string, userRole?: string, churchId?: string) {
     try {
         let filter = '';
-        if (userRole === 'superuser') {
-            // No filter for superuser, gets all
-        } else if (userRole === 'coordinatore' && userId) {
+        if (userRole === 'coordinatore' && userId) {
             const user = await pb.collection('pdg_users').getOne(userId);
             const churchIds = user.church || [];
             if (churchIds.length > 0) {
@@ -569,9 +612,7 @@ export async function deleteServiceTemplate(id: string) {
 export async function getEventTemplates(userId?: string, userRole?: string, churchId?: string) {
     try {
         let filter = '';
-        if (userRole === 'superuser') {
-            // No filter for superuser, gets all
-        } else if (userRole === 'coordinatore' && userId) {
+        if (userRole === 'coordinatore' && userId) {
             const user = await pb.collection('pdg_users').getOne(userId);
             const churchIds = user.church || [];
             if (churchIds.length > 0) {
@@ -694,3 +735,4 @@ export async function deleteUnavailability(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
+

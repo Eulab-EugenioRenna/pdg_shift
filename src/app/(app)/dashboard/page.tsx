@@ -42,10 +42,10 @@ export default function DashboardPage() {
     useEffect(() => {
         if (!user) return;
         
-        const userChurchIds = user.role === 'admin' ? [] : (user.church || []);
+        const userChurchIds = user.church || [];
 
         setIsLoading(true);
-        getDashboardData(user.role, userChurchIds, dateRange.start.toISOString(), dateRange.end.toISOString())
+        getDashboardData(user.id, user.role, userChurchIds, dateRange.start.toISOString(), dateRange.end.toISOString())
             .then(data => {
                 setData(data);
                 if (selectedDate) {
@@ -61,7 +61,7 @@ export default function DashboardPage() {
             })
             .finally(() => setIsLoading(false));
             
-    }, [user, dateRange, toast]);
+    }, [user, dateRange, toast, selectedDate]);
 
     const handleViewChange = (mode: ViewMode) => {
         if (!mode) return;
@@ -90,6 +90,13 @@ export default function DashboardPage() {
         } else {
             setSelectedDate(date);
         }
+    };
+
+    const getOpenPositionsDescription = () => {
+        if (user?.role === 'volontario') {
+            return "leader non assegnati nei tuoi servizi";
+        }
+        return "leader non assegnati";
     };
 
     return (
@@ -127,7 +134,7 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : data?.stats.openPositions ?? 0}</div>
-                        <p className="text-xs text-muted-foreground">leader non assegnati</p>
+                        <p className="text-xs text-muted-foreground">{getOpenPositionsDescription()}</p>
                     </CardContent>
                 </Card>
                 <Card>
