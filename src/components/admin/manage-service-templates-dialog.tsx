@@ -32,13 +32,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '../ui/textarea';
 import { pb } from '@/lib/pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { MultiSelect, type Option } from '../ui/multi-select';
 
 
 function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
   const [positions, setPositions] = useState(template?.positions?.join(', ') || '');
-  const [churchId, setChurchId] = useState(template?.church || '');
+  const [churchIds, setChurchIds] = useState<string[]>(template?.church || []);
   const [leaderId, setLeaderId] = useState(template?.leader || '');
 
   const [churches, setChurches] = useState<RecordModel[]>([]);
@@ -48,6 +49,8 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
+  const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
+
   useEffect(() => {
     getChurches()
         .then(setChurches)
@@ -56,44 +59,51 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
   }, [toast]);
   
   useEffect(() => {
-    if (churchId) {
+    if (churchIds.length > 0) {
         setDataLoading(true);
-        getLeaders(churchId)
+        // We'll fetch leaders for the first church in the list for the dropdown.
+        // A more complex UI would be needed to handle leaders from multiple churches.
+        getLeaders(churchIds[0])
             .then(setLeaders)
-            .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i leader per questa chiesa.'}))
+            .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i leader per la chiesa selezionata.'}))
             .finally(() => setDataLoading(false));
     } else {
         setLeaders([]);
     }
-  }, [churchId, toast]);
+  }, [churchIds, toast]);
 
-  const handleChurchChange = (value: string) => {
-    setChurchId(value);
+  const handleChurchChange = (values: string[]) => {
+    setChurchIds(values);
     setLeaderId(''); // Reset leader when church changes
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !churchId) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Nome e Chiesa sono obbligatori.' });
+    if (!name.trim() || churchIds.length === 0) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Nome e almeno una Chiesa sono obbligatori.' });
       return;
     }
 
     startTransition(async () => {
-      const data = {
-        name: name.trim(),
-        description: description.trim(),
-        positions: positions.split(',').map(p => p.trim()).filter(Boolean),
-        church: churchId,
-        leader: leaderId || null,
-      };
+       const formData = new FormData();
+        formData.append('name', name.trim());
+        formData.append('description', description.trim());
+        
+        const positionsArray = positions.split(',').map(p => p.trim()).filter(Boolean);
+        positionsArray.forEach(p => formData.append('positions', p));
+        
+        churchIds.forEach(id => formData.append('church', id));
+        
+        if (leaderId) {
+            formData.append('leader', leaderId);
+        }
 
       try {
         if (template) {
-          await updateServiceTemplate(template.id, data);
+          await updateServiceTemplate(template.id, formData);
           toast({ title: 'Successo', description: 'Tipo di servizio aggiornato con successo.' });
         } else {
-          await addServiceTemplate(data);
+          await addServiceTemplate(formData);
           toast({ title: 'Successo', description: 'Tipo di servizio aggiunto con successo.' });
         }
         onSave();
@@ -117,17 +127,15 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
         />
       </div>
       <div>
-        <Label htmlFor="church-select">Chiesa</Label>
-        <Select onValueChange={handleChurchChange} value={churchId} disabled={isPending || dataLoading} required>
-            <SelectTrigger id="church-select">
-                <SelectValue placeholder="Seleziona una chiesa..." />
-            </SelectTrigger>
-            <SelectContent>
-                {churches.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
+        <Label htmlFor="church-select">Chiesa/e</Label>
+        <MultiSelect
+            id="church-select"
+            options={churchOptions}
+            selected={churchIds}
+            onChange={handleChurchChange}
+            placeholder={dataLoading ? "Caricamento..." : "Seleziona una o più chiese"}
+            disabled={isPending || dataLoading}
+        />
       </div>
        <div>
         <Label htmlFor="template-description">Descrizione (Opzionale)</Label>
@@ -154,12 +162,12 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
       </div>
       <div>
         <Label htmlFor="leader-select">Leader Predefinito (Opzionale)</Label>
-        <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading || !churchId || leaders.length === 0}>
+        <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading || churchIds.length === 0 || leaders.length === 0}>
             <SelectTrigger id="leader-select">
-                <SelectValue placeholder={!churchId ? "Prima seleziona una chiesa" : "Seleziona un leader..."} />
+                <SelectValue placeholder={churchIds.length === 0 ? "Prima seleziona una chiesa" : "Seleziona un leader..."} />
             </SelectTrigger>
             <SelectContent>
-                 <SelectItem value="">Nessun leader predefinito</SelectItem>
+                 <SelectItem value="unassign">Nessun leader predefinito</SelectItem>
                 {leaders.map((l) => (
                     <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                 ))}
@@ -351,7 +359,7 @@ export function ManageServiceTemplatesDialog() {
                         {processedTemplates.length > 0 ? processedTemplates.map((template) => (
                         <TableRow key={template.id}>
                             <TableCell className="font-medium p-2 whitespace-nowrap">{template.name}</TableCell>
-                             <TableCell className="p-2 whitespace-nowrap">{template.expand?.church?.name || 'N/A'}</TableCell>
+                             <TableCell className="p-2 whitespace-nowrap">{template.expand?.church?.map((c: RecordModel) => c.name).join(', ') || 'N/A'}</TableCell>
                             <TableCell className="p-2 whitespace-nowrap">{template.expand?.leader?.name || 'Nessuno'}</TableCell>
                             <TableCell className="text-right p-2">
                                 <div className="flex gap-2 justify-end">

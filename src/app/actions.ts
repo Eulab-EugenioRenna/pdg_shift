@@ -463,7 +463,7 @@ export async function deleteService(id: string) {
 // Service Template Management
 export async function getServiceTemplates(churchId?: string) {
     try {
-        const filter = churchId ? `church = "${churchId}"` : '';
+        const filter = churchId ? `church ?~ "${churchId}"` : '';
         const records = await pb.collection('pdg_service_templates').getFullList({ 
             sort: 'name',
             expand: 'church,leader',
@@ -476,7 +476,7 @@ export async function getServiceTemplates(churchId?: string) {
     }
 }
 
-export async function addServiceTemplate(data: any) {
+export async function addServiceTemplate(data: FormData) {
     try {
         const record = await pb.collection('pdg_service_templates').create(data);
         return JSON.parse(JSON.stringify(record));
@@ -485,7 +485,7 @@ export async function addServiceTemplate(data: any) {
     }
 }
 
-export async function updateServiceTemplate(id: string, data: any) {
+export async function updateServiceTemplate(id: string, data: FormData) {
     try {
         const record = await pb.collection('pdg_service_templates').update(id, data);
         return JSON.parse(JSON.stringify(record));
@@ -505,10 +505,28 @@ export async function deleteServiceTemplate(id: string) {
 
 
 // Event Template Management
-export async function getEventTemplates() {
+export async function getEventTemplates(churchId?: string) {
     try {
-        const records = await pb.collection('pdg_event_templates').getFullList({ sort: 'name', expand: 'service_templates' });
-        return JSON.parse(JSON.stringify(records));
+        const allTemplates = await pb.collection('pdg_event_templates').getFullList({ 
+            sort: 'name', 
+            expand: 'service_templates,service_templates.church' 
+        });
+
+        if (!churchId) {
+            return JSON.parse(JSON.stringify(allTemplates));
+        }
+
+        const filteredTemplates = allTemplates.filter(template => {
+            if (!template.expand?.service_templates || template.expand.service_templates.length === 0) {
+                return true; // Include templates with no services, they are universal
+            }
+            // Include template if at least one of its services is available for the given church
+            return template.expand.service_templates.some((st: RecordModel) => 
+                st.expand?.church?.some((c: RecordModel) => c.id === churchId)
+            );
+        });
+
+        return JSON.parse(JSON.stringify(filteredTemplates));
     } catch (error) {
         console.error("Error fetching event templates:", error);
         throw new Error("Failed to fetch event templates.");
