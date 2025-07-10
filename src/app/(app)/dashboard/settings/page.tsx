@@ -21,7 +21,8 @@ export default function SettingsPage() {
     
     const renderSettingsByRole = () => {
         switch (user?.role) {
-            case 'admin':
+            case 'superuser':
+            case 'coordinatore':
                 return <AdminSettings />;
             case 'leader':
                 return <LeaderSettings />;
@@ -32,7 +33,7 @@ export default function SettingsPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Accesso non autorizzato</CardTitle>
-                        </CardHeader>
+                        </Header>
                         <CardContent>
                             <p>Non hai i permessi per visualizzare questa pagina.</p>
                         </CardContent>

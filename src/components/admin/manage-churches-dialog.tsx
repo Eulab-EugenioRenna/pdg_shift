@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -31,9 +31,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
 import { ChurchForm } from '@/components/admin/church-form';
+import { useAuth } from '@/hooks/useAuth';
 
 
 export function ManageChurchesDialog() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'form'>('list');
   const [churchToEdit, setChurchToEdit] = useState<RecordModel | null>(null);
@@ -53,7 +55,7 @@ export function ManageChurchesDialog() {
     if (!open) return;
     
     setIsLoading(true);
-    getChurches()
+    getChurches(user?.id, user?.role)
         .then(setChurches)
         .catch(() => {
             toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare le chiese.' });
@@ -61,13 +63,8 @@ export function ManageChurchesDialog() {
         .finally(() => setIsLoading(false));
 
     const handleSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
-        if (action === 'create') {
-            setChurches(prev => [...prev, record]);
-        } else if (action === 'update') {
-            setChurches(prev => prev.map(c => c.id === record.id ? record : c));
-        } else if (action === 'delete') {
-            setChurches(prev => prev.filter(c => c.id !== record.id));
-        }
+        // A simple refetch might be easier than complex state management with role-based filtering
+        getChurches(user?.id, user?.role).then(setChurches);
     };
     
     pb.collection('pdg_church').subscribe('*', handleSubscription);
@@ -76,7 +73,7 @@ export function ManageChurchesDialog() {
         pb.collection('pdg_church').unsubscribe('*');
     };
     
-  }, [open, toast]);
+  }, [open, toast, user]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';

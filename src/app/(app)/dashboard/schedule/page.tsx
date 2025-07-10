@@ -38,10 +38,10 @@ export default function SchedulePage() {
         setIsLoading(true);
         try {
             let userChurches: RecordModel[] = [];
-            if (user.role === 'admin') {
+            if (user.role === 'superuser') {
                 userChurches = await getChurches();
             } else {
-                userChurches = user.expand?.church || [];
+                 userChurches = await getChurches(user.id, user.role);
             }
             setChurches(userChurches);
             if (userChurches.length > 0) {
@@ -59,7 +59,7 @@ export default function SchedulePage() {
         loadChurches();
     }, [loadChurches]);
 
-    const canCreateEvent = user?.role === 'admin' || user?.role === 'leader';
+    const canCreateEvent = user?.role === 'superuser' || user?.role === 'coordinatore';
     
     const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
 

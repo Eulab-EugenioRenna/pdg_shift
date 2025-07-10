@@ -9,8 +9,11 @@ import { ManageProfileDialog } from '@/components/settings/manage-profile-dialog
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
 import { ManageServiceTemplatesDialog } from '@/components/admin/manage-service-templates-dialog';
 import { ManageEventTemplatesDialog } from '@/components/admin/manage-event-templates-dialog';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function AdminSettings() {
+    const { user } = useAuth();
+    
     return (
         <div className="space-y-6">
             <Card>

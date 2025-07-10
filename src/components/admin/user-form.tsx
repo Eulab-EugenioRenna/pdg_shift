@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MultiSelect, type Option } from '@/components/ui/multi-select';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UserFormProps {
     user: RecordModel | null;
@@ -21,6 +22,7 @@ interface UserFormProps {
 }
 
 export function UserForm({ user, onSave, onCancel }: UserFormProps) {
+  const { user: currentUser } = useAuth();
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -42,10 +44,10 @@ export function UserForm({ user, onSave, onCancel }: UserFormProps) {
   const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
 
   useEffect(() => {
-    getChurches()
+    getChurches(currentUser?.id, currentUser?.role)
       .then(setChurches)
       .finally(() => setChurchesLoading(false));
-  }, []);
+  }, [currentUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -183,7 +185,8 @@ export function UserForm({ user, onSave, onCancel }: UserFormProps) {
             <SelectContent>
                 <SelectItem value="volontario">Volontario</SelectItem>
                 <SelectItem value="leader">Leader</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                {(currentUser?.role === 'superuser' || currentUser?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
+                {currentUser?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
             </SelectContent>
           </Select>
         </div>

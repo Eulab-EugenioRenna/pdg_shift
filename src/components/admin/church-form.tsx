@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Upload, Building } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ChurchFormProps {
     church: RecordModel | null;
@@ -19,6 +20,7 @@ interface ChurchFormProps {
 }
 
 export function ChurchForm({ church, onSave, onCancel }: ChurchFormProps) {
+  const { user } = useAuth();
   const [name, setName] = useState(church?.name || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(church?.logo ? pb.getFileUrl(church, church.logo, { thumb: '100x100' }) : null);
@@ -61,7 +63,7 @@ export function ChurchForm({ church, onSave, onCancel }: ChurchFormProps) {
           await updateChurch(church.id, formData);
           toast({ title: 'Successo', description: 'Chiesa aggiornata con successo.' });
         } else {
-          await addChurch(formData);
+          await addChurch(formData, user?.role === 'coordinatore' ? user.id : undefined);
           toast({ title: 'Successo', description: 'Chiesa aggiunta con successo.' });
         }
         onSave();

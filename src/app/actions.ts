@@ -46,7 +46,7 @@ export async function getDashboardData(userRole: string, userChurchIds: string[]
 }> {
     try {
         let churchFilter: string;
-        if (userRole === 'admin') {
+        if (userRole === 'superuser') {
             const allChurches = await getChurches();
             const allChurchIds = allChurches.map(c => c.id);
             if(allChurchIds.length === 0) return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
@@ -120,8 +120,18 @@ export async function getAiTeamSuggestions(data: SuggestTeamInput) {
     }
 }
 
-export async function getChurches() {
+export async function getChurches(userId?: string, userRole?: string) {
     try {
+        if (userRole === 'superuser') {
+            const records = await pb.collection('pdg_church').getFullList({ sort: 'name' });
+            return JSON.parse(JSON.stringify(records));
+        }
+        
+        if (userId && (userRole === 'coordinatore' || userRole === 'leader')) {
+             const user = await pb.collection('pdg_users').getOne(userId, { expand: 'church' });
+             return JSON.parse(JSON.stringify(user.expand?.church || []));
+        }
+
         const records = await pb.collection('pdg_church').getFullList({ sort: 'name' });
         return JSON.parse(JSON.stringify(records));
     } catch (error) {
@@ -130,9 +140,16 @@ export async function getChurches() {
     }
 }
 
-export async function addChurch(formData: FormData) {
+export async function addChurch(formData: FormData, coordinatorId?: string) {
     try {
         const record = await pb.collection('pdg_church').create(formData);
+        
+        if (coordinatorId) {
+             await pb.collection('pdg_users').update(coordinatorId, {
+                'church+': record.id,
+            });
+        }
+        
         return JSON.parse(JSON.stringify(record));
     } catch (error) {
         console.error("Error adding church:", error);
@@ -161,8 +178,19 @@ export async function deleteChurch(id: string) {
 }
 
 // User Management Actions
-export async function getUsers() {
+export async function getUsers(userId?: string, userRole?: string) {
     try {
+        if (userRole === 'coordinatore' && userId) {
+            const coordinator = await pb.collection('pdg_users').getOne(userId);
+            const churchIds = coordinator.church || [];
+            if (churchIds.length === 0) return [];
+            
+            const filter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
+            const records = await pb.collection('pdg_users').getFullList({ sort: 'name', expand: 'church', filter });
+            return JSON.parse(JSON.stringify(records));
+        }
+
+        // superuser and others get all users
         const records = await pb.collection('pdg_users').getFullList({ sort: 'name', expand: 'church' });
         return JSON.parse(JSON.stringify(records));
     } catch (error) {
@@ -171,10 +199,11 @@ export async function getUsers() {
     }
 }
 
-export async function getLeaders(churchId: string) {
+export async function getLeaders(churchId?: string) {
     try {
+        const filter = churchId ? `(role = "leader" || role = "coordinatore" || role = "superuser") && church ?~ "${churchId}"` : `role = "leader" || role = "coordinatore" || role = "superuser"`;
         const records = await pb.collection('pdg_users').getFullList({
-            filter: `(role = "leader" || role = "admin") && church ?~ "${churchId}"`,
+            filter: filter,
             sort: 'name',
         });
         return JSON.parse(JSON.stringify(records));
@@ -615,5 +644,3 @@ export async function deleteUnavailability(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
-
-    

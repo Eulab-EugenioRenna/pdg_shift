@@ -34,9 +34,11 @@ import { pb } from '@/lib/pocketbase';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UserForm } from '@/components/admin/user-form';
+import { useAuth } from '@/hooks/useAuth';
 
 
 export function ManageUsersDialog() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'form'>('list');
   const [userToEdit, setUserToEdit] = useState<RecordModel | null>(null);
@@ -54,10 +56,10 @@ export function ManageUsersDialog() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !user) return;
     
     setIsLoading(true);
-    Promise.all([getUsers(), getChurches()])
+    Promise.all([getUsers(user.id, user.role), getChurches(user.id, user.role)])
         .then(([usersData, churchesData]) => {
             setUsers(usersData);
             setAllChurches(churchesData);
@@ -68,20 +70,8 @@ export function ManageUsersDialog() {
         .finally(() => setIsLoading(false));
 
     const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
-        try {
-            const fullRecord = await pb.collection('pdg_users').getOne(record.id, { expand: 'church' });
-            if (action === 'create') {
-                setUsers(prev => [...prev, fullRecord]);
-            } else if (action === 'update') {
-                setUsers(prev => prev.map(u => u.id === fullRecord.id ? fullRecord : u));
-            }
-        } catch (e) {
-            if (action === 'delete') {
-                setUsers(prev => prev.filter(u => u.id !== record.id));
-            } else {
-                console.error("Failed to fetch full user record for subscription update:", e);
-            }
-        }
+        // Simple refetch to ensure data consistency based on role
+        getUsers(user.id, user.role).then(setUsers);
     };
     
     pb.collection('pdg_users').subscribe('*', handleSubscription);
@@ -90,7 +80,7 @@ export function ManageUsersDialog() {
         pb.collection('pdg_users').unsubscribe('*');
     };
     
-  }, [open, toast]);
+  }, [open, toast, user]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -240,7 +230,8 @@ export function ManageUsersDialog() {
                           </SelectTrigger>
                           <SelectContent>
                               <SelectItem value="all">Tutti i ruoli</SelectItem>
-                              <SelectItem value="admin">Admin</SelectItem>
+                              {user?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
+                              {(user?.role === 'superuser' || user?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
                               <SelectItem value="leader">Leader</SelectItem>
                               <SelectItem value="volontario">Volontario</SelectItem>
                           </SelectContent>

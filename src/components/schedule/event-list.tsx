@@ -101,7 +101,7 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents }: 
         
         Promise.all([
             getEvents(churchFilter),
-            user?.role === 'admin' ? getChurches() : Promise.resolve(user?.expand?.church || [])
+            user?.role === 'superuser' ? getChurches() : getChurches(user?.id, user?.role)
         ]).then(([eventsData, churchesData]) => {
             setEvents(eventsData);
             setChurches(churchesData);
@@ -248,6 +248,12 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents }: 
             setIsDeleting(false);
         }
     }
+    
+    const canManageEvent = (event: RecordModel) => {
+        if (user?.role === 'superuser') return true;
+        if (user?.role === 'coordinatore' && user.church?.includes(event.church)) return true;
+        return false;
+    }
 
     if (isLoading) {
         return (
@@ -290,7 +296,7 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents }: 
                                 </CardTitle>
                                 <CardDescription>{event.description || 'Nessuna descrizione.'}</CardDescription>
                             </div>
-                            {user?.role === 'admin' && (
+                            {canManageEvent(event) && (
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>

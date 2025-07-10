@@ -154,6 +154,13 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
         }
     }
 
+    const canManageService = (service: RecordModel) => {
+        if (!user) return false;
+        if (user.role === 'superuser') return true;
+        if (user.role === 'coordinatore' && user.church?.includes(churchId)) return true;
+        if (user.role === 'leader' && user.id === service.leader) return true;
+        return false;
+    };
 
     if (isLoading) {
         return <Loader2 className="h-4 w-4 animate-spin my-2" />;
@@ -162,7 +169,7 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
     return (
         <TooltipProvider>
             <div className="space-y-4">
-                {(user?.role === 'admin' || user?.role === 'leader') && (
+                {(user?.role === 'superuser' || user?.role === 'coordinatore') && (
                     <div className="flex justify-end">
                         <Button variant="outline" size="sm" onClick={() => setIsAddDialogOpen(true)}>
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -183,7 +190,7 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
                 ) : (
                     <div className="space-y-2">
                         {services.map(service => {
-                            const canManage = user?.role === 'admin' || (user?.role === 'leader' && user?.id === service.leader);
+                            const canManage = canManageService(service);
                             return (
                                 <div key={service.id} className="p-3 rounded-md bg-secondary/50">
                                     <div className="flex justify-between items-start gap-4">
@@ -200,7 +207,7 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
                                                     Gestisci Team
                                                 </Button>
                                             )}
-                                            {user?.role === 'admin' && (
+                                            {(user?.role === 'superuser' || user?.role === 'coordinatore') && (
                                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setServiceToDelete(service)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
