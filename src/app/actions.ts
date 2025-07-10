@@ -4,6 +4,7 @@
 
 
 
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -51,7 +52,7 @@ export async function getDashboardData(userRole: string, userChurchIds: string[]
     try {
         let churchFilter: string;
         if (userRole === 'superuser') {
-            const allChurches = await getChurches();
+            const allChurches = await getChurches(undefined, 'superuser');
             const allChurchIds = allChurches.map(c => c.id);
             if(allChurchIds.length === 0) return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
             churchFilter = `(${allChurchIds.map(id => `church="${id}"`).join(' || ')})`;

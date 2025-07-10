@@ -20,7 +20,6 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { MultiSelect, type Option } from '@/components/ui/multi-select';
-import { pb } from '@/lib/pocketbase';
 
 export default function SchedulePage() {
     const { user } = useAuth();
@@ -38,13 +37,7 @@ export default function SchedulePage() {
         if (!user) return;
         setIsLoading(true);
         try {
-            let userChurches: RecordModel[] = [];
-            if (user.role === 'superuser') {
-                userChurches = await getChurches();
-            } else {
-                 const coordinator = await pb.collection('pdg_users').getOne(user.id, { expand: 'church' });
-                 userChurches = coordinator.expand?.church || [];
-            }
+            const userChurches = await getChurches(user.id, user.role);
             setChurches(userChurches);
             if (userChurches.length > 0) {
                 // Pre-select the first church
@@ -58,8 +51,10 @@ export default function SchedulePage() {
     }, [user]);
     
     useEffect(() => {
-        loadChurches();
-    }, [loadChurches]);
+        if (user) {
+            loadChurches();
+        }
+    }, [user, loadChurches]);
 
     const canCreateEvent = user?.role === 'superuser' || user?.role === 'coordinatore';
     
