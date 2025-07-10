@@ -1,6 +1,7 @@
 
 
 
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -243,6 +244,12 @@ export async function addUserByAdmin(formData: FormData) {
 
 export async function updateUserByAdmin(id: string, formData: FormData) {
     try {
+        // Security check: prevent coordinators from editing superusers
+        const targetUser = await pb.collection('pdg_users').getOne(id);
+        if (targetUser.role === 'superuser') {
+            throw new Error("Azione non permessa. Non puoi modificare un Superuser.");
+        }
+
         await pb.collection('pdg_users').update(id, formData);
         const finalRecord = await pb.collection('pdg_users').getOne(id, { expand: 'church' });
         return JSON.parse(JSON.stringify(finalRecord));

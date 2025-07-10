@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useTransition, useCallback, useRef, useMemo } from 'react';
@@ -38,7 +39,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 
 export function ManageUsersDialog() {
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'form'>('list');
   const [userToEdit, setUserToEdit] = useState<RecordModel | null>(null);
@@ -56,10 +57,10 @@ export function ManageUsersDialog() {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!open || !user) return;
+    if (!open || !currentUser) return;
     
     setIsLoading(true);
-    Promise.all([getUsers(user.id, user.role), getChurches(user.id, user.role)])
+    Promise.all([getUsers(currentUser.id, currentUser.role), getChurches(currentUser.id, currentUser.role)])
         .then(([usersData, churchesData]) => {
             setUsers(usersData);
             setAllChurches(churchesData);
@@ -71,7 +72,7 @@ export function ManageUsersDialog() {
 
     const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
         // Simple refetch to ensure data consistency based on role
-        getUsers(user.id, user.role).then(setUsers);
+        getUsers(currentUser.id, currentUser.role).then(setUsers);
     };
     
     pb.collection('pdg_users').subscribe('*', handleSubscription);
@@ -80,7 +81,7 @@ export function ManageUsersDialog() {
         pb.collection('pdg_users').unsubscribe('*');
     };
     
-  }, [open, toast, user]);
+  }, [open, toast, currentUser]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -185,6 +186,13 @@ export function ManageUsersDialog() {
         </Popover>
     );
   };
+  
+  const canManageUser = (targetUser: RecordModel) => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'superuser') return true;
+    if (currentUser.role === 'coordinatore' && targetUser.role !== 'superuser') return true;
+    return false;
+  }
 
   return (
     <>
@@ -230,8 +238,8 @@ export function ManageUsersDialog() {
                           </SelectTrigger>
                           <SelectContent>
                               <SelectItem value="all">Tutti i ruoli</SelectItem>
-                              {user?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
-                              {(user?.role === 'superuser' || user?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
+                              {currentUser?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
+                              {(currentUser?.role === 'superuser' || currentUser?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
                               <SelectItem value="leader">Leader</SelectItem>
                               <SelectItem value="volontario">Volontario</SelectItem>
                           </SelectContent>
@@ -279,30 +287,29 @@ export function ManageUsersDialog() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {processedUsers.length > 0 ? processedUsers.map((user) => (
-                        <TableRow key={user.id}>
-                            <TableCell className="p-2">
-                                <Avatar>
-                                    <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
-                                    <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                            </TableCell>
-                            <TableCell className="font-medium p-2 whitespace-nowrap">{user.name}</TableCell>
-                            <TableCell className="p-2 whitespace-nowrap truncate">{user.email}</TableCell>
-                            <TableCell className="p-2 whitespace-nowrap"><ChurchList user={user} /></TableCell>
-                            <TableCell className="capitalize p-2 whitespace-nowrap">{user.role}</TableCell>
-                            <TableCell className="text-right p-2">
-                                <div className="flex gap-2 justify-end">
-                                    <Button size="icon" variant="ghost" onClick={() => handleEdit(user)}><Edit className="h-4 w-4" /></Button>
-                                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)}><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                        )) : (
-                        <TableRow>
-                            <TableCell colSpan={6} className="text-center h-24">Nessun utente trovato.</TableCell>
-                        </TableRow>
-                        )}
+                        {processedUsers.map((user) => {
+                            const canManage = canManageUser(user);
+                            return (
+                                <TableRow key={user.id}>
+                                    <TableCell className="p-2">
+                                        <Avatar>
+                                            <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
+                                            <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                    </TableCell>
+                                    <TableCell className="font-medium p-2 whitespace-nowrap">{user.name}</TableCell>
+                                    <TableCell className="p-2 whitespace-nowrap truncate">{user.email}</TableCell>
+                                    <TableCell className="p-2 whitespace-nowrap"><ChurchList user={user} /></TableCell>
+                                    <TableCell className="capitalize p-2 whitespace-nowrap">{user.role}</TableCell>
+                                    <TableCell className="text-right p-2">
+                                        <div className="flex gap-2 justify-end">
+                                            <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per modificare questo utente" : "Modifica utente"}><Edit className="h-4 w-4" /></Button>
+                                            <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per eliminare questo utente" : "Elimina utente"}><Trash2 className="h-4 w-4" /></Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
                     </TableBody>
                     </Table>
                 )}
