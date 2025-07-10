@@ -38,7 +38,7 @@ import { pb } from '@/lib/pocketbase';
 function EventTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
-  const [selectedChurches, setSelectedChurches] = useState<string[]>(template?.expand?.churches?.map((c: RecordModel) => c.id) || []);
+  const [selectedChurches, setSelectedChurches] = useState<string[]>(template?.churches || []);
   const [selectedServices, setSelectedServices] = useState<string[]>(template?.service_templates || []);
   
   const [allChurches, setAllChurches] = useState<RecordModel[]>([]);
@@ -54,8 +54,9 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
     if (selectedChurches.length === 0) {
       return allServiceTemplates.map(s => ({ value: s.id, label: `${s.name} (${(s.expand?.church || []).map((c: any) => c.name).join(', ')})` }));
     }
+    // Show only service templates that are available in ALL selected churches.
     return allServiceTemplates
-      .filter(st => st.church.some((churchId: string) => selectedChurches.includes(churchId)))
+      .filter(st => selectedChurches.every(churchId => (st.church || []).includes(churchId)))
       .map(s => ({ value: s.id, label: `${s.name} (${(s.expand?.church || []).map((c: any) => c.name).join(', ')})` }));
   }, [selectedChurches, allServiceTemplates]);
 
@@ -367,9 +368,10 @@ export function ManageEventTemplatesDialog() {
                             <TableCell className="font-medium p-2 whitespace-nowrap">{template.name}</TableCell>
                             <TableCell className="p-2">
                                 <div className='flex flex-wrap gap-1'>
-                                    {template.expand?.churches?.map((c: RecordModel) => (
-                                        <Badge key={c.id} variant="secondary">{c.name}</Badge>
-                                    )) || 'N/A'}
+                                    {(template.churches || []).map((churchId: string) => {
+                                        const church = allChurches.find(c => c.id === churchId);
+                                        return church ? <Badge key={church.id} variant="secondary">{church.name}</Badge> : null;
+                                    })}
                                 </div>
                             </TableCell>
                             <TableCell className="p-2">
