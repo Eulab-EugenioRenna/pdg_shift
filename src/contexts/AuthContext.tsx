@@ -113,7 +113,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: authData.meta.name,
           role: 'volontario',
           church: allChurchIds,
+          emailVisibility: true,
         };
+        
+        await pb.collection('pdg_users').update(authData.record.id, updateData);
 
         // Fetch avatar from URL and update user
         if (authData.meta.avatarUrl) {
@@ -129,8 +132,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 console.error("Failed to fetch or update avatar:", avatarError);
             }
         }
-
-        await pb.collection('pdg_users').update(authData.record.id, updateData);
       }
       
       await refreshUser();
