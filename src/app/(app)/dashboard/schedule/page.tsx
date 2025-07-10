@@ -105,23 +105,21 @@ export default function SchedulePage() {
 
             <Card>
                 <CardContent className="pt-6 flex flex-col md:flex-row items-center gap-4 flex-wrap">
-                    <div className="flex-1 flex flex-col sm:flex-row gap-4 w-full">
-                        {churchOptions.length > 1 && (
-                            <MultiSelect
-                                options={churchOptions}
-                                selected={selectedChurches}
-                                onChange={setSelectedChurches}
-                                placeholder="Seleziona una o più chiese"
-                                className="w-full"
-                            />
-                        )}
-                        <Input
-                            placeholder="Cerca per nome evento..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full"
+                    {churchOptions.length > 1 && (
+                        <MultiSelect
+                            options={churchOptions}
+                            selected={selectedChurches}
+                            onChange={setSelectedChurches}
+                            placeholder="Seleziona una o più chiese"
+                            className="flex-1"
                         />
-                    </div>
+                    )}
+                    <Input
+                        placeholder="Cerca per nome evento..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full md:w-auto md:max-w-xs"
+                    />
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
