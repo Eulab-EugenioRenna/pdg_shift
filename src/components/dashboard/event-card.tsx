@@ -20,7 +20,7 @@ function TeamDisplay({ service }: { service: RecordModel }) {
     const teamMembers = service.expand?.team || [];
     const teamMemberMap = new Map(teamMembers.map((m: RecordModel) => [m.id, m]));
 
-    if (positions.length > 0) {
+    if (Array.isArray(positions) && positions.length > 0) {
         return (
             <div className="space-y-2 text-sm mt-2">
                 {positions.map((position: string) => {
