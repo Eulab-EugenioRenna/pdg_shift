@@ -94,7 +94,15 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
 
         startAiTransition(async () => {
             const serviceTemplatesMap = new Map(serviceTemplates.map((t) => [t.id, t.name]));
-            const relevantVolunteers = allUsers.filter(u => u.role === 'volontario' && u.church?.includes(churchId));
+            const relevantVolunteers = allUsers.filter(u => u.church?.includes(churchId));
+
+            if(relevantVolunteers.length === 0) {
+                 setAiSuggestions({
+                    suggestions: [],
+                    message: "Non ci sono volontari in questa chiesa per generare suggerimenti."
+                });
+                return;
+            }
 
             const volunteerData = relevantVolunteers.map(user => {
                 const isUnavailable = unavailabilityMap[user.id] || false;
@@ -174,8 +182,8 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
     const positions = service?.positions || [];
     
     const selectableUsers = useMemo(() => {
-        return allUsers.filter(u => u.role === 'volontario' || u.role === 'leader');
-    }, [allUsers]);
+        return allUsers.filter(u => u.church?.includes(churchId));
+    }, [allUsers, churchId]);
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -235,7 +243,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                                 const isUnavailable = unavailabilityMap[u.id];
                                                 return (
                                                 <SelectItem key={u.id} value={u.id}>
-                                                    {u.name} {isUnavailable ? '(Non Disp.)' : '(Disp.)'}
+                                                    {u.name} {isUnavailable ? '(Non Disp.)' : '(Disponibile)'}
                                                 </SelectItem>
                                             )})}
                                         </SelectContent>
@@ -252,7 +260,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                     {aiSuggestions && (
                                         <div className="space-y-2 mt-4 p-4 bg-accent/50 rounded-lg">
                                             <h4 className="font-semibold text-accent-foreground">Suggerimenti IA:</h4>
-                                            {aiSuggestions.suggestions.length > 0 ? (
+                                            {aiSuggestions.suggestions && aiSuggestions.suggestions.length > 0 ? (
                                                 aiSuggestions.suggestions.map((s, i) => (
                                                     <div key={i} className="text-sm flex items-center justify-between gap-2">
                                                     <div>
