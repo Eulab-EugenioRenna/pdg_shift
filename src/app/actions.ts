@@ -224,26 +224,36 @@ export async function deleteChurch(id: string) {
 }
 
 // User Management Actions
-export async function getUsers(userId?: string, userRole?: string) {
+export async function getUsers(userId?: string, userRole?: string, churchId?: string) {
     try {
+        let filter = '';
         if (userRole === 'coordinatore' && userId) {
             const coordinator = await pb.collection('pdg_users').getOne(userId);
             const churchIds = coordinator.church || [];
             if (churchIds.length === 0) return [];
             
-            const filter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
-            const records = await pb.collection('pdg_users').getFullList({ sort: 'name', expand: 'church', filter });
-            return JSON.parse(JSON.stringify(records));
+            filter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
+        } else if (churchId) {
+            filter = `church ?~ "${churchId}"`;
+        }
+        
+        const options: { sort: string; expand: string; filter?: string } = {
+            sort: 'name',
+            expand: 'church',
+        };
+
+        if (filter) {
+            options.filter = filter;
         }
 
-        // superuser and others get all users
-        const records = await pb.collection('pdg_users').getFullList({ sort: 'name', expand: 'church' });
+        const records = await pb.collection('pdg_users').getFullList(options);
         return JSON.parse(JSON.stringify(records));
     } catch (error) {
         console.error("Error fetching users:", error);
         throw new Error("Failed to fetch users.");
     }
 }
+
 
 export async function getLeaders(churchId?: string) {
     try {
@@ -556,6 +566,8 @@ export async function getServiceTemplates(userId?: string, userRole?: string, ch
             }
         } else if (churchId) {
              filter = `church ?~ "${churchId}"`;
+        } else if (userRole === 'superuser') {
+            // No filter for superuser, gets all
         }
 
         const options: { sort: string; expand: string; filter?: string } = {
@@ -617,6 +629,8 @@ export async function getEventTemplates(userId?: string, userRole?: string, chur
             }
         } else if (churchId) {
              filter = `churches ?~ "${churchId}"`;
+        } else if (userRole === 'superuser') {
+             // No filter for superuser, gets all
         }
         
         const options: { sort: string; expand: string; filter?: string } = {

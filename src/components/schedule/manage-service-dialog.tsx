@@ -54,7 +54,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             setDataLoading(true);
             Promise.all([
                 getLeaders(churchId),
-                getUsers(),
+                getUsers(undefined, undefined, churchId),
                 getServiceTemplates(),
             ]).then(async ([leadersData, usersData, templatesData]) => {
                 setLeaders(leadersData);
@@ -94,9 +94,8 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
 
         startAiTransition(async () => {
             const serviceTemplatesMap = new Map(serviceTemplates.map((t) => [t.id, t.name]));
-            const relevantVolunteers = allUsers.filter(u => u.church?.includes(churchId));
-
-            if(relevantVolunteers.length === 0) {
+            
+            if(allUsers.length === 0) {
                  setAiSuggestions({
                     suggestions: [],
                     message: "Non ci sono volontari in questa chiesa per generare suggerimenti."
@@ -104,7 +103,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                 return;
             }
 
-            const volunteerData = relevantVolunteers.map(user => {
+            const volunteerData = allUsers.map(user => {
                 const isUnavailable = unavailabilityMap[user.id] || false;
                 const preferences = (user.service_preferences || [])
                     .map((id: string) => serviceTemplatesMap.get(id))
@@ -181,10 +180,6 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
     
     const positions = service?.positions || [];
     
-    const selectableUsers = useMemo(() => {
-        return allUsers.filter(u => u.church?.includes(churchId));
-    }, [allUsers, churchId]);
-
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="sm:max-w-2xl">
@@ -239,7 +234,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="unassign">Non assegnato</SelectItem>
-                                            {selectableUsers.map((u) => {
+                                            {allUsers.map((u) => {
                                                 const isUnavailable = unavailabilityMap[u.id];
                                                 return (
                                                 <SelectItem key={u.id} value={u.id}>

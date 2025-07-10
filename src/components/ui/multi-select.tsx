@@ -46,7 +46,7 @@ function MultiSelect({
     option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleSelectAll = (checked: boolean) => {
+  const handleSelectAll = (checked: boolean | "indeterminate") => {
     if (checked) {
       const allFilteredValues = filteredOptions.map(o => o.value);
       const newSelected = [...new Set([...selected, ...allFilteredValues])];

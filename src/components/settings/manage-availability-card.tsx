@@ -38,6 +38,7 @@ export function ManageAvailabilityCard() {
 
     useEffect(() => {
         fetchUnavailabilities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const handleEdit = (period: RecordModel) => {
