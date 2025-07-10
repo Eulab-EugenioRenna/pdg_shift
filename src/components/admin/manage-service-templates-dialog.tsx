@@ -92,7 +92,12 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
         formData.append('description', description.trim());
         
         const positionsArray = positions.split(',').map(p => p.trim()).filter(Boolean);
-        positionsArray.forEach(p => formData.append('positions', p));
+        if (positionsArray.length > 0) {
+            positionsArray.forEach(p => formData.append('positions', p));
+        } else {
+            // Send an empty value to ensure the field is treated as an empty array
+            formData.append('positions', ''); 
+        }
         
         churchIds.forEach(id => formData.append('church', id));
         
