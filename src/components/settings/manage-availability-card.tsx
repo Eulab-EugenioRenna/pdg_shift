@@ -73,7 +73,7 @@ export function ManageAvailabilityCard() {
     return (
         <>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-4">
                             <CalendarOff className="w-8 h-8 text-primary" />
@@ -83,7 +83,7 @@ export function ManageAvailabilityCard() {
                             Aggiungi i periodi in cui non sei disponibile. Questo aiuterà i leader a non contattarti per errore.
                         </CardDescription>
                     </div>
-                    <Button onClick={handleAdd}>
+                    <Button onClick={handleAdd} className="w-full sm:w-auto">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Aggiungi Periodo
                     </Button>
