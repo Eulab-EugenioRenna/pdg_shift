@@ -2,6 +2,7 @@
 
 
 
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -503,7 +504,9 @@ export async function deleteService(id: string) {
 export async function getServiceTemplates(userId?: string, userRole?: string, churchId?: string) {
     try {
         let filter = '';
-        if (userRole === 'coordinatore' && userId) {
+        if (userRole === 'superuser') {
+            // No filter for superuser, gets all
+        } else if (userRole === 'coordinatore' && userId) {
             const user = await pb.collection('pdg_users').getOne(userId);
             const churchIds = user.church || [];
             if (churchIds.length > 0) {
@@ -559,7 +562,9 @@ export async function deleteServiceTemplate(id: string) {
 export async function getEventTemplates(userId?: string, userRole?: string, churchId?: string) {
     try {
         let filter = '';
-        if (userRole === 'coordinatore' && userId) {
+        if (userRole === 'superuser') {
+            // No filter for superuser, gets all
+        } else if (userRole === 'coordinatore' && userId) {
             const user = await pb.collection('pdg_users').getOne(userId);
             const churchIds = user.church || [];
             if (churchIds.length > 0) {
