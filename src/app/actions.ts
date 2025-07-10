@@ -1,5 +1,6 @@
 
 
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -127,9 +128,10 @@ export async function getChurches(userId?: string, userRole?: string) {
             return JSON.parse(JSON.stringify(records));
         }
         
-        if (userId && (userRole === 'coordinatore' || userRole === 'leader')) {
+        if (userId && (userRole === 'coordinatore' || userRole === 'leader' || userRole === 'volontario')) {
              const user = await pb.collection('pdg_users').getOne(userId, { expand: 'church' });
-             return JSON.parse(JSON.stringify(user.expand?.church || []));
+             const churches = user.expand?.church || [];
+             return JSON.parse(JSON.stringify(churches.sort((a: any, b: any) => a.name.localeCompare(b.name))));
         }
 
         const records = await pb.collection('pdg_church').getFullList({ sort: 'name' });
@@ -491,13 +493,25 @@ export async function deleteService(id: string) {
 }
 
 // Service Template Management
-export async function getServiceTemplates(churchId?: string) {
+export async function getServiceTemplates(userId?: string, userRole?: string, churchId?: string) {
     try {
-        const filter = churchId ? `church ?~ "${churchId}"` : '';
+        let filter = '';
+        if (userRole === 'coordinatore' && userId) {
+            const user = await pb.collection('pdg_users').getOne(userId);
+            const churchIds = user.church || [];
+            if (churchIds.length > 0) {
+                filter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
+            } else {
+                return []; // Return empty if coordinator has no churches
+            }
+        } else if (churchId) {
+             filter = `church ?~ "${churchId}"`;
+        }
+
         const records = await pb.collection('pdg_service_templates').getFullList({ 
             sort: 'name',
             expand: 'church,leader',
-            filter
+            filter: filter || undefined
         });
         return JSON.parse(JSON.stringify(records));
     } catch (error) {
@@ -535,13 +549,25 @@ export async function deleteServiceTemplate(id: string) {
 
 
 // Event Template Management
-export async function getEventTemplates(churchId?: string) {
+export async function getEventTemplates(userId?: string, userRole?: string, churchId?: string) {
     try {
-        const filter = churchId ? `churches ?~ "${churchId}"` : '';
+        let filter = '';
+        if (userRole === 'coordinatore' && userId) {
+            const user = await pb.collection('pdg_users').getOne(userId);
+            const churchIds = user.church || [];
+            if (churchIds.length > 0) {
+                filter = `(${churchIds.map(id => `churches ?~ "${id}"`).join(' || ')})`;
+            } else {
+                return []; // Return empty if coordinator has no churches
+            }
+        } else if (churchId) {
+             filter = `churches ?~ "${churchId}"`;
+        }
+        
         const allTemplates = await pb.collection('pdg_event_templates').getFullList({ 
             sort: 'name', 
             expand: 'service_templates,churches',
-            filter,
+            filter: filter || undefined,
         });
         return JSON.parse(JSON.stringify(allTemplates));
     } catch (error) {

@@ -19,6 +19,7 @@ import { Loader2 } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '../ui/textarea';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddServiceToEventDialogProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ interface AddServiceToEventDialogProps {
 }
 
 export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, onServiceAdded }: AddServiceToEventDialogProps) {
+    const { user } = useAuth();
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
@@ -52,7 +54,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
         if (isOpen) {
             setDataLoading(true);
             Promise.all([
-                getServiceTemplates(churchId),
+                getServiceTemplates(user?.id, user?.role, churchId),
                 getLeaders(churchId)
             ])
             .then(([templates, leadersData]) => {
@@ -69,7 +71,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             setCustomLeaderId('');
             setTemplateLeaderId('');
         }
-    }, [isOpen, churchId, toast]);
+    }, [isOpen, churchId, toast, user]);
     
      useEffect(() => {
         if (selectedTemplate) {

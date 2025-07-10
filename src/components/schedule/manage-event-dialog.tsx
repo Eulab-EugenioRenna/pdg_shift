@@ -22,6 +22,7 @@ import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Textarea } from '../ui/textarea';
 import { Switch } from '../ui/switch';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ManageEventDialogProps {
     isOpen: boolean;
@@ -40,6 +41,7 @@ export function ManageEventDialog({
     selectedChurchId, 
     onEventUpserted 
 }: ManageEventDialogProps) {
+    const { user } = useAuth();
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
@@ -94,12 +96,12 @@ export function ManageEventDialog({
     useEffect(() => {
         if (isOpen && church) {
             setTemplatesLoading(true);
-            getEventTemplates(church)
+            getEventTemplates(user?.id, user?.role, church)
                 .then(setEventTemplates)
                 .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento per questa chiesa.' }))
                 .finally(() => setTemplatesLoading(false));
         }
-    }, [isOpen, church, toast]);
+    }, [isOpen, church, toast, user]);
 
 
     const handleTemplateChange = (templateId: string) => {
@@ -304,5 +306,3 @@ export function ManageEventDialog({
         </Dialog>
     );
 }
-
-    

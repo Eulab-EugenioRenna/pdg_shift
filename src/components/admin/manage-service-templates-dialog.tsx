@@ -33,9 +33,11 @@ import { Textarea } from '../ui/textarea';
 import { pb } from '@/lib/pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { MultiSelect, type Option } from '../ui/multi-select';
+import { useAuth } from '@/hooks/useAuth';
 
 
 function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
+  const { user } = useAuth();
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
   const [positions, setPositions] = useState(template?.positions?.join(', ') || '');
@@ -52,11 +54,11 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
   const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
 
   useEffect(() => {
-    getChurches()
+    getChurches(user?.id, user?.role)
         .then(setChurches)
         .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare le chiese.'}))
         .finally(() => setDataLoading(false));
-  }, [toast]);
+  }, [toast, user]);
   
   useEffect(() => {
     if (churchIds.length > 0) {
@@ -94,7 +96,7 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
         
         churchIds.forEach(id => formData.append('church', id));
         
-        if (leaderId) {
+        if (leaderId && leaderId !== 'unassign') {
             formData.append('leader', leaderId);
         }
 
@@ -186,6 +188,7 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
 
 
 export function ManageServiceTemplatesDialog() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'form'>('list');
   const [templateToEdit, setTemplateToEdit] = useState<RecordModel | null>(null);
@@ -205,7 +208,7 @@ export function ManageServiceTemplatesDialog() {
     if (!open) return;
 
     setIsLoading(true);
-    getServiceTemplates()
+    getServiceTemplates(user?.id, user?.role)
         .then(setTemplates)
         .catch(() => {
             toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i tipi di servizio.' });
@@ -213,14 +216,7 @@ export function ManageServiceTemplatesDialog() {
         .finally(() => setIsLoading(false));
 
     const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
-        const fullRecord = await pb.collection('pdg_service_templates').getOne(record.id, { expand: 'church,leader'});
-        if (action === 'create') {
-            setTemplates(prev => [...prev, fullRecord]);
-        } else if (action === 'update') {
-            setTemplates(prev => prev.map(t => t.id === fullRecord.id ? fullRecord : t));
-        } else if (action === 'delete') {
-            setTemplates(prev => prev.filter(t => t.id !== record.id));
-        }
+        getServiceTemplates(user?.id, user?.role).then(setTemplates);
     };
 
     pb.collection('pdg_service_templates').subscribe('*', handleSubscription);
@@ -228,7 +224,7 @@ export function ManageServiceTemplatesDialog() {
     return () => {
         pb.collection('pdg_service_templates').unsubscribe('*');
     };
-  }, [open, toast]);
+  }, [open, toast, user]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -285,13 +281,13 @@ export function ManageServiceTemplatesDialog() {
     deleteServiceTemplate(templateToDelete.id)
       .then(() => {
         toast({ title: 'Successo', description: 'Tipo di servizio eliminato con successo.' });
+        setTemplateToDelete(null);
       })
       .catch((error) => {
         toast({ variant: 'destructive', title: 'Errore', description: error.message });
       })
       .finally(() => {
         setIsDeleting(false);
-        setTemplateToDelete(null);
       });
   };
 

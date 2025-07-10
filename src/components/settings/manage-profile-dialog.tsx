@@ -48,7 +48,9 @@ export function ManageProfileDialog() {
   useEffect(() => {
     if (open && user) {
         setTemplatesLoading(true);
-        getServiceTemplates()
+        // Pass user's churches to filter templates for them
+        const userChurchIds = user.church || [];
+        getServiceTemplates(user.id, user.role)
             .then(setServiceTemplates)
             .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i tipi di servizio.'}))
             .finally(() => setTemplatesLoading(false));

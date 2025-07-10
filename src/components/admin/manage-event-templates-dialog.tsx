@@ -33,9 +33,11 @@ import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import { Badge } from '../ui/badge';
 import { pb } from '@/lib/pocketbase';
+import { useAuth } from '@/hooks/useAuth';
 
 
 function EventTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
+  const { user } = useAuth();
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
   const [selectedChurches, setSelectedChurches] = useState<string[]>(template?.churches || []);
@@ -63,8 +65,8 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
   useEffect(() => {
     setDataLoading(true);
     Promise.all([
-      getChurches(),
-      getServiceTemplates()
+      getChurches(user?.id, user?.role),
+      getServiceTemplates(user?.id, user?.role)
     ]).then(([churchesData, servicesData]) => {
       setAllChurches(churchesData);
       setAllServiceTemplates(servicesData);
@@ -73,7 +75,7 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
     }).finally(() => {
       setDataLoading(false);
     });
-  }, [toast]);
+  }, [toast, user]);
 
   useEffect(() => {
     // When selected churches change, filter the selected services
@@ -187,6 +189,7 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
 
 
 export function ManageEventTemplatesDialog() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'form'>('list');
   const [templateToEdit, setTemplateToEdit] = useState<RecordModel | null>(null);
@@ -199,35 +202,29 @@ export function ManageEventTemplatesDialog() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'ascending' | 'descending' }>({ key: 'name', direction: 'ascending' });
-
+  const [allChurches, setAllChurches] = useState<RecordModel[]>([]);
+  
   const { toast } = useToast();
 
   useEffect(() => {
     if (!open) return;
 
     setIsLoading(true);
-    getEventTemplates()
-        .then(setTemplates)
-        .catch(() => {
-            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' });
-        })
-        .finally(() => setIsLoading(false));
+    Promise.all([
+        getEventTemplates(user?.id, user?.role),
+        getChurches(user?.id, user?.role)
+    ])
+    .then(([templatesData, churchesData]) => {
+        setTemplates(templatesData);
+        setAllChurches(churchesData);
+    })
+    .catch(() => {
+        toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i modelli di evento.' });
+    })
+    .finally(() => setIsLoading(false));
 
     const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
-        if (action === 'create' || action === 'update') {
-            try {
-                const fullRecord = await pb.collection('pdg_event_templates').getOne(record.id, { expand: 'service_templates,churches' });
-                if (action === 'create') {
-                    setTemplates(prev => [...prev, fullRecord]);
-                } else { // update
-                    setTemplates(prev => prev.map(t => t.id === fullRecord.id ? fullRecord : t));
-                }
-            } catch (e) {
-                console.error("Failed to fetch full event template record for subscription update:", e);
-            }
-        } else if (action === 'delete') {
-            setTemplates(prev => prev.filter(t => t.id !== record.id));
-        }
+       getEventTemplates(user?.id, user?.role).then(setTemplates);
     };
 
     pb.collection('pdg_event_templates').subscribe('*', handleSubscription);
@@ -235,7 +232,7 @@ export function ManageEventTemplatesDialog() {
     return () => {
         pb.collection('pdg_event_templates').unsubscribe('*');
     };
-  }, [open, toast]);
+  }, [open, toast, user]);
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -292,13 +289,13 @@ export function ManageEventTemplatesDialog() {
     deleteEventTemplate(templateToDelete.id)
       .then(() => {
         toast({ title: 'Successo', description: 'Modello di evento eliminato.' });
+        setTemplateToDelete(null);
       })
       .catch((error) => {
         toast({ variant: 'destructive', title: 'Errore', description: error.message });
       })
       .finally(() => {
         setIsDeleting(false);
-        setTemplateToDelete(null);
       });
   };
 
@@ -368,10 +365,9 @@ export function ManageEventTemplatesDialog() {
                             <TableCell className="font-medium p-2 whitespace-nowrap">{template.name}</TableCell>
                             <TableCell className="p-2">
                                 <div className='flex flex-wrap gap-1'>
-                                    {(template.churches || []).map((churchId: string) => {
-                                        const church = allChurches.find(c => c.id === churchId);
-                                        return church ? <Badge key={church.id} variant="secondary">{church.name}</Badge> : null;
-                                    })}
+                                    {(template.expand?.churches || []).map((church: RecordModel) => (
+                                        <Badge key={church.id} variant="secondary">{church.name}</Badge>
+                                    ))}
                                 </div>
                             </TableCell>
                             <TableCell className="p-2">
