@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useTransition } from 'react';
@@ -19,7 +20,7 @@ import { pb } from '@/lib/pocketbase';
 import type { DateRange } from 'react-day-picker';
 
 interface EventListProps {
-    churchId: string;
+    churchIds: string[];
     searchTerm: string;
     dateRange?: DateRange;
     showPastEvents: boolean;
@@ -71,7 +72,7 @@ const generateRecurringInstances = (
 };
 
 
-export function EventList({ churchId, searchTerm, dateRange, showPastEvents }: EventListProps) {
+export function EventList({ churchIds, searchTerm, dateRange, showPastEvents }: EventListProps) {
     const { user } = useAuth();
     const [events, setEvents] = useState<RecordModel[]>([]);
     const [churches, setChurches] = useState<RecordModel[]>([]);
@@ -89,11 +90,17 @@ export function EventList({ churchId, searchTerm, dateRange, showPastEvents }: E
     const { toast } = useToast();
 
     useEffect(() => {
-        if (!churchId) return;
+        if (churchIds.length === 0) {
+            setEvents([]);
+            return;
+        };
 
         setIsLoading(true);
+
+        const churchFilter = `(${churchIds.map(id => `church = "${id}"`).join(' || ')})`;
+        
         Promise.all([
-            getEvents(churchId),
+            getEvents(churchFilter),
             user?.role === 'admin' ? getChurches() : Promise.resolve(user?.expand?.church || [])
         ]).then(([eventsData, churchesData]) => {
             setEvents(eventsData);
@@ -103,12 +110,12 @@ export function EventList({ churchId, searchTerm, dateRange, showPastEvents }: E
         });
         
         const handleEventSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
-            if (action === 'create' && record.church === churchId) {
+            if (action === 'create' && churchIds.includes(record.church)) {
                 setEvents(prev => [...prev, record].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()));
             } else if (action === 'update') {
                 setEvents(prev => {
                     const listWithoutRecord = prev.filter(e => e.id !== record.id);
-                    if (record.church === churchId) {
+                    if (churchIds.includes(record.church)) {
                         return [...listWithoutRecord, record].sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime());
                     }
                     return listWithoutRecord;
@@ -124,7 +131,7 @@ export function EventList({ churchId, searchTerm, dateRange, showPastEvents }: E
             pb.collection('pdg_events').unsubscribe('*');
         };
 
-    }, [churchId, user]);
+    }, [churchIds, user]);
     
     useEffect(() => {
         if (eventToEdit) {
@@ -250,7 +257,7 @@ export function EventList({ churchId, searchTerm, dateRange, showPastEvents }: E
         );
     }
     
-    if (events.length === 0) {
+    if (events.length === 0 && churchIds.length > 0) {
         return (
             <Card>
                 <CardContent className="pt-6">

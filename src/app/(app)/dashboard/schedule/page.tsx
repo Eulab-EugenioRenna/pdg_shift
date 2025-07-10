@@ -1,11 +1,11 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { RecordModel } from 'pocketbase';
 import { getChurches } from '@/app/actions';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, PlusCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { EventList } from '@/components/schedule/event-list';
 import { ManageEventDialog } from '@/components/schedule/manage-event-dialog';
@@ -19,11 +19,12 @@ import { it } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { MultiSelect, type Option } from '@/components/ui/multi-select';
 
 export default function SchedulePage() {
     const { user } = useAuth();
     const [churches, setChurches] = useState<RecordModel[]>([]);
-    const [selectedChurch, setSelectedChurch] = useState<string>('');
+    const [selectedChurches, setSelectedChurches] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
@@ -44,7 +45,8 @@ export default function SchedulePage() {
             }
             setChurches(userChurches);
             if (userChurches.length > 0) {
-                setSelectedChurch(userChurches[0].id);
+                // Pre-select the first church
+                setSelectedChurches([userChurches[0].id]);
             }
         } catch (error) {
             console.error(error);
@@ -58,7 +60,8 @@ export default function SchedulePage() {
     }, [loadChurches]);
 
     const canCreateEvent = user?.role === 'admin' || user?.role === 'leader';
-    const hasMultipleChurches = churches.length > 1;
+    
+    const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
 
     const onEventUpserted = () => {
         // This is now handled by subscriptions
@@ -80,32 +83,33 @@ export default function SchedulePage() {
                     <p className="text-muted-foreground">Visualizza e gestisci gli eventi e i servizi della chiesa.</p>
                 </div>
                  <div className="flex items-center gap-4">
-                    {hasMultipleChurches && (
-                        <Select onValueChange={setSelectedChurch} value={selectedChurch}>
-                            <SelectTrigger className="w-full md:w-[200px]">
-                                <SelectValue placeholder="Seleziona una chiesa" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {churches.map((church) => (
-                                    <SelectItem key={church.id} value={church.id}>
-                                        {church.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    {churchOptions.length > 1 && (
+                        <MultiSelect
+                            options={churchOptions}
+                            selected={selectedChurches}
+                            onChange={setSelectedChurches}
+                            placeholder="Seleziona una o più chiese"
+                            className="w-full md:w-[280px]"
+                        />
                     )}
-                    {canCreateEvent && selectedChurch && (
+                    {canCreateEvent && (
                         <>
-                           <Button onClick={() => setIsCreateDialogOpen(true)}>
+                           <Button 
+                                onClick={() => setIsCreateDialogOpen(true)} 
+                                disabled={selectedChurches.length !== 1}
+                                title={selectedChurches.length !== 1 ? "Seleziona una sola chiesa per creare un evento" : "Crea Evento"}
+                           >
                                 <PlusCircle className="mr-2 h-4 w-4" /> Crea Evento
                            </Button>
-                           <ManageEventDialog 
-                                isOpen={isCreateDialogOpen}
-                                setIsOpen={setIsCreateDialogOpen}
-                                userChurches={churches} 
-                                selectedChurchId={selectedChurch} 
-                                onEventUpserted={onEventUpserted}
-                           />
+                           {selectedChurches.length === 1 && (
+                                <ManageEventDialog 
+                                    isOpen={isCreateDialogOpen}
+                                    setIsOpen={setIsCreateDialogOpen}
+                                    userChurches={churches} 
+                                    selectedChurchId={selectedChurches[0]} 
+                                    onEventUpserted={onEventUpserted}
+                               />
+                           )}
                         </>
                     )}
                 </div>
@@ -172,15 +176,12 @@ export default function SchedulePage() {
                 </CardContent>
             </Card>
 
-            {selectedChurch ? (
-                <EventList churchId={selectedChurch} searchTerm={searchTerm} dateRange={dateRange} showPastEvents={showPastEvents} />
+            {selectedChurches.length > 0 ? (
+                <EventList churchIds={selectedChurches} searchTerm={searchTerm} dateRange={dateRange} showPastEvents={showPastEvents} />
             ) : (
                  <Card>
-                    <CardHeader>
-                        <CardTitle>Nessuna chiesa selezionata</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">
+                    <CardContent className="pt-6">
+                        <p className="text-center text-muted-foreground">
                             {churches.length > 0 ? 'Seleziona una chiesa per visualizzare il programma.' : 'Non sei associato a nessuna chiesa. Contatta un amministratore per essere aggiunto.'}
                         </p>
                     </CardContent>

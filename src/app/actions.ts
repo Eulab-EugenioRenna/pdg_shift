@@ -1,4 +1,5 @@
 
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -242,10 +243,10 @@ export async function updateUserProfile(id: string, formData: FormData) {
 }
 
 // Event Management Actions
-export async function getEvents(churchId: string) {
+export async function getEvents(filter: string) {
     try {
         const records = await pb.collection('pdg_events').getFullList({
-            filter: `church = "${churchId}"`,
+            filter: filter,
             sort: '-start_date',
         });
         return JSON.parse(JSON.stringify(records));

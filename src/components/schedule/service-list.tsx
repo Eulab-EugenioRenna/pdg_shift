@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -26,7 +27,7 @@ function TeamDisplay({ service }: { service: RecordModel }) {
     const teamMembers = service.expand?.team || [];
     const teamMemberMap = new Map(teamMembers.map((m: RecordModel) => [m.id, m]));
 
-    if (positions.length > 0) {
+    if (Array.isArray(positions) && positions.length > 0) {
         return (
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mt-2">
                 {positions.map((position: string) => {
@@ -181,32 +182,35 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
                     <p className="text-sm text-muted-foreground py-2 text-center">Nessun servizio per questo evento.</p>
                 ) : (
                     <div className="space-y-2">
-                        {services.map(service => (
-                            <div key={service.id} className="p-3 rounded-md bg-secondary/50">
-                                <div className="flex justify-between items-start gap-4">
-                                    <div className="flex-1 space-y-1">
-                                        <p className="font-semibold">{service.name}</p>
-                                        <p className="text-xs text-muted-foreground flex items-center gap-2"><UserCheck className="w-3 h-3"/> Leader: {service.expand?.leader?.name || 'Non assegnato'}</p>
+                        {services.map(service => {
+                            const canManage = user?.role === 'admin' || (user?.role === 'leader' && user?.id === service.leader);
+                            return (
+                                <div key={service.id} className="p-3 rounded-md bg-secondary/50">
+                                    <div className="flex justify-between items-start gap-4">
+                                        <div className="flex-1 space-y-1">
+                                            <p className="font-semibold">{service.name}</p>
+                                            <p className="text-xs text-muted-foreground flex items-center gap-2"><UserCheck className="w-3 h-3"/> Leader: {service.expand?.leader?.name || 'Non assegnato'}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {canManage && (
+                                                <Button variant="outline" size="sm" onClick={() => {
+                                                    setServiceToManage(service);
+                                                    setIsManageDialogOpen(true);
+                                                }}>
+                                                    Gestisci Team
+                                                </Button>
+                                            )}
+                                            {user?.role === 'admin' && (
+                                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setServiceToDelete(service)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        {(user?.role === 'admin' || user?.role === 'leader') && (
-                                            <Button variant="outline" size="sm" onClick={() => {
-                                                setServiceToManage(service);
-                                                setIsManageDialogOpen(true);
-                                            }}>
-                                                Gestisci Team
-                                            </Button>
-                                        )}
-                                        {user?.role === 'admin' && (
-                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setServiceToDelete(service)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        )}
-                                    </div>
+                                    <TeamDisplay service={service} />
                                 </div>
-                                <TeamDisplay service={service} />
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
