@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { MultiSelect, type Option } from '@/components/ui/multi-select';
+import { pb } from '@/lib/pocketbase';
 
 export default function SchedulePage() {
     const { user } = useAuth();
@@ -109,13 +110,7 @@ export default function SchedulePage() {
 
             <Card>
                 <CardContent className="pt-6 flex flex-col md:flex-row items-center gap-4 flex-wrap">
-                     <Input
-                        placeholder="Cerca per nome evento..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:max-w-xs"
-                    />
-                    {churchOptions.length > 1 && (
+                     {churchOptions.length > 1 && (
                         <MultiSelect
                             options={churchOptions}
                             selected={selectedChurches}
@@ -124,6 +119,12 @@ export default function SchedulePage() {
                             className="w-full md:w-[280px]"
                         />
                     )}
+                     <Input
+                        placeholder="Cerca per nome evento..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full md:max-w-xs"
+                    />
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
