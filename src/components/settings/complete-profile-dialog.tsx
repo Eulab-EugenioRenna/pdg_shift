@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useRef, useEffect } from 'react';
+import { useState, useTransition, useRef, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { updateUserProfile, getServiceTemplates } from '@/app/actions';
+import { updateUserProfile, getServiceTemplates, getChurches } from '@/app/actions';
 import { Loader2, Upload } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
@@ -28,7 +28,7 @@ interface CompleteProfileDialogProps {
 }
 
 export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompleteProfileDialogProps) {
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -36,6 +36,7 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
     name: '',
     phone: '',
     skills: '',
+    church: [] as string[],
     service_preferences: [] as string[],
   });
 
@@ -43,21 +44,29 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
   const [preview, setPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [serviceTemplates, setServiceTemplates] = useState<RecordModel[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [allChurches, setAllChurches] = useState<RecordModel[]>([]);
+  const [allServiceTemplates, setAllServiceTemplates] = useState<RecordModel[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
   useEffect(() => {
     if (isOpen && user) {
-        setTemplatesLoading(true);
-        getServiceTemplates()
-            .then(setServiceTemplates)
-            .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i tipi di servizio.'}))
-            .finally(() => setTemplatesLoading(false));
+        setDataLoading(true);
+        Promise.all([
+          getChurches(),
+          getServiceTemplates()
+        ])
+        .then(([churchesData, servicesData]) => {
+          setAllChurches(churchesData);
+          setAllServiceTemplates(servicesData);
+        })
+        .catch(() => toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati necessari.'}))
+        .finally(() => setDataLoading(false));
 
         setFormData({
             name: user.name || '',
             phone: user.phone || '',
             skills: user.skills || '',
+            church: user.church || [],
             service_preferences: user.service_preferences || [],
         });
         setPreview(user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : null);
@@ -65,7 +74,26 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
     }
   }, [isOpen, user, toast]);
 
-  const serviceOptions: Option[] = serviceTemplates.map(s => ({ value: s.id, label: s.name }));
+  const churchOptions: Option[] = allChurches.map(c => ({ value: c.id, label: c.name }));
+  
+  const filteredServiceOptions: Option[] = useMemo(() => {
+    if (formData.church.length === 0) {
+      return [];
+    }
+    // Show only service templates that are available for at least one of the selected churches.
+    return allServiceTemplates
+      .filter(st => (st.church || []).some((churchId: string) => formData.church.includes(churchId)))
+      .map(s => ({ value: s.id, label: s.name }));
+  }, [formData.church, allServiceTemplates]);
+
+  useEffect(() => {
+    // When selected churches change, filter the selected services to remove ones that are no longer valid
+    const validServiceIds = new Set(filteredServiceOptions.map(opt => opt.value));
+    setFormData(prev => ({
+        ...prev,
+        service_preferences: prev.service_preferences.filter(serviceId => validServiceIds.has(serviceId))
+    }));
+  }, [formData.church, filteredServiceOptions]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,15 +112,15 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleSelectChange = (value: string[]) => {
-    setFormData(prev => ({ ...prev, service_preferences: value }));
+  const handleSelectChange = (name: 'church' | 'service_preferences') => (value: string[]) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim() || !formData.phone.trim() || !formData.skills.trim() || formData.service_preferences.length === 0) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Per favore, completa tutti i campi del profilo per continuare.' });
+    if (!formData.name.trim() || !formData.phone.trim() || formData.church.length === 0) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Per favore, completa tutti i campi richiesti (Nome, Telefono, Chiesa).' });
       return;
     }
 
@@ -104,11 +132,21 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
         data.append('phone', formData.phone.trim());
         data.append('skills', formData.skills.trim());
 
+        if (formData.church.length > 0) {
+            formData.church.forEach((id: string) => data.append('church', id));
+        } else {
+            data.append('church', '');
+        }
+
         if (formData.service_preferences.length > 0) {
             formData.service_preferences.forEach((id: string) => data.append('service_preferences', id));
         } else {
             data.append('service_preferences', '');
         }
+        
+        // Set role and email visibility in the background
+        data.append('role', 'volontario');
+        data.append('emailVisibility', 'true');
 
         if (avatarFile) {
             data.append('avatar', avatarFile);
@@ -169,24 +207,36 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="skills">Competenze</Label>
-            <Textarea id="skills" name="skills" value={formData.skills} onChange={handleChange} disabled={isPending} placeholder="Es. Canto, chitarra, social..." required />
+              <Label htmlFor="church">Chiesa/e</Label>
+              <MultiSelect
+                  id="church"
+                  options={churchOptions}
+                  selected={formData.church}
+                  onChange={handleSelectChange('church')}
+                  placeholder={dataLoading ? "Caricamento..." : "Seleziona una o più chiese"}
+                  disabled={dataLoading || isPending}
+              />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="service_preferences">Preferenze di Servizio</Label>
+            <Label htmlFor="skills">Competenze (opzionale)</Label>
+            <Textarea id="skills" name="skills" value={formData.skills} onChange={handleChange} disabled={isPending} placeholder="Es. Canto, chitarra, social..." />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="service_preferences">Preferenze di Servizio (opzionale)</Label>
             <MultiSelect
                 id="service_preferences"
-                options={serviceOptions}
+                options={filteredServiceOptions}
                 selected={formData.service_preferences}
-                onChange={handleSelectChange}
-                placeholder={templatesLoading ? "Caricamento..." : "Seleziona i servizi"}
-                disabled={templatesLoading || isPending}
+                onChange={handleSelectChange('service_preferences')}
+                placeholder={dataLoading ? "Caricamento..." : (formData.church.length === 0 ? "Seleziona prima una chiesa" : "Seleziona i servizi")}
+                disabled={dataLoading || isPending || formData.church.length === 0}
             />
           </div>
           
           <DialogFooter>
-            <Button type="submit" disabled={isPending || templatesLoading}>
+            <Button type="submit" disabled={isPending || dataLoading}>
               {isPending ? <Loader2 className="animate-spin" /> : 'Salva e Continua'}
             </Button>
           </DialogFooter>

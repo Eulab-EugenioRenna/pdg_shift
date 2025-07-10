@@ -40,7 +40,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace('/login');
     }
     if (!loading && user) {
-        const isComplete = user.phone && user.skills && user.service_preferences?.length > 0;
+        // A new user from OAuth won't have a role set yet.
+        const isComplete = user.role && user.phone;
         if (!isComplete) {
             setIsProfileIncomplete(true);
         }
@@ -100,7 +101,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </Avatar>
                 <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                     <span className="text-sm font-medium text-sidebar-foreground">{user.name}</span>
-                    <span className="text-xs text-muted-foreground">{user.role}</span>
+                    <span className="text-xs text-muted-foreground capitalize">{user.role}</span>
                 </div>
                 <Button variant="ghost" size="icon" className="ml-auto group-data-[collapsible=icon]:hidden" onClick={logout} title="Logout">
                     <LogOut className="h-4 w-4"/>

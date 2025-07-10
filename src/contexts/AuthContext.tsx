@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { pb } from '@/lib/pocketbase';
 import type { RecordModel, Admin } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
-import { getChurches } from '@/app/actions';
 
 // Define the shape of the user object
 export type User = RecordModel | Admin | null;
@@ -101,38 +100,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithProvider = useCallback(async (provider: 'google') => {
     setLoading(true);
     try {
-        const authData = await pb.collection('pdg_users').authWithOAuth2({ 
+        await pb.collection('pdg_users').authWithOAuth2({ 
             provider,
         });
 
-        if (authData.meta?.isNew) {
-            const allChurches = await getChurches();
-            const allChurchIds = allChurches.map((c: RecordModel) => c.id);
-            
-            const updateData = {
-                name: authData.meta.name,
-                role: 'volontario',
-                emailVisibility: true,
-                church: allChurchIds
-            };
-
-            await pb.collection('pdg_users').update(authData.record.id, updateData);
-            
-            if (authData.meta.avatarUrl) {
-                try {
-                    const avatarResponse = await fetch(authData.meta.avatarUrl);
-                    if (avatarResponse.ok) {
-                        const avatarBlob = await avatarResponse.blob();
-                        const avatarFormData = new FormData();
-                        avatarFormData.append('avatar', avatarBlob);
-                        await pb.collection('pdg_users').update(authData.record.id, avatarFormData);
-                    }
-                } catch (avatarError) {
-                    console.error("Failed to fetch or update avatar:", avatarError);
-                }
-            }
-        }
-      
+        // After auth, refresh the user state to get the new user data.
+        // The "Complete Profile" dialog will handle the rest.
         await refreshUser();
       
         toast({ title: "Successo", description: "Login effettuato con successo." });
