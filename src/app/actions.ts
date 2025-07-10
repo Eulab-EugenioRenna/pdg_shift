@@ -1,3 +1,4 @@
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -55,7 +56,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
                 fields: 'id, event',
             });
             const servicesAsTeamMember = await pb.collection('pdg_services').getFullList({
-                filter: `team ~ "${userId}"`,
+                filter: `team ?~ "${userId}"`,
                 fields: 'id, event',
             });
 
@@ -732,3 +733,6 @@ export async function deleteUnavailability(id: string) {
 
 
 
+
+
+    
