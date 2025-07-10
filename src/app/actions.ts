@@ -3,6 +3,7 @@
 
 
 
+
 "use server";
 
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
@@ -518,11 +519,16 @@ export async function getServiceTemplates(userId?: string, userRole?: string, ch
              filter = `church ?~ "${churchId}"`;
         }
 
-        const records = await pb.collection('pdg_service_templates').getFullList({ 
+        const options: { sort: string; expand: string; filter?: string } = {
             sort: 'name',
             expand: 'church,leader',
-            filter: filter || undefined
-        });
+        };
+
+        if (filter) {
+            options.filter = filter;
+        }
+
+        const records = await pb.collection('pdg_service_templates').getFullList(options);
         return JSON.parse(JSON.stringify(records));
     } catch (error) {
         console.error("Error fetching service templates:", error);
@@ -576,11 +582,16 @@ export async function getEventTemplates(userId?: string, userRole?: string, chur
              filter = `churches ?~ "${churchId}"`;
         }
         
-        const allTemplates = await pb.collection('pdg_event_templates').getFullList({ 
-            sort: 'name', 
+        const options: { sort: string; expand: string; filter?: string } = {
+            sort: 'name',
             expand: 'service_templates,churches',
-            filter: filter || undefined,
-        });
+        };
+
+        if (filter) {
+            options.filter = filter;
+        }
+        
+        const allTemplates = await pb.collection('pdg_event_templates').getFullList(options);
         return JSON.parse(JSON.stringify(allTemplates));
     } catch (error) {
         console.error("Error fetching event templates:", error);
