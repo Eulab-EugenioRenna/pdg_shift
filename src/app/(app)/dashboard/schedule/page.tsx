@@ -40,8 +40,8 @@ export default function SchedulePage() {
             const userChurches = await getChurches(user.id, user.role);
             setChurches(userChurches);
             if (userChurches.length > 0) {
-                // Pre-select the first church
-                setSelectedChurches([userChurches[0].id]);
+                // Pre-select all available churches
+                setSelectedChurches(userChurches.map(c => c.id));
             }
         } catch (error) {
             console.error(error);
