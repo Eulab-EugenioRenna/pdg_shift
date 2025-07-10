@@ -38,7 +38,7 @@ import { pb } from '@/lib/pocketbase';
 function EventTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
-  const [selectedChurches, setSelectedChurches] = useState<string[]>(template?.churches || []);
+  const [selectedChurches, setSelectedChurches] = useState<string[]>(template?.expand?.churches?.map((c: RecordModel) => c.id) || []);
   const [selectedServices, setSelectedServices] = useState<string[]>(template?.service_templates || []);
   
   const [allChurches, setAllChurches] = useState<RecordModel[]>([]);
@@ -115,6 +115,8 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
     });
   };
 
+  const showNoServicesMessage = selectedChurches.length > 0 && filteredServiceOptions.length === 0 && !dataLoading;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4">
       <div>
@@ -160,11 +162,17 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
             selected={selectedServices}
             onChange={setSelectedServices}
             placeholder={dataLoading ? "Caricamento..." : "Seleziona i servizi"}
-            disabled={dataLoading || isPending || selectedChurches.length === 0}
+            disabled={dataLoading || isPending || selectedChurches.length === 0 || showNoServicesMessage}
         />
-         <p className="text-xs text-muted-foreground mt-1">
-          Vengono mostrati solo i servizi compatibili con le chiese selezionate.
-        </p>
+         {showNoServicesMessage ? (
+            <p className="text-xs text-destructive mt-1">
+                Nessun servizio disponibile per le chiese selezionate.
+            </p>
+         ) : (
+            <p className="text-xs text-muted-foreground mt-1">
+                Vengono mostrati solo i servizi compatibili con le chiese selezionate.
+            </p>
+         )}
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
@@ -429,5 +437,3 @@ export function ManageEventTemplatesDialog() {
     </>
   );
 }
-
-    
