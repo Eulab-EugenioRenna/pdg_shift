@@ -33,7 +33,7 @@ export default function SettingsPage() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Accesso non autorizzato</CardTitle>
-                        </Header>
+                        </CardHeader>
                         <CardContent>
                             <p>Non hai i permessi per visualizzare questa pagina.</p>
                         </CardContent>
