@@ -103,20 +103,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const authData = await pb.collection('pdg_users').authWithOAuth2({ 
         provider,
-        expand: 'church',
       });
 
-      // if this is a new user, update their role and church
       if (authData.meta?.isNew) {
         const allChurches = await getChurches();
         const allChurchIds = allChurches.map((c: RecordModel) => c.id);
-
-        await pb.collection('pdg_users').update(authData.record.id, {
+        
+        const updateData: any = {
+          name: authData.meta.name,
           role: 'volontario',
           church: allChurchIds,
-        });
-      }
+        };
 
+        // Fetch avatar from URL and update user
+        if (authData.meta.avatarUrl) {
+            try {
+                const avatarResponse = await fetch(authData.meta.avatarUrl);
+                const avatarBlob = await avatarResponse.blob();
+                const formData = new FormData();
+                formData.append('avatar', avatarBlob);
+                
+                // Update user with avatar
+                await pb.collection('pdg_users').update(authData.record.id, formData);
+            } catch (avatarError) {
+                console.error("Failed to fetch or update avatar:", avatarError);
+            }
+        }
+
+        await pb.collection('pdg_users').update(authData.record.id, updateData);
+      }
+      
+      await refreshUser();
+      
       toast({ title: "Successo", description: "Login effettuato con successo." });
       router.push('/dashboard');
     } catch (error: any) {
@@ -126,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [router, toast]);
+  }, [router, toast, refreshUser]);
 
 
   const register = useCallback(async (data: any) => {
@@ -147,11 +165,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const newUser = await pb.collection('pdg_users').create(createData);
 
-      const avatarResponse = await fetch('https://placehold.co/200x200.png');
-      const avatarBlob = await avatarResponse.blob();
-      const avatarFormData = new FormData();
-      avatarFormData.append('avatar', avatarBlob, `${username}_avatar.png`);
-      await pb.collection('pdg_users').update(newUser.id, avatarFormData);
+      try {
+        const avatarResponse = await fetch('https://placehold.co/200x200.png');
+        const avatarBlob = await avatarResponse.blob();
+        const avatarFormData = new FormData();
+        avatarFormData.append('avatar', avatarBlob, `${username}_avatar.png`);
+        await pb.collection('pdg_users').update(newUser.id, avatarFormData);
+      } catch (avatarError) {
+        console.error("Failed to set placeholder avatar:", avatarError);
+      }
       
       await login(data.email, data.password);
       return newUser;
