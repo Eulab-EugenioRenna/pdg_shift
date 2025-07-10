@@ -257,23 +257,32 @@ export function ManageUsersDialog() {
                         <TableRow>
                           <TableHead className="w-[60px]">Avatar</TableHead>
                           <TableHead>
-                            <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
-                                Nome
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                            </Button>
+                            <span className="hidden md:inline-flex">
+                                <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                    Nome
+                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </span>
+                            <span className="md:hidden">Nome</span>
                           </TableHead>
                           <TableHead>
-                             <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
-                                Email
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                            </Button>
+                            <span className="hidden md:inline-flex">
+                                <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
+                                    Email
+                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </span>
+                            <span className="md:hidden">Email</span>
                           </TableHead>
                           <TableHead>Chiesa</TableHead>
                           <TableHead>
-                            <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
-                                Ruolo
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                            </Button>
+                            <span className="hidden md:inline-flex">
+                                <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
+                                    Ruolo
+                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </span>
+                             <span className="md:hidden">Ruolo</span>
                           </TableHead>
                           <TableHead className="text-right w-[120px]">Azioni</TableHead>
                         </TableRow>

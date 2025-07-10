@@ -271,14 +271,14 @@ export function ManageEventTemplatesDialog() {
 
           {view === 'list' ? (
              <div className="space-y-4 py-4">
-                <div className="flex justify-between items-center gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                      <Input
                         placeholder="Cerca modelli..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="max-w-xs"
                     />
-                    <Button onClick={handleAdd}><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Modello</Button>
+                    <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Modello</Button>
                 </div>
                 <div className="rounded-md border max-h-80 overflow-y-auto">
                 {isLoading ? (
@@ -290,10 +290,13 @@ export function ManageEventTemplatesDialog() {
                     <TableHeader className="sticky top-0 bg-background z-10">
                         <TableRow>
                           <TableHead>
-                            <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
-                                Nome Modello
-                                <ArrowUpDown className="ml-2 h-4 w-4" />
-                             </Button>
+                            <span className="hidden md:inline-flex">
+                                <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                    Nome Modello
+                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </span>
+                            <span className="md:hidden">Nome Modello</span>
                           </TableHead>
                           <TableHead>Servizi Inclusi</TableHead>
                           <TableHead className="text-right w-[120px]">Azioni</TableHead>
