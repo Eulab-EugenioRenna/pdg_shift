@@ -37,8 +37,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { UserForm } from '@/components/admin/user-form';
 import { useAuth } from '@/hooks/useAuth';
 
+interface ManageUsersDialogProps {
+    triggerButton?: React.ReactNode;
+    onUsersUpdated?: () => void;
+}
 
-export function ManageUsersDialog() {
+export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsersDialogProps) {
   const { user: currentUser } = useAuth();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'list' | 'form'>('list');
@@ -93,6 +97,12 @@ export function ManageUsersDialog() {
     };
     
   }, [open, currentUser, fetchUsersAndChurches]);
+
+  useEffect(() => {
+    if(!open && onUsersUpdated) {
+        onUsersUpdated();
+    }
+  }, [open, onUsersUpdated]);
 
 
   const requestSort = (key: string) => {
@@ -208,14 +218,18 @@ export function ManageUsersDialog() {
     return false;
   }
 
+  const Trigger = triggerButton ? <>{triggerButton}</> : (
+      <Button>
+        <UserCog className="mr-2" />
+        Gestisci Utenti
+      </Button>
+  );
+
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button>
-            <UserCog className="mr-2" />
-            Gestisci Utenti
-          </Button>
+          {Trigger}
         </DialogTrigger>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>

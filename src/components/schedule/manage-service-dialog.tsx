@@ -15,13 +15,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { updateService, getLeaders, getUsers, getAiTeamSuggestions, getServiceTemplates, getAllUnavailabilities } from '@/app/actions';
-import { Loader2, Wand2 } from 'lucide-react';
+import { Loader2, Wand2, UserPlus } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import type { SuggestTeamOutput } from '@/ai/flows/smart-team-builder';
 import { useAuth } from '@/hooks/useAuth';
+import { ManageUsersDialog } from '../admin/manage-users-dialog';
 
 interface ManageServiceDialogProps {
   isOpen: boolean;
@@ -55,28 +56,33 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
 
     const positions = service?.positions || [];
 
-    useEffect(() => {
-        if (isOpen && churchId) {
-            setDataLoading(true);
-            Promise.all([
+    const fetchUsersAndData = async () => {
+        if (!churchId) return;
+        setDataLoading(true);
+        try {
+            const [leadersData, usersData, templatesData] = await Promise.all([
                 getLeaders(churchId),
                 getUsers(undefined, undefined, churchId),
                 getServiceTemplates(),
-            ]).then(async ([leadersData, usersData, templatesData]) => {
-                setLeaders(leadersData);
-                setAllUsers(usersData);
-                setServiceTemplates(templatesData);
-                
-                const userIds = usersData.map(u => u.id);
-                const eventDateFormatted = new Date(eventDate).toISOString().split('T')[0];
-                const unavail = await getAllUnavailabilities(userIds, eventDateFormatted);
-                setUnavailabilityMap(unavail);
+            ]);
+            setLeaders(leadersData);
+            setAllUsers(usersData);
+            setServiceTemplates(templatesData);
 
-            }).catch(() => {
-                toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati necessari.' });
-            }).finally(() => {
-                setDataLoading(false);
-            });
+            const userIds = usersData.map(u => u.id);
+            const eventDateFormatted = new Date(eventDate).toISOString().split('T')[0];
+            const unavail = await getAllUnavailabilities(userIds, eventDateFormatted);
+            setUnavailabilityMap(unavail);
+        } catch (error) {
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati necessari.' });
+        } finally {
+            setDataLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        if (isOpen) {
+           fetchUsersAndData();
         }
 
         if (service) {
@@ -87,7 +93,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             setAiSuggestions(null); // Reset suggestions when opening
             setNewPositions('');
         }
-    }, [isOpen, service, churchId, toast, eventDate]);
+    }, [isOpen, service, churchId, eventDate]);
 
     const handleGetAiSuggestions = () => {
         if (!service) return;
@@ -208,7 +214,14 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                         <Textarea id="service-description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={isPending} />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="leader-select">Leader</Label>
+                         <div className="flex justify-between items-center">
+                            <Label htmlFor="leader-select">Leader</Label>
+                             <ManageUsersDialog onUsersUpdated={fetchUsersAndData} triggerButton={
+                                <Button type="button" variant="ghost" size="sm" className="h-auto px-2 py-1">
+                                    <UserPlus className="h-4 w-4 mr-1"/> Aggiungi Utente
+                                </Button>
+                            }/>
+                        </div>
                         <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading}>
                             <SelectTrigger id="leader-select">
                                 <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
