@@ -220,7 +220,7 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
                 <CardTitle>Eventi in Programma</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-                <ScrollArea className="h-[300px]">
+                <ScrollArea className="h-[310px]">
                     <div className="space-y-2 p-4 pt-0">
                         {filteredEvents.map(event => (
                             <button
