@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { RecordModel } from 'pocketbase';
 import { getChurches } from '@/app/actions';
@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { MultiSelect, type Option } from '@/components/ui/multi-select';
 import { EventDetails } from '@/components/schedule/event-details';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function SchedulePage() {
     const { user } = useAuth();
@@ -34,6 +35,9 @@ export default function SchedulePage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateRange, setDateRange] = useState<DateRange | undefined>();
     const [showPastEvents, setShowPastEvents] = useState(false);
+
+    const detailsRef = useRef<HTMLDivElement>(null);
+    const isMobile = useIsMobile();
 
     const loadChurches = useCallback(async () => {
         if (!user) return;
@@ -61,6 +65,12 @@ export default function SchedulePage() {
     const handleEventSelection = (event: RecordModel | null) => {
         setSelectedEvent(event);
     };
+
+    useEffect(() => {
+        if (selectedEvent && isMobile) {
+            detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [selectedEvent, isMobile]);
     
     const onEventUpserted = (updatedEvent?: RecordModel) => {
         if(updatedEvent && selectedEvent && updatedEvent.id === selectedEvent.id) {
@@ -211,7 +221,7 @@ export default function SchedulePage() {
                     )}
                 </div>
 
-                <div className="xl:col-span-2">
+                <div className="xl:col-span-2" ref={detailsRef}>
                     {selectedEvent ? (
                         <EventDetails 
                             key={selectedEvent.id} 
