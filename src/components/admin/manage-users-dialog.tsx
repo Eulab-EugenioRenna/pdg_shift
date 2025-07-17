@@ -72,7 +72,9 @@ export function ManageUsersDialog() {
 
     const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
         // Simple refetch to ensure data consistency based on role
-        getUsers(currentUser.id, currentUser.role).then(setUsers);
+        if (currentUser) {
+            getUsers(currentUser.id, currentUser.role).then(setUsers);
+        }
     };
     
     pb.collection('pdg_users').subscribe('*', handleSubscription);

@@ -240,28 +240,33 @@ export async function deleteChurch(id: string) {
 // User Management Actions
 export async function getUsers(userId?: string, userRole?: string, churchId?: string) {
     try {
-        let filter = '';
+        let filterParts: string[] = [];
+
         if (userRole === 'coordinatore' && userId) {
             const coordinator = await pb.collection('pdg_users').getOne(userId);
             const churchIds = coordinator.church || [];
-            if (churchIds.length === 0) return [];
-            
-            const churchIdFilter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
-            filter = churchIdFilter;
-
-        } else if (churchId) {
-            filter = `church ?~ "${churchId}"`;
+            if (churchIds.length > 0) {
+                const churchIdFilter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
+                // Also include the coordinator themselves if they are not part of the filtered churches for some reason
+                filterParts.push(`(${churchIdFilter} || id = "${userId}")`);
+            } else {
+                 filterParts.push(`id = "${userId}"`);
+            }
         }
-        
+
+        if (churchId) {
+            filterParts.push(`church ?~ "${churchId}"`);
+        }
+
         const options: { sort: string; expand: string; filter?: string } = {
             sort: 'name',
             expand: 'church',
         };
 
-        if (filter) {
-            options.filter = filter;
+        if (filterParts.length > 0) {
+            options.filter = filterParts.join(' && ');
         }
-
+        
         const records = await pb.collection('pdg_users').getFullList(options);
         return JSON.parse(JSON.stringify(records));
     } catch (error) {
@@ -869,4 +874,5 @@ export async function updateSetting(key: string, value: string) {
         return await pb.collection('pdg_settings').create({ key, value });
     }
 }
+
 
