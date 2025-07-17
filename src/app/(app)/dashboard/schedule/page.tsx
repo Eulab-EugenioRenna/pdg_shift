@@ -21,7 +21,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { MultiSelect, type Option } from '@/components/ui/multi-select';
 import { EventDetails } from '@/components/schedule/event-details';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsSmallScreen } from '@/hooks/use-is-small-screen';
 
 export default function SchedulePage() {
     const { user } = useAuth();
@@ -37,7 +37,7 @@ export default function SchedulePage() {
     const [showPastEvents, setShowPastEvents] = useState(false);
 
     const detailsRef = useRef<HTMLDivElement>(null);
-    const isMobile = useIsMobile();
+    const isSmallScreen = useIsSmallScreen();
 
     const loadChurches = useCallback(async () => {
         if (!user) return;
@@ -67,10 +67,10 @@ export default function SchedulePage() {
     };
 
     useEffect(() => {
-        if (selectedEvent && isMobile) {
+        if (selectedEvent && isSmallScreen) {
             detailsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    }, [selectedEvent, isMobile]);
+    }, [selectedEvent, isSmallScreen]);
     
     const onEventUpserted = (updatedEvent?: RecordModel) => {
         if(updatedEvent && selectedEvent && updatedEvent.id === selectedEvent.id) {
