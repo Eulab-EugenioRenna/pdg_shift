@@ -4,7 +4,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Users, Bell, Loader2, CalendarDays } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getDashboardData, type DashboardEvent } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format } from 'date-fns';
@@ -44,16 +44,16 @@ export default function DashboardPage() {
         };
     }, [viewMode, currentDate]);
 
-    const fetchData = () => {
+    const fetchData = useCallback(() => {
         if (!user) return;
         const userChurchIds = user.church || [];
         
         setIsLoading(true);
         getDashboardData(user.id, user.role, userChurchIds, dateRange.start.toISOString(), dateRange.end.toISOString())
-            .then(data => {
-                setData(data);
+            .then(newData => {
+                setData(newData);
                 if (selectedDate) {
-                    const isSelectedDateStillPresent = data.events.some(e => isSameDay(new Date(e.start_date), selectedDate));
+                    const isSelectedDateStillPresent = newData.events.some(e => isSameDay(new Date(e.start_date), selectedDate));
                     if (!isSelectedDateStillPresent) {
                         setSelectedDate(undefined);
                     }
@@ -64,12 +64,11 @@ export default function DashboardPage() {
                 toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati della dashboard.' });
             })
             .finally(() => setIsLoading(false));
-    }
+    }, [user, dateRange, toast, selectedDate]);
 
     useEffect(() => {
         fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, dateRange]);
+    }, [fetchData]);
 
     const handleViewChange = (mode: ViewMode) => {
         if (!mode) return;
