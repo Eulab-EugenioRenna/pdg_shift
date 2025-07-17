@@ -93,7 +93,7 @@ export default function SchedulePage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="flex flex-col h-full space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold">Programma</h1>
@@ -193,8 +193,8 @@ export default function SchedulePage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-                <div className="xl:col-span-1">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start flex-grow min-h-0">
+                <div className="xl:col-span-1 h-full">
                     {selectedChurches.length > 0 ? (
                         <EventList 
                             churchIds={selectedChurches} 
@@ -202,7 +202,7 @@ export default function SchedulePage() {
                             dateRange={dateRange} 
                             showPastEvents={showPastEvents}
                             onSelectEvent={handleEventSelection}
-                            selectedEventId={selectedEvent?.id}
+                            selectedEventId={selectedEvent?.isRecurringInstance ? `${selectedEvent.id}-${selectedEvent.start_date}` : selectedEvent?.id}
                             onEventsFiltered={events => {
                                 // If current selected event is not in the new filtered list, deselect it
                                 if (selectedEvent && !events.some(e => e.id === selectedEvent.id)) {
@@ -224,7 +224,7 @@ export default function SchedulePage() {
                 <div className="xl:col-span-2" ref={detailsRef}>
                     {selectedEvent ? (
                         <EventDetails 
-                            key={selectedEvent.id} 
+                            key={selectedEvent.isRecurringInstance ? `${selectedEvent.id}-${selectedEvent.start_date}` : selectedEvent.id}
                             event={selectedEvent} 
                             userChurches={churches} 
                             onEventUpserted={onEventUpserted}

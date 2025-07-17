@@ -215,12 +215,12 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
     }
 
     return (
-        <Card>
+        <Card className="flex flex-col h-full">
             <CardHeader>
                 <CardTitle>Eventi in Programma</CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
-                <ScrollArea className="max-h-[70vh]">
+            <CardContent className="p-0 flex-grow flex flex-col">
+                <ScrollArea className="flex-grow">
                     <div className="space-y-2 p-4 pt-0">
                         {filteredEvents.map(event => (
                             <button
@@ -228,7 +228,7 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
                                 onClick={() => onSelectEvent(event)}
                                 className={cn(
                                     "w-full text-left p-3 rounded-lg border transition-colors",
-                                    selectedEventId === event.id ? "bg-accent border-primary" : "hover:bg-accent/50"
+                                    selectedEventId === (event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id) ? "bg-accent border-primary" : "hover:bg-accent/50"
                                 )}
                             >
                                 <div className="flex justify-between items-start">
