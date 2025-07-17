@@ -95,7 +95,7 @@ export function EventCard({ event }: EventCardProps) {
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Evento Ricorrente</AlertTitle>
                             <AlertDescription>
-                                Le informazioni di questo evento potrebbero non essere aggiornate. Per i dettagli, fare riferimento alla pagina Programma.
+                                Le informazioni di questo evento potrebbero non essere aggiornate.
                             </AlertDescription>
                         </Alert>
                     )}
