@@ -4,7 +4,7 @@
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
 import { pb } from "@/lib/pocketbase";
 import { ClientResponseError, type RecordModel } from "pocketbase";
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addDays, isSameDay } from 'date-fns';
 import { sendNotification } from "@/lib/notifications";
 
 
@@ -37,6 +37,53 @@ export interface DashboardEvent extends RecordModel {
     }
 }
 
+// Helper function to generate recurring event instances for the dashboard
+const generateDashboardRecurringInstances = (
+    event: RecordModel,
+    rangeStart: Date,
+    rangeEnd: Date
+): (RecordModel & { isRecurringInstance: boolean })[] => {
+    if (!event.is_recurring || event.recurring_day === null || event.recurring_day === undefined) {
+        return [];
+    }
+
+    const instances = [];
+    const recurrenceStartDate = new Date(event.start_date);
+    recurrenceStartDate.setHours(0, 0, 0, 0);
+
+    let currentDate = new Date(rangeStart > recurrenceStartDate ? rangeStart : recurrenceStartDate);
+    
+    const recurringDay = parseInt(event.recurring_day, 10);
+    
+    const dayOfWeek = currentDate.getDay();
+    const daysToAdd = (recurringDay - dayOfWeek + 7) % 7;
+    currentDate.setDate(currentDate.getDate() + daysToAdd);
+
+    const originalStartTime = new Date(event.start_date);
+    const originalEndTime = new Date(event.end_date);
+    const duration = originalEndTime.getTime() - originalStartTime.getTime();
+
+    while (currentDate <= rangeEnd) {
+        const newStartDate = new Date(currentDate);
+        newStartDate.setHours(originalStartTime.getHours(), originalStartTime.getMinutes(), originalStartTime.getSeconds());
+        
+        const newEndDate = new Date(newStartDate.getTime() + duration);
+
+        instances.push({
+            ...event,
+            id: event.id, // The ID of the template event
+            start_date: newStartDate.toISOString(),
+            end_date: newEndDate.toISOString(),
+            isRecurringInstance: true,
+        });
+
+        currentDate.setDate(currentDate.getDate() + 7);
+    }
+
+    return instances;
+};
+
+
 export async function getDashboardData(userId: string, userRole: string, userChurchIds: string[]): Promise<{
     events: DashboardEvent[];
     stats: {
@@ -50,11 +97,10 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         const sDate = startOfMonth(now);
         const eDate = endOfMonth(now);
 
-        let eventIds: string[] = [];
-        let allServicesForEvents: RecordModel[] = [];
+        let churchFilter: string | null = null;
 
         if (userRole === 'volontario') {
-            const servicesAsLeader = await pb.collection('pdg_services').getFullList({
+             const servicesAsLeader = await pb.collection('pdg_services').getFullList({
                 filter: `leader = "${userId}"`,
                 fields: 'id, event',
                 cache: 'no-store',
@@ -66,43 +112,24 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             });
 
             const allUserServices = [...servicesAsLeader, ...servicesAsTeamMember];
-            
-            if (allUserServices.length === 0) {
+            const eventIdsAsParticipant = [...new Set(allUserServices.map(s => s.event))];
+
+            if (eventIdsAsParticipant.length === 0) {
                  const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
                  return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
             }
-
-            const uniqueEventIds = [...new Set(allUserServices.map(s => s.event))];
-
-            if (uniqueEventIds.length === 0) {
-                const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
+            // Volunteers need to see events from all their churches to know about recurring events they are not yet part of
+            if (!userChurchIds || userChurchIds.length === 0) {
+                 const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+                 return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
             }
-
-            const eventFilter = `(${uniqueEventIds.map(id => `id="${id}"`).join(' || ')}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
-            const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter, cache: 'no-store' });
-            
-            eventIds = eventInstances.map(e => e.id);
-            if (eventIds.length === 0) {
-                const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
-            }
-            
-            const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
-             allServicesForEvents = await pb.collection('pdg_services').getFullList({
-                filter: eventIdFilter,
-                expand: 'leader,team',
-                cache: 'no-store',
-            });
-
+            churchFilter = `(${userChurchIds.map(id => `church="${id}"`).join(' || ')})`;
         } else {
-            // Superuser, Coordinator, Leader
-            let churchFilter: string;
             if (userRole === 'superuser') {
                 const allChurches = await getChurches(undefined, 'superuser');
                 const allChurchIds = allChurches.map(c => c.id);
                 if(allChurchIds.length === 0) {
-                    const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+                     const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
                     return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
                 }
                 churchFilter = `(${allChurchIds.map(id => `church="${id}"`).join(' || ')})`;
@@ -113,36 +140,44 @@ export async function getDashboardData(userId: string, userRole: string, userChu
                 }
                 churchFilter = `(${userChurchIds.map(id => `church="${id}"`).join(' || ')})`;
             }
-            
-            const eventFilter = `(${churchFilter}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
-            const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter, cache: 'no-store' });
-            
-            eventIds = eventInstances.map(e => e.id);
-            if (eventIds.length === 0) {
-                const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
-            }
-            const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
-            allServicesForEvents = await pb.collection('pdg_services').getFullList({
-                filter: eventIdFilter,
-                expand: 'leader,team',
-                cache: 'no-store',
-            });
         }
         
-        // This part is now common for all roles
-        const finalEvents = await pb.collection('pdg_events').getFullList({
-            filter: `(${eventIds.map(id => `id="${id}"`).join(' || ')})`,
-            sort: 'start_date',
+        const dateFilter = `start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
+        const singleAndVariationFilter = `is_recurring = false && ${churchFilter} && ${dateFilter}`;
+        const singleAndVariationEvents = await pb.collection('pdg_events').getFullList({ filter: singleAndVariationFilter, cache: 'no-store' });
+
+        const recurringTemplateFilter = `is_recurring = true && ${churchFilter}`;
+        const recurringTemplates = await pb.collection('pdg_events').getFullList({ filter: recurringTemplateFilter, cache: 'no-store' });
+
+        const variationDateChurchKeys = new Set(
+            singleAndVariationEvents
+                .filter(e => e.name.startsWith('[Variazione]'))
+                .map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
+        );
+
+        const recurringInstances = recurringTemplates
+            .flatMap(event => generateDashboardRecurringInstances(event, sDate, eDate))
+            .filter(instance => {
+                const dateKey = `${format(new Date(instance.start_date), 'yyyy-MM-dd')}-${instance.church}`;
+                return !variationDateChurchKeys.has(dateKey);
+            });
+        
+        const allEventInstances = [...singleAndVariationEvents, ...recurringInstances];
+        
+        const eventIds = [...new Set(allEventInstances.map(e => e.id))];
+        if (eventIds.length === 0) {
+            const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+            return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
+        }
+
+        const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
+        const allServicesForEvents = await pb.collection('pdg_services').getFullList({
+            filter: eventIdFilter,
+            expand: 'leader,team',
             cache: 'no-store',
         });
-
-        let openPositions = 0;
-        allServicesForEvents.forEach(s => {
-            if (!s.expand?.leader) openPositions++;
-        });
         
-        const eventsWithServices = finalEvents.map(eventInstance => {
+        const eventsWithServices = allEventInstances.map(eventInstance => {
             const relatedServices = allServicesForEvents.filter(s => s.event === eventInstance.id);
             return {
                 ...eventInstance,
@@ -151,10 +186,24 @@ export async function getDashboardData(userId: string, userRole: string, userChu
                 }
             };
         });
+
+        const sortedEvents = eventsWithServices.sort((a,b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
         
-        const filteredEventsWithServices = userRole === 'volontario' 
-            ? eventsWithServices.filter(e => e.expand.services.length > 0)
-            : eventsWithServices;
+        let openPositions = 0;
+        let finalEventsList = sortedEvents;
+
+        if (userRole === 'volontario') {
+            finalEventsList = sortedEvents.filter(e => e.expand.services.length > 0);
+             finalEventsList.forEach(event => {
+                event.expand.services.forEach(s => {
+                    if(!s.expand?.leader) openPositions++;
+                })
+            })
+        } else {
+             allServicesForEvents.forEach(s => {
+                if (!s.expand?.leader) openPositions++;
+            });
+        }
         
         const unreadNotifications = await pb.collection('pdg_notifications').getFullList({
             filter: `user = "${userId}" && read = false`,
@@ -163,9 +212,9 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         });
 
         return {
-            events: JSON.parse(JSON.stringify(filteredEventsWithServices)),
+            events: JSON.parse(JSON.stringify(finalEventsList)),
             stats: {
-                upcomingEvents: filteredEventsWithServices.length,
+                upcomingEvents: finalEventsList.length,
                 openPositions,
                 unreadNotifications: unreadNotifications.length,
             }
