@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -153,7 +154,7 @@ export function SmartRosterDialog() {
           </div>
           <div>
             <div className="flex justify-start mb-4">
-              <Button onClick={handleSuggestion} disabled={isLoading}>
+              <Button onClick={handleSuggestion} disabled={isLoading} className="w-full">
                 {isLoading ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
