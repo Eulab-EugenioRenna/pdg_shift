@@ -56,10 +56,12 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             const servicesAsLeader = await pb.collection('pdg_services').getFullList({
                 filter: `leader = "${userId}"`,
                 fields: 'id, event',
+                cache: 'no-store',
             });
             const servicesAsTeamMember = await pb.collection('pdg_services').getFullList({
                 filter: `team ?~ "${userId}"`,
                 fields: 'id, event',
+                cache: 'no-store',
             });
 
             const allUserServices = [...servicesAsLeader, ...servicesAsTeamMember];
@@ -75,7 +77,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             }
 
             const eventFilter = `(${uniqueEventIds.map(id => `id="${id}"`).join(' || ')}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
-            const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter });
+            const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter, cache: 'no-store' });
             
             eventIds = eventInstances.map(e => e.id);
             if (eventIds.length === 0) {
@@ -85,7 +87,8 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
              allServicesForEvents = await pb.collection('pdg_services').getFullList({
                 filter: eventIdFilter,
-                expand: 'leader,team'
+                expand: 'leader,team',
+                cache: 'no-store',
             });
 
         } else {
@@ -104,7 +107,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             }
             
             const eventFilter = `(${churchFilter}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
-            const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter });
+            const eventInstances = await pb.collection('pdg_events').getFullList({ filter: eventFilter, cache: 'no-store' });
             
             eventIds = eventInstances.map(e => e.id);
             if (eventIds.length === 0) {
@@ -113,7 +116,8 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
             allServicesForEvents = await pb.collection('pdg_services').getFullList({
                 filter: eventIdFilter,
-                expand: 'leader,team'
+                expand: 'leader,team',
+                cache: 'no-store',
             });
         }
         
@@ -121,6 +125,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         const finalEvents = await pb.collection('pdg_events').getFullList({
             filter: `(${eventIds.map(id => `id="${id}"`).join(' || ')})`,
             sort: 'start_date',
+            cache: 'no-store',
         });
 
         let openPositions = 0;
@@ -145,6 +150,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         const unreadNotifications = await pb.collection('pdg_notifications').getFullList({
             filter: `user = "${userId}" && read = false`,
             fields: 'id',
+            cache: 'no-store',
         });
 
         return {
@@ -863,3 +869,4 @@ export async function updateSetting(key: string, value: string) {
         return await pb.collection('pdg_settings').create({ key, value });
     }
 }
+
