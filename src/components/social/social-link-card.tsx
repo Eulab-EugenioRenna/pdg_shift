@@ -4,7 +4,7 @@
 import type { RecordModel } from 'pocketbase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, ArrowUpRight } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import { getSocialIcon } from '@/lib/social-icons';
 import Link from 'next/link';
 
@@ -27,7 +27,6 @@ export function SocialLinkCard({ link, canManage, onEdit }: SocialLinkCardProps)
                     <div className="flex-grow min-w-0">
                          <h3 className="font-semibold truncate">{link.name}</h3>
                     </div>
-                    <ArrowUpRight className="h-4 w-4 text-muted-foreground shrink-0" />
                 </Link>
                 {canManage && (
                     <div className="flex-shrink-0">
