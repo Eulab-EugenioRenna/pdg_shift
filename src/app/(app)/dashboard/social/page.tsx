@@ -64,22 +64,22 @@ export default function SocialPage() {
     }, [user, filterType, toast]);
     
     useEffect(() => {
-        fetchLinks();
+        if (user) {
+            fetchLinks();
+        }
     
         const handleSubscription = () => {
-          fetchLinks();
-        };
-    
-        const unsubscribe = pb.collection('pdg_social_links').subscribe('*', handleSubscription);
-    
-        return () => {
-          if (typeof unsubscribe === 'function') {
-            unsubscribe();
-          } else {
-            Promise.resolve(unsubscribe).then(fn => fn());
+          if (user) {
+            fetchLinks();
           }
         };
-    }, [fetchLinks]);
+    
+        const unsubscribePromise = pb.collection('pdg_social_links').subscribe('*', handleSubscription);
+    
+        return () => {
+            Promise.resolve(unsubscribePromise).then(unsubscribe => unsubscribe());
+        };
+    }, [user, fetchLinks]);
     
     const groupedAndFilteredLinks = useMemo(() => {
         const filtered = links.filter(link => 
@@ -168,7 +168,7 @@ export default function SocialPage() {
                                 <h2 className="text-xl font-semibold">{getTypeLabel(type)}</h2>
                                 <Separator className="mt-2" />
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {linksOfType.map(link => (
                                     <SocialLinkCard 
                                         key={link.id} 
