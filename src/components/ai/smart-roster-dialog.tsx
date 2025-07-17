@@ -95,7 +95,7 @@ export function SmartRosterDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="lg">
+        <Button size="lg" className="w-full text-lg">
             <Wand2 className="mr-2 h-5 w-5" />
             Prova l'Assistente IA
         </Button>
