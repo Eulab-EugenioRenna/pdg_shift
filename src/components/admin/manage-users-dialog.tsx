@@ -218,7 +218,7 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
     return false;
   }
 
-  const Trigger = triggerButton ? <>{triggerButton}</> : (
+  const Trigger = triggerButton ? triggerButton : (
       <Button>
         <UserCog className="mr-2" />
         Gestisci Utenti
