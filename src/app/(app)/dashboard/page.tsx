@@ -4,7 +4,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Users, Bell, Loader2, CalendarDays } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getDashboardData, type DashboardEvent } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format } from 'date-fns';
@@ -18,7 +18,11 @@ import { NotificationsDialog } from '@/components/dashboard/notifications-dialog
 
 type ViewMode = 'week' | 'month';
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+    profileJustCompleted?: boolean;
+}
+
+export default function DashboardPage({ profileJustCompleted }: DashboardPageProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -44,7 +48,7 @@ export default function DashboardPage() {
         };
     }, [viewMode, currentDate]);
     
-    const fetchData = () => {
+    const fetchData = useCallback(() => {
         if (!user) return;
         
         setIsLoading(true);
@@ -63,14 +67,19 @@ export default function DashboardPage() {
                 toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati della dashboard.' });
             })
             .finally(() => setIsLoading(false));
-    };
+    }, [user, dateRange.start, dateRange.end, toast, selectedDate]);
 
     useEffect(() => {
         if (user) {
             fetchData();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, dateRange]);
+    }, [user, dateRange, fetchData]);
+    
+    useEffect(() => {
+        if(profileJustCompleted) {
+            fetchData();
+        }
+    }, [profileJustCompleted, fetchData]);
 
     const handleViewChange = (mode: ViewMode) => {
         if (!mode) return;

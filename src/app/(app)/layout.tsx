@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { CompleteProfileDialog } from '@/components/settings/complete-profile-dialog';
+import DashboardPage from './dashboard/page';
 
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
+  const [profileJustCompleted, setProfileJustCompleted] = useState(false);
 
   const menuItems = useMemo(() => {
     const allItems = [
@@ -51,6 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const handleProfileCompleted = async () => {
     await refreshUser();
     setIsProfileIncomplete(false);
+    setProfileJustCompleted(true);
   };
 
   const isMenuItemActive = (itemHref: string) => {
@@ -66,6 +69,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Loader2 className="h-16 w-16 animate-spin text-primary" />
       </div>
     );
+  }
+  
+  const renderChildren = () => {
+    if(pathname === '/dashboard') {
+        return <DashboardPage profileJustCompleted={profileJustCompleted} />
+    }
+    return children;
   }
 
   return (
@@ -118,7 +128,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
         </header>
         <main className="flex-1 p-4 md:p-6">
-            {children}
+            {renderChildren()}
         </main>
          {isProfileIncomplete && (
             <CompleteProfileDialog 
