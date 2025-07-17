@@ -50,7 +50,7 @@ export async function sendNotification(payload: NotificationPayload) {
         type: notificationData.type,
         title: notificationData.title,
         body: notificationData.body,
-        data: JSON.stringify(notificationData.data), // Store complex data as JSON string
+        data: notificationData.data, // Save as a JSON object, not a string
         read: false,
       };
       return pb.collection('pdg_notifications').create(dbPayload);
