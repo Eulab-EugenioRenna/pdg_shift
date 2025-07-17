@@ -5,8 +5,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { RecordModel } from 'pocketbase';
 import { getChurches } from '@/app/actions';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, PlusCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Loader2, PlusCircle, Calendar as CalendarIcon, ListMusic } from 'lucide-react';
 import { EventList } from '@/components/schedule/event-list';
 import { ManageEventDialog } from '@/components/schedule/manage-event-dialog';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { MultiSelect, type Option } from '@/components/ui/multi-select';
+import { EventDetails } from '@/components/schedule/event-details';
 
 export default function SchedulePage() {
     const { user } = useAuth();
@@ -27,6 +28,7 @@ export default function SchedulePage() {
     const [selectedChurches, setSelectedChurches] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState<RecordModel | null>(null);
 
     // Filters state
     const [searchTerm, setSearchTerm] = useState('');
@@ -56,13 +58,21 @@ export default function SchedulePage() {
         }
     }, [user, loadChurches]);
 
-    const canCreateEvent = user?.role === 'superuser' || user?.role === 'coordinatore';
+    const handleEventSelection = (event: RecordModel | null) => {
+        setSelectedEvent(event);
+    };
     
-    const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
-
-    const onEventUpserted = () => {
-        // This is now handled by subscriptions
+    const onEventUpserted = (updatedEvent?: RecordModel) => {
+        if(updatedEvent && selectedEvent && updatedEvent.id === selectedEvent.id) {
+            setSelectedEvent(updatedEvent);
+        } else if (!updatedEvent) {
+            // It was a delete operation
+            setSelectedEvent(null);
+        }
     }
+
+    const canCreateEvent = user?.role === 'superuser' || user?.role === 'coordinatore';
+    const churchOptions: Option[] = churches.map(c => ({ value: c.id, label: c.name }));
     
     if (isLoading) {
         return (
@@ -95,7 +105,7 @@ export default function SchedulePage() {
                                     setIsOpen={setIsCreateDialogOpen}
                                     userChurches={churches} 
                                     selectedChurchId={selectedChurches[0]} 
-                                    onEventUpserted={onEventUpserted}
+                                    onEventUpserted={() => { /* list will update via subscription */ }}
                                />
                            )}
                         </>
@@ -173,17 +183,57 @@ export default function SchedulePage() {
                 </CardContent>
             </Card>
 
-            {selectedChurches.length > 0 ? (
-                <EventList churchIds={selectedChurches} searchTerm={searchTerm} dateRange={dateRange} showPastEvents={showPastEvents} />
-            ) : (
-                 <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-center text-muted-foreground">
-                            {churches.length > 0 ? 'Seleziona una chiesa per visualizzare il programma.' : 'Non sei associato a nessuna chiesa. Contatta un amministratore per essere aggiunto.'}
-                        </p>
-                    </CardContent>
-                </Card>
-            )}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+                <div className="xl:col-span-1">
+                    {selectedChurches.length > 0 ? (
+                        <EventList 
+                            churchIds={selectedChurches} 
+                            searchTerm={searchTerm} 
+                            dateRange={dateRange} 
+                            showPastEvents={showPastEvents}
+                            onSelectEvent={handleEventSelection}
+                            selectedEventId={selectedEvent?.id}
+                            onEventsFiltered={events => {
+                                // If current selected event is not in the new filtered list, deselect it
+                                if (selectedEvent && !events.some(e => e.id === selectedEvent.id)) {
+                                    setSelectedEvent(null);
+                                }
+                            }}
+                        />
+                    ) : (
+                         <Card>
+                            <CardContent className="pt-6">
+                                <p className="text-center text-muted-foreground">
+                                    {churches.length > 0 ? 'Seleziona una chiesa per visualizzare il programma.' : 'Non sei associato a nessuna chiesa. Contatta un amministratore per essere aggiunto.'}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+
+                <div className="xl:col-span-2">
+                    {selectedEvent ? (
+                        <EventDetails 
+                            key={selectedEvent.id} 
+                            event={selectedEvent} 
+                            userChurches={churches} 
+                            onEventUpserted={onEventUpserted}
+                        />
+                    ) : (
+                        <Card className="flex flex-col items-center justify-center text-center h-full min-h-[300px] animate-in fade-in-50">
+                            <CardHeader>
+                                <div className="mx-auto bg-secondary p-3 rounded-full">
+                                    <ListMusic className="h-10 w-10 text-muted-foreground" />
+                                </div>
+                                <CardTitle className="mt-4">Nessun evento selezionato</CardTitle>
+                                <CardDescription>
+                                    Seleziona un evento dalla lista a sinistra per vederne i dettagli e gestirlo.
+                                </CardDescription>
+                            </CardHeader>
+                        </Card>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }
