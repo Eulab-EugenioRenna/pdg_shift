@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { pb } from '@/lib/pocketbase';
 import { SocialLinkCard } from '@/components/social/social-link-card';
 import { ManageSocialLinkDialog } from '@/components/social/manage-social-link-dialog';
+import { Separator } from '@/components/ui/separator';
 
 const socialTypes = [
     { id: 'facebook', label: 'Facebook' },
@@ -21,6 +22,12 @@ const socialTypes = [
     { id: 'telegram', label: 'Telegram' },
     { id: 'altro', label: 'Altro' },
 ];
+
+// Helper to get the label for a given type ID
+const getTypeLabel = (typeId: string) => {
+    return socialTypes.find(t => t.id === typeId)?.label || 'Altro';
+}
+
 
 export default function SocialPage() {
     const { user } = useAuth();
@@ -36,31 +43,31 @@ export default function SocialPage() {
     const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
     const [linkToEdit, setLinkToEdit] = useState<RecordModel | null>(null);
 
-    useEffect(() => {
+    const fetchLinks = useCallback(async () => {
         if (!user) return;
-    
-        const fetchInitialData = async () => {
-          setIsLoading(true);
-          try {
+        setIsLoading(true);
+        try {
             const churches = await getChurches(user.id, user.role);
             setUserChurches(churches);
-            const churchIds = churches.map((c: RecordModel) => c.id);
-            const socialLinks = await getSocialLinks(churchIds, filterType ?? undefined);
-            setLinks(socialLinks);
-          } catch (error) {
+            if (churches.length > 0) {
+                const churchIds = churches.map((c: RecordModel) => c.id);
+                const socialLinks = await getSocialLinks(churchIds, filterType ?? undefined);
+                setLinks(socialLinks);
+            } else {
+                setLinks([]);
+            }
+        } catch (error) {
             toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati.' });
-          } finally {
+        } finally {
             setIsLoading(false);
-          }
-        };
+        }
+    }, [user, filterType, toast]);
     
-        fetchInitialData();
+    useEffect(() => {
+        fetchLinks();
     
-        const handleSubscription = async () => {
-          if (!user) return;
-          const churchIds = (await getChurches(user.id, user.role)).map((c: RecordModel) => c.id);
-          const socialLinks = await getSocialLinks(churchIds, filterType ?? undefined);
-          setLinks(socialLinks);
+        const handleSubscription = () => {
+          fetchLinks();
         };
     
         const unsubscribe = pb.collection('pdg_social_links').subscribe('*', handleSubscription);
@@ -72,15 +79,22 @@ export default function SocialPage() {
             Promise.resolve(unsubscribe).then(fn => fn());
           }
         };
-    }, [user, filterType, toast]);
+    }, [fetchLinks]);
     
-    const filteredLinks = useMemo(() => {
-        return links.filter(link => {
-            const matchSearch = link.name.toLowerCase().includes(searchTerm.toLowerCase());
-            // The type filter is now handled by the useEffect hook which re-fetches data.
-            // We just need to filter by search term on the client side.
-            return matchSearch;
-        });
+    const groupedAndFilteredLinks = useMemo(() => {
+        const filtered = links.filter(link => 
+            link.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return filtered.reduce((acc, link) => {
+            const type = link.type || 'altro';
+            if (!acc[type]) {
+                acc[type] = [];
+            }
+            acc[type].push(link);
+            return acc;
+        }, {} as Record<string, RecordModel[]>);
+
     }, [links, searchTerm]);
 
     const handleEditLink = (link: RecordModel) => {
@@ -139,28 +153,41 @@ export default function SocialPage() {
                     </div>
                 </CardContent>
             </Card>
+            
+            <div className="space-y-8">
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-64">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : Object.keys(groupedAndFilteredLinks).length > 0 ? (
+                    Object.entries(groupedAndFilteredLinks)
+                        .sort(([typeA], [typeB]) => socialTypes.findIndex(t => t.id === typeA) - socialTypes.findIndex(t => t.id === typeB))
+                        .map(([type, linksOfType]) => (
+                        <div key={type} className="space-y-4">
+                            <div>
+                                <h2 className="text-xl font-semibold">{getTypeLabel(type)}</h2>
+                                <Separator className="mt-2" />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {linksOfType.map(link => (
+                                    <SocialLinkCard 
+                                        key={link.id} 
+                                        link={link} 
+                                        canManage={canManageLinks}
+                                        onEdit={handleEditLink}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <div className="text-center py-16 text-muted-foreground">
+                        <p>Nessun link trovato per le tue chiese o per i filtri selezionati.</p>
+                        {canManageLinks && <p className="text-sm">Aggiungine uno per iniziare!</p>}
+                    </div>
+                )}
+            </div>
 
-            {isLoading ? (
-                 <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-            ) : filteredLinks.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {filteredLinks.map(link => (
-                        <SocialLinkCard 
-                            key={link.id} 
-                            link={link} 
-                            canManage={canManageLinks}
-                            onEdit={handleEditLink}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-16 text-muted-foreground">
-                    <p>Nessun link trovato per le tue chiese.</p>
-                    {canManageLinks && <p className="text-sm">Aggiungine uno per iniziare!</p>}
-                </div>
-            )}
 
             {canManageLinks && (
                 <ManageSocialLinkDialog
@@ -170,7 +197,6 @@ export default function SocialPage() {
                     userChurches={userChurches}
                     onSave={() => {
                         setIsManageDialogOpen(false);
-                        // The subscription will handle the update
                     }}
                 />
             )}
