@@ -4,7 +4,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar, Users, Bell, Loader2, CalendarDays } from 'lucide-react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getDashboardData, type DashboardEvent } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format } from 'date-fns';
@@ -43,8 +43,8 @@ export default function DashboardPage() {
             end: endOfMonth(currentDate)
         };
     }, [viewMode, currentDate]);
-
-    const fetchData = useCallback(() => {
+    
+    const fetchData = () => {
         if (!user) return;
         const userChurchIds = user.church || [];
         
@@ -64,11 +64,12 @@ export default function DashboardPage() {
                 toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati della dashboard.' });
             })
             .finally(() => setIsLoading(false));
-    }, [user, dateRange, toast, selectedDate]);
+    };
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, dateRange]);
 
     const handleViewChange = (mode: ViewMode) => {
         if (!mode) return;
