@@ -15,6 +15,7 @@ import { WeeklyCalendarView } from '@/components/dashboard/weekly-calendar-view'
 import { EventCard } from '@/components/dashboard/event-card';
 import { useRouter } from 'next/navigation';
 import { NotificationsDialog } from '@/components/dashboard/notifications-dialog';
+import { cn } from '@/lib/utils';
 
 type ViewMode = 'week' | 'month';
 
@@ -52,7 +53,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
         if (!user) return;
         
         setIsLoading(true);
-        getDashboardData(user.id, user.role, user.church || [], dateRange.start.toISOString(), dateRange.end.toISOString())
+        getDashboardData(user.id, user.role, user.church || [])
             .then(newData => {
                 setData(newData);
                 if (selectedDate) {
@@ -67,7 +68,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                 toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati della dashboard.' });
             })
             .finally(() => setIsLoading(false));
-    }, [user, dateRange.start, dateRange.end, toast, selectedDate]);
+    }, [user, toast, selectedDate]);
 
     useEffect(() => {
         if (user) {
@@ -117,6 +118,8 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
         return "leader non assegnati";
     };
 
+    const isVolunteer = user?.role === 'volontario';
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -135,7 +138,10 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
             </div>
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card className="cursor-pointer hover:bg-card/95 transition-colors" onClick={() => router.push('/dashboard/schedule')}>
+                <Card
+                  className={cn(!isVolunteer && "cursor-pointer hover:bg-card/95 transition-colors")}
+                  onClick={!isVolunteer ? () => router.push('/dashboard/schedule') : undefined}
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Prossimi Eventi</CardTitle>
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -145,7 +151,10 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                         <p className="text-xs text-muted-foreground">in questo periodo</p>
                     </CardContent>
                 </Card>
-                <Card className="cursor-pointer hover:bg-card/95 transition-colors" onClick={() => router.push('/dashboard/schedule')}>
+                <Card
+                  className={cn(!isVolunteer && "cursor-pointer hover:bg-card/95 transition-colors")}
+                  onClick={!isVolunteer ? () => router.push('/dashboard/schedule') : undefined}
+                >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Posizioni Aperte</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
