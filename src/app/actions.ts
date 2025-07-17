@@ -4,7 +4,7 @@
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
 import { pb } from "@/lib/pocketbase";
 import { ClientResponseError, type RecordModel } from "pocketbase";
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { sendNotification } from "@/lib/notifications";
 
 
@@ -37,7 +37,7 @@ export interface DashboardEvent extends RecordModel {
     }
 }
 
-export async function getDashboardData(userId: string, userRole: string, userChurchIds: string[], startDateISO: string, endDateISO: string): Promise<{
+export async function getDashboardData(userId: string, userRole: string, userChurchIds: string[]): Promise<{
     events: DashboardEvent[];
     stats: {
         upcomingEvents: number;
@@ -46,8 +46,9 @@ export async function getDashboardData(userId: string, userRole: string, userChu
     }
 }> {
     try {
-        const sDate = new Date(startDateISO);
-        const eDate = new Date(endDateISO);
+        const now = new Date();
+        const sDate = startOfMonth(now);
+        const eDate = endOfMonth(now);
 
         let eventIds: string[] = [];
         let allServicesForEvents: RecordModel[] = [];
@@ -883,6 +884,7 @@ export async function updateSetting(key: string, value: string) {
         return await pb.collection('pdg_settings').create({ key, value });
     }
 }
+
 
 
 

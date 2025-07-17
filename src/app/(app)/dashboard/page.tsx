@@ -139,7 +139,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <Card
-                  className={cn(!isVolunteer && "cursor-pointer hover:bg-card/95 transition-colors")}
+                  className={cn(isVolunteer ? "cursor-default" : "cursor-pointer hover:bg-card/95 transition-colors")}
                   onClick={!isVolunteer ? () => router.push('/dashboard/schedule') : undefined}
                 >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -152,7 +152,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                     </CardContent>
                 </Card>
                 <Card
-                  className={cn(!isVolunteer && "cursor-pointer hover:bg-card/95 transition-colors")}
+                  className={cn(isVolunteer ? "cursor-default" : "cursor-pointer hover:bg-card/95 transition-colors")}
                   onClick={!isVolunteer ? () => router.push('/dashboard/schedule') : undefined}
                 >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
