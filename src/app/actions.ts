@@ -5,6 +5,7 @@ import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
 import { pb } from "@/lib/pocketbase";
 import { ClientResponseError, type RecordModel } from "pocketbase";
 import { format } from 'date-fns';
+import { sendNotification } from "@/lib/notifications";
 
 
 function getErrorMessage(error: any): string {
@@ -41,6 +42,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
     stats: {
         upcomingEvents: number;
         openPositions: number;
+        unreadNotifications: number;
     }
 }> {
     try {
@@ -63,13 +65,13 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             const allUserServices = [...servicesAsLeader, ...servicesAsTeamMember];
             
             if (allUserServices.length === 0) {
-                 return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+                 return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
             }
 
             const uniqueEventIds = [...new Set(allUserServices.map(s => s.event))];
 
             if (uniqueEventIds.length === 0) {
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
             }
 
             const eventFilter = `(${uniqueEventIds.map(id => `id="${id}"`).join(' || ')}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
@@ -77,7 +79,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             
             eventIds = eventInstances.map(e => e.id);
             if (eventIds.length === 0) {
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
             }
             
             const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
@@ -92,11 +94,11 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             if (userRole === 'superuser') {
                 const allChurches = await getChurches(undefined, 'superuser');
                 const allChurchIds = allChurches.map(c => c.id);
-                if(allChurchIds.length === 0) return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+                if(allChurchIds.length === 0) return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
                 churchFilter = `(${allChurchIds.map(id => `church="${id}"`).join(' || ')})`;
             } else { // Coordinatore or Leader
                 if (!userChurchIds || userChurchIds.length === 0) {
-                    return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+                    return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
                 }
                 churchFilter = `(${userChurchIds.map(id => `church="${id}"`).join(' || ')})`;
             }
@@ -106,7 +108,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             
             eventIds = eventInstances.map(e => e.id);
             if (eventIds.length === 0) {
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0 } };
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
             }
             const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
             allServicesForEvents = await pb.collection('pdg_services').getFullList({
@@ -139,12 +141,18 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         const filteredEventsWithServices = userRole === 'volontario' 
             ? eventsWithServices.filter(e => e.expand.services.length > 0)
             : eventsWithServices;
+        
+        const unreadNotifications = await pb.collection('pdg_notifications').getFullList({
+            filter: `user = "${userId}" && read = false`,
+            fields: 'id',
+        });
 
         return {
             events: JSON.parse(JSON.stringify(filteredEventsWithServices)),
             stats: {
                 upcomingEvents: filteredEventsWithServices.length,
                 openPositions,
+                unreadNotifications: unreadNotifications.length,
             }
         };
 
@@ -271,7 +279,7 @@ export async function getLeaders(churchId?: string) {
     }
 }
 
-export async function addUserByAdmin(formData: FormData) {
+export async function addUserByAdmin(formData: FormData, adminUser: any) {
      try {
         const email = formData.get('email') as string;
         if (!email) throw new Error('Email is required');
@@ -289,6 +297,15 @@ export async function addUserByAdmin(formData: FormData) {
         }
 
         const record = await pb.collection('pdg_users').create(formData, { expand: 'church' });
+        
+        await sendNotification({
+            type: 'user_created',
+            title: `Nuovo utente creato: ${record.name}`,
+            body: `L'amministratore ${adminUser.name} ha creato un nuovo utente.`,
+            data: { newUser: record, admin: adminUser },
+            userIds: [record.id] // Notify the new user
+        });
+
         return JSON.parse(JSON.stringify(record));
 
     } catch (error: any) {
@@ -297,10 +314,20 @@ export async function addUserByAdmin(formData: FormData) {
     }
 }
 
-export async function updateUserByAdmin(id: string, formData: FormData) {
+export async function updateUserByAdmin(id: string, formData: FormData, adminUser: any) {
     try {
+        const oldRecord = await pb.collection('pdg_users').getOne(id);
         await pb.collection('pdg_users').update(id, formData);
         const finalRecord = await pb.collection('pdg_users').getOne(id, { expand: 'church' });
+        
+         await sendNotification({
+            type: 'user_updated',
+            title: `Profilo aggiornato: ${finalRecord.name}`,
+            body: `Il tuo profilo è stato aggiornato da un amministratore.`,
+            data: { oldUser: oldRecord, updatedUser: finalRecord, admin: adminUser },
+            userIds: [finalRecord.id]
+        });
+        
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
         console.error("Error updating user:", error);
@@ -343,7 +370,7 @@ export async function getEvents(filter: string) {
     }
 }
 
-export async function createEvent(formData: FormData) {
+export async function createEvent(formData: FormData, user: any) {
     const churchId = formData.get('church') as string;
     const startDate = formData.get('start_date') as string;
     const endDate = formData.get('end_date') as string;
@@ -392,6 +419,14 @@ export async function createEvent(formData: FormData) {
                 }
             }
         }
+        
+         await sendNotification({
+            type: 'event_created',
+            title: `Nuovo evento: ${record.name}`,
+            body: `L'utente ${user.name} ha creato un nuovo evento.`,
+            data: { event: record, user },
+            // Potresti notificare tutti gli utenti di quella chiesa, ad esempio
+        });
 
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
@@ -400,7 +435,7 @@ export async function createEvent(formData: FormData) {
     }
 }
 
-export async function updateEvent(id: string, formData: FormData) {
+export async function updateEvent(id: string, formData: FormData, user: any) {
     const startDate = formData.get('start_date') as string;
     const endDate = formData.get('end_date') as string;
     const churchId = formData.get('church') as string;
@@ -425,6 +460,14 @@ export async function updateEvent(id: string, formData: FormData) {
         }
         
         const record = await pb.collection('pdg_events').update(id, formData);
+        
+        await sendNotification({
+            type: 'event_updated',
+            title: `Evento aggiornato: ${record.name}`,
+            body: `L'utente ${user.name} ha aggiornato l'evento.`,
+            data: { event: record, user },
+        });
+
         return JSON.parse(JSON.stringify(record));
     } catch (error: any) {
         console.error("Error updating event:", error);
@@ -516,10 +559,26 @@ export async function getServicesForEvent(eventId: string) {
     }
 }
 
-export async function createService(serviceData: any) {
+export async function createService(serviceData: any, user: any) {
     try {
         const record = await pb.collection('pdg_services').create(serviceData);
-        const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader' });
+        const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader,team' });
+        
+        const userIdsToNotify = [
+            ...(finalRecord.leader ? [finalRecord.leader] : []),
+            ...(finalRecord.team || [])
+        ].filter((id, index, self) => self.indexOf(id) === index);
+        
+        if (userIdsToNotify.length > 0) {
+            await sendNotification({
+                type: 'service_created',
+                title: `Nuovo servizio: ${finalRecord.name}`,
+                body: `Sei stato aggiunto al servizio "${finalRecord.name}".`,
+                data: { service: finalRecord, user },
+                userIds: userIdsToNotify
+            });
+        }
+        
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
         console.error("Error creating service:", error);
@@ -527,10 +586,27 @@ export async function createService(serviceData: any) {
     }
 }
 
-export async function updateService(id: string, serviceData: any) {
+export async function updateService(id: string, serviceData: any, user: any) {
     try {
+        const oldRecord = await pb.collection('pdg_services').getOne(id);
         const record = await pb.collection('pdg_services').update(id, serviceData);
         const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader,team' });
+
+        const oldTeam = new Set([...(oldRecord.team || []), oldRecord.leader].filter(Boolean));
+        const newTeam = new Set([...(finalRecord.team || []), finalRecord.leader].filter(Boolean));
+        
+        const addedUsers = [...newTeam].filter(x => !oldTeam.has(x));
+        
+        if (addedUsers.length > 0) {
+             await sendNotification({
+                type: 'service_updated_added',
+                title: `Aggiunto al servizio: ${finalRecord.name}`,
+                body: `Sei stato aggiunto al servizio "${finalRecord.name}".`,
+                data: { service: finalRecord, user },
+                userIds: addedUsers
+            });
+        }
+
         return JSON.parse(JSON.stringify(finalRecord));
     } catch (error: any) {
         console.error("Error updating service:", error);
@@ -741,8 +817,49 @@ export async function deleteUnavailability(id: string) {
     }
 }
 
+// Notification Actions
+export async function getNotifications(userId: string) {
+    const records = await pb.collection('pdg_notifications').getFullList({
+        filter: `user = "${userId}"`,
+        sort: '-created',
+    });
+    return JSON.parse(JSON.stringify(records));
+}
 
+export async function markNotificationAsRead(id: string) {
+    return await pb.collection('pdg_notifications').update(id, { read: true });
+}
 
+export async function markAllNotificationsAsRead(userId: string) {
+    const records = await pb.collection('pdg_notifications').getFullList({
+        filter: `user = "${userId}" && read = false`,
+    });
+    const promises = records.map(r => pb.collection('pdg_notifications').update(r.id, { read: true }));
+    return Promise.all(promises);
+}
 
+export async function deleteNotification(id: string) {
+    return await pb.collection('pdg_notifications').delete(id);
+}
 
-    
+// Settings actions
+export async function getSetting(key: string) {
+    try {
+        const record = await pb.collection('pdg_settings').getFirstListItem(`key = "${key}"`);
+        return record;
+    } catch (error) {
+        if (error instanceof ClientResponseError && error.status === 404) {
+            return null; // Not found is a valid case
+        }
+        throw error;
+    }
+}
+
+export async function updateSetting(key: string, value: string) {
+    const existing = await getSetting(key);
+    if (existing) {
+        return await pb.collection('pdg_settings').update(existing.id, { value });
+    } else {
+        return await pb.collection('pdg_settings').create({ key, value });
+    }
+}

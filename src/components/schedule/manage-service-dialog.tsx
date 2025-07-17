@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import type { SuggestTeamOutput } from '@/ai/flows/smart-team-builder';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ManageServiceDialogProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ interface ManageServiceDialogProps {
 }
 
 export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, eventDate, onServiceUpdated }: ManageServiceDialogProps) {
+    const { user } = useAuth();
     const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
@@ -177,7 +179,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             };
 
             try {
-                await updateService(service.id, serviceData);
+                await updateService(service.id, serviceData, user);
                 toast({ title: 'Successo', description: 'Servizio aggiornato con successo.' });
                 onServiceUpdated();
                 setIsOpen(false);

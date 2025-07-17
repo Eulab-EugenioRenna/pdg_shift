@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
@@ -103,7 +104,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             };
 
             try {
-                await createService(serviceData);
+                await createService(serviceData, user);
                 toast({ title: 'Successo', description: 'Servizio creato con successo.' });
                 onServiceAdded();
                 setIsOpen(false);
@@ -138,7 +139,7 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             };
             
             try {
-                await createService(serviceData);
+                await createService(serviceData, user);
                 toast({ title: 'Successo', description: 'Servizio aggiunto con successo.' });
                 onServiceAdded();
                 setIsOpen(false);

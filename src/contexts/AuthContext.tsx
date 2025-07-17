@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -6,6 +7,9 @@ import { useRouter } from 'next/navigation';
 import { pb } from '@/lib/pocketbase';
 import type { RecordModel, Admin } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
+import { getChurches } from '@/app/actions';
+import { sendNotification } from '@/lib/notifications';
+
 
 // Define the shape of the user object
 export type User = RecordModel | Admin | null;
@@ -100,22 +104,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithProvider = useCallback(async (provider: 'google') => {
     setLoading(true);
     try {
-        await pb.collection('pdg_users').authWithOAuth2({ 
+        const authData = await pb.collection('pdg_users').authWithOAuth2({ 
             provider,
+            // We don't need expand here, as the user will complete the profile anyway
         });
+        
+        // Let the profile completion dialog handle all updates.
+        // The check for an incomplete profile is in the main layout.
 
-        // After auth, refresh the user state to get the new user data.
-        // The "Complete Profile" dialog will handle the rest.
         await refreshUser();
       
         toast({ title: "Successo", description: "Login effettuato con successo." });
         router.push('/dashboard');
     } catch (error: any) {
-        console.error("Social login error:", error);
-        toast({ variant: 'destructive', title: 'Login Fallito', description: "Impossibile accedere con il provider social." });
-        throw error;
+      console.error("Social login error:", error);
+      toast({ variant: 'destructive', title: 'Login Fallito', description: "Impossibile accedere con il provider social." });
+      throw error;
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   }, [router, toast, refreshUser]);
 
@@ -148,6 +154,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Failed to set placeholder avatar:", avatarError);
       }
       
+      await sendNotification({
+          type: 'user_registered',
+          title: `Nuovo utente registrato: ${newUser.name}`,
+          body: 'Un nuovo utente si è registrato manualmente.',
+          data: { user: newUser },
+          userIds: [newUser.id]
+      });
+
       await login(data.email, data.password);
       return newUser;
     } catch (error: any) {

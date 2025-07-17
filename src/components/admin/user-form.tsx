@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition, useRef, useEffect } from 'react';
@@ -110,13 +111,13 @@ export function UserForm({ user, onSave, onCancel }: UserFormProps) {
         }
 
         if (user) {
-          await updateUserByAdmin(user.id, data);
+          await updateUserByAdmin(user.id, data, currentUser);
           toast({ title: 'Successo', description: 'Utente aggiornato con successo.' });
         } else {
           data.append('email', formData.email.trim());
           data.append('password', formData.password);
           data.append('passwordConfirm', formData.passwordConfirm);
-          await addUserByAdmin(data);
+          await addUserByAdmin(data, currentUser);
           toast({ title: 'Successo', description: 'Utente aggiunto con successo.' });
         }
         onSave();

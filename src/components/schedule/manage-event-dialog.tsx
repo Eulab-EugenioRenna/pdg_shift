@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
@@ -160,13 +161,13 @@ export function ManageEventDialog({
             
             try {
                 if (isEditMode) {
-                    await updateEvent(eventToEdit.id, formData);
+                    await updateEvent(eventToEdit.id, formData, user);
                     toast({ title: 'Successo', description: 'Evento aggiornato con successo.' });
                 } else {
                      if (selectedTemplateId) {
                         formData.append('templateId', selectedTemplateId);
                     }
-                    await createEvent(formData);
+                    await createEvent(formData, user);
                     toast({ title: 'Successo', description: 'Evento creato con successo.' });
                 }
                 onEventUpserted();

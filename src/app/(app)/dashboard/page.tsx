@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -12,19 +13,23 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardCalendar } from '@/components/dashboard/dashboard-calendar';
 import { WeeklyCalendarView } from '@/components/dashboard/weekly-calendar-view';
 import { EventCard } from '@/components/dashboard/event-card';
+import { useRouter } from 'next/navigation';
+import { NotificationsDialog } from '@/components/dashboard/notifications-dialog';
 
 type ViewMode = 'week' | 'month';
 
 export default function DashboardPage() {
     const { user } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
 
     const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [currentDate, setCurrentDate] = useState(new Date());
     
-    const [data, setData] = useState<{ events: DashboardEvent[], stats: { upcomingEvents: number, openPositions: number } } | null>(null);
+    const [data, setData] = useState<{ events: DashboardEvent[], stats: { upcomingEvents: number, openPositions: number, unreadNotifications: number } } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
     const dateRange = useMemo(() => {
         if (viewMode === 'week') {
@@ -39,11 +44,10 @@ export default function DashboardPage() {
         };
     }, [viewMode, currentDate]);
 
-    useEffect(() => {
+    const fetchData = () => {
         if (!user) return;
-        
         const userChurchIds = user.church || [];
-
+        
         setIsLoading(true);
         getDashboardData(user.id, user.role, userChurchIds, dateRange.start.toISOString(), dateRange.end.toISOString())
             .then(data => {
@@ -60,8 +64,12 @@ export default function DashboardPage() {
                 toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati della dashboard.' });
             })
             .finally(() => setIsLoading(false));
-            
-    }, [user, dateRange, toast, selectedDate]);
+    }
+
+    useEffect(() => {
+        fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, dateRange]);
 
     const handleViewChange = (mode: ViewMode) => {
         if (!mode) return;
@@ -117,7 +125,7 @@ export default function DashboardPage() {
             </div>
             
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
+                <Card className="cursor-pointer hover:bg-card/95 transition-colors" onClick={() => router.push('/dashboard/schedule')}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Prossimi Eventi</CardTitle>
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -127,7 +135,7 @@ export default function DashboardPage() {
                         <p className="text-xs text-muted-foreground">in questo periodo</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="cursor-pointer hover:bg-card/95 transition-colors" onClick={() => router.push('/dashboard/schedule')}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Posizioni Aperte</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -137,13 +145,13 @@ export default function DashboardPage() {
                         <p className="text-xs text-muted-foreground">{getOpenPositionsDescription()}</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="cursor-pointer hover:bg-card/95 transition-colors" onClick={() => setIsNotificationsOpen(true)}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Notifiche</CardTitle>
                         <Bell className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">0</div>
+                        <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : data?.stats.unreadNotifications ?? 0}</div>
                         <p className="text-xs text-muted-foreground">nuove notifiche</p>
                     </CardContent>
                 </Card>
@@ -203,6 +211,11 @@ export default function DashboardPage() {
                     )}
                 </div>
             </div>
+             <NotificationsDialog
+                isOpen={isNotificationsOpen}
+                setIsOpen={setIsNotificationsOpen}
+                onNotificationsHandled={fetchData} 
+            />
         </div>
     );
 }
