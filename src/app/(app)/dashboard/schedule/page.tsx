@@ -237,7 +237,7 @@ export default function SchedulePage() {
                                 </div>
                                 <CardTitle className="mt-4">Nessun evento selezionato</CardTitle>
                                 <CardDescription>
-                                    Seleziona un evento dalla lista a sinistra per vederne i dettagli e gestirlo.
+                                    Seleziona un evento dalla lista per vederne i dettagli e gestirlo.
                                 </CardDescription>
                             </CardHeader>
                         </Card>
