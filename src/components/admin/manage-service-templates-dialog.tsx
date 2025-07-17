@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useTransition, useMemo } from 'react';
@@ -40,7 +41,7 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
   const { user } = useAuth();
   const [name, setName] = useState(template?.name || '');
   const [description, setDescription] = useState(template?.description || '');
-  const [positions, setPositions] = useState(template?.positions?.join(', ') || '');
+  const [positions, setPositions] = useState(Array.isArray(template?.positions) ? template.positions.join(', ') : '');
   const [churchIds, setChurchIds] = useState<string[]>(template?.church || []);
   const [leaderId, setLeaderId] = useState(template?.leader || '');
 
