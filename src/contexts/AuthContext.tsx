@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { pb } from '@/lib/pocketbase';
 import type { RecordModel, Admin } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
-import { getChurches } from '@/app/actions';
 import { sendNotification } from '@/lib/notifications';
 
 
@@ -104,12 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithProvider = useCallback(async (provider: 'google') => {
     setLoading(true);
     try {
-        const authData = await pb.collection('pdg_users').authWithOAuth2({ 
+        await pb.collection('pdg_users').authWithOAuth2({ 
             provider,
-            // We don't need expand here, as the user will complete the profile anyway
         });
         
-        // Let the profile completion dialog handle all updates.
+        // Let the profile completion dialog handle all updates & notifications.
         // The check for an incomplete profile is in the main layout.
 
         await refreshUser();

@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import type { RecordModel } from 'pocketbase';
+import { sendNotification } from '@/lib/notifications';
 
 interface CompleteProfileDialogProps {
     isOpen: boolean;
@@ -153,7 +154,17 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
         }
 
         try {
-            await updateUserProfile(user.id, data);
+            const updatedUser = await updateUserProfile(user.id, data);
+            
+            // Send notification AFTER profile is successfully completed
+            await sendNotification({
+                type: 'user_registered_oauth',
+                title: `Nuovo utente registrato: ${updatedUser.name}`,
+                body: `Un nuovo utente si è registrato con Google.`,
+                data: { user: updatedUser },
+                userIds: [updatedUser.id]
+            });
+            
             toast({ title: 'Grazie!', description: 'Profilo completato con successo.' });
             onProfileCompleted();
         } catch (error: any) {
