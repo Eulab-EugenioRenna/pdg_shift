@@ -73,7 +73,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
         if (user) {
             fetchData();
         }
-    }, [user, dateRange, fetchData]);
+    }, [user, dateRange.start, dateRange.end, fetchData]);
     
     useEffect(() => {
         if(profileJustCompleted) {

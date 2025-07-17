@@ -67,13 +67,15 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             const allUserServices = [...servicesAsLeader, ...servicesAsTeamMember];
             
             if (allUserServices.length === 0) {
-                 return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
+                 const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+                 return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
             }
 
             const uniqueEventIds = [...new Set(allUserServices.map(s => s.event))];
 
             if (uniqueEventIds.length === 0) {
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
+                const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
             }
 
             const eventFilter = `(${uniqueEventIds.map(id => `id="${id}"`).join(' || ')}) && start_date >= "${sDate.toISOString().split('T')[0]} 00:00:00" && start_date <= "${eDate.toISOString().split('T')[0]} 23:59:59"`;
@@ -81,7 +83,8 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             
             eventIds = eventInstances.map(e => e.id);
             if (eventIds.length === 0) {
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
+                const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
             }
             
             const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
@@ -97,11 +100,15 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             if (userRole === 'superuser') {
                 const allChurches = await getChurches(undefined, 'superuser');
                 const allChurchIds = allChurches.map(c => c.id);
-                if(allChurchIds.length === 0) return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
+                if(allChurchIds.length === 0) {
+                    const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+                    return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
+                }
                 churchFilter = `(${allChurchIds.map(id => `church="${id}"`).join(' || ')})`;
             } else { // Coordinatore or Leader
                 if (!userChurchIds || userChurchIds.length === 0) {
-                    return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
+                    const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+                    return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
                 }
                 churchFilter = `(${userChurchIds.map(id => `church="${id}"`).join(' || ')})`;
             }
@@ -111,7 +118,8 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             
             eventIds = eventInstances.map(e => e.id);
             if (eventIds.length === 0) {
-                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: 0 } };
+                const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
+                return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
             }
             const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
             allServicesForEvents = await pb.collection('pdg_services').getFullList({
@@ -875,6 +883,7 @@ export async function updateSetting(key: string, value: string) {
         return await pb.collection('pdg_settings').create({ key, value });
     }
 }
+
 
 
 
