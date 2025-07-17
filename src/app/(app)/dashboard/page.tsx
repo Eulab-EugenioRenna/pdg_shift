@@ -46,10 +46,9 @@ export default function DashboardPage() {
     
     const fetchData = () => {
         if (!user) return;
-        const userChurchIds = user.church || [];
         
         setIsLoading(true);
-        getDashboardData(user.id, user.role, userChurchIds, dateRange.start.toISOString(), dateRange.end.toISOString())
+        getDashboardData(user.id, user.role, user.church || [], dateRange.start.toISOString(), dateRange.end.toISOString())
             .then(newData => {
                 setData(newData);
                 if (selectedDate) {
@@ -67,7 +66,9 @@ export default function DashboardPage() {
     };
 
     useEffect(() => {
-        fetchData();
+        if (user) {
+            fetchData();
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, dateRange]);
 
