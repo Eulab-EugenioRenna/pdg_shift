@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useTransition } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getEvents, getChurches } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Repeat, Building } from 'lucide-react';
+import { Loader2, Repeat, Building, Maximize, Minimize } from 'lucide-react';
 import { Button } from '../ui/button';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -14,6 +14,8 @@ import { pb } from '@/lib/pocketbase';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface EventListProps {
     churchIds: string[];
@@ -76,6 +78,7 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
     const [events, setEvents] = useState<RecordModel[]>([]);
     const [churchesMap, setChurchesMap] = useState<Map<string, string>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
+    const [isMaximized, setIsMaximized] = useState(false);
     
     const fetchAndSetEvents = () => {
         if (churchIds.length === 0) {
@@ -215,38 +218,50 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
     }
 
     return (
-        <Card className="flex flex-col h-full">
-            <CardHeader>
-                <CardTitle>Eventi in Programma</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 flex-grow flex flex-col">
-                <ScrollArea className="flex-grow">
-                    <div className="space-y-2 p-4 pt-0">
-                        {filteredEvents.map(event => (
-                            <button
-                                key={event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id}
-                                onClick={() => onSelectEvent(event)}
-                                className={cn(
-                                    "w-full text-left p-3 rounded-lg border transition-colors",
-                                    selectedEventId === (event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id) ? "bg-accent border-primary" : "hover:bg-accent/50"
-                                )}
-                            >
-                                <div className="flex justify-between items-start">
-                                    <p className="font-semibold">{event.name}</p>
-                                    {event.isRecurringInstance && <Repeat className="h-4 w-4 text-muted-foreground" title="Evento Ricorrente" />}
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                    {format(new Date(event.start_date), "eeee d MMMM yyyy", { locale: it })}
-                                </p>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                    <Building className="h-3 w-3" />
-                                    <span>{churchesMap.get(event.church) || 'Chiesa non trovata'}</span>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </ScrollArea>
-            </CardContent>
-        </Card>
+        <TooltipProvider>
+            <Card className="flex flex-col h-full">
+                <CardHeader className="flex flex-row justify-between items-center">
+                    <CardTitle>Eventi in Programma</CardTitle>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" onClick={() => setIsMaximized(!isMaximized)}>
+                                {isMaximized ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{isMaximized ? 'Minimizza' : 'Massimizza'}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </CardHeader>
+                <CardContent className="p-0 flex-grow min-h-0">
+                    <ScrollArea className={cn("flex-grow", isMaximized ? 'h-auto' : 'h-[300px]')}>
+                        <div className="space-y-2 p-4 pt-0">
+                            {filteredEvents.map(event => (
+                                <button
+                                    key={event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id}
+                                    onClick={() => onSelectEvent(event)}
+                                    className={cn(
+                                        "w-full text-left p-3 rounded-lg border transition-colors",
+                                        selectedEventId === (event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id) ? "bg-accent border-primary" : "hover:bg-accent/50"
+                                    )}
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <p className="font-semibold">{event.name}</p>
+                                        {event.isRecurringInstance && <Repeat className="h-4 w-4 text-muted-foreground" title="Evento Ricorrente" />}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                        {format(new Date(event.start_date), "eeee d MMMM yyyy", { locale: it })}
+                                    </p>
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                        <Building className="h-3 w-3" />
+                                        <span>{churchesMap.get(event.church) || 'Chiesa non trovata'}</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+        </TooltipProvider>
     );
 }
