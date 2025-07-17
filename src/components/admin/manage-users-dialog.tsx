@@ -56,34 +56,44 @@ export function ManageUsersDialog() {
 
   const { toast } = useToast();
 
+  const fetchUsersAndChurches = useCallback(() => {
+    if (!currentUser) return;
+    setIsLoading(true);
+    Promise.all([
+      getUsers(currentUser.id, currentUser.role, churchFilter === 'all' ? undefined : churchFilter),
+      getChurches(currentUser.id, currentUser.role)
+    ])
+    .then(([usersData, churchesData]) => {
+      setUsers(usersData);
+      setAllChurches(churchesData);
+    })
+    .catch(() => {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare dati.' });
+    })
+    .finally(() => setIsLoading(false));
+  }, [currentUser, churchFilter, toast]);
+
   useEffect(() => {
     if (!open || !currentUser) return;
     
-    setIsLoading(true);
-    Promise.all([getUsers(currentUser.id, currentUser.role), getChurches(currentUser.id, currentUser.role)])
-        .then(([usersData, churchesData]) => {
-            setUsers(usersData);
-            setAllChurches(churchesData);
-        })
-        .catch(() => {
-            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare dati.' });
-        })
-        .finally(() => setIsLoading(false));
+    fetchUsersAndChurches();
 
-    const handleSubscription = async ({ action, record }: { action: string; record: RecordModel }) => {
-        // Simple refetch to ensure data consistency based on role
-        if (currentUser) {
-            getUsers(currentUser.id, currentUser.role).then(setUsers);
-        }
+    const handleSubscription = () => {
+        fetchUsersAndChurches();
     };
     
-    pb.collection('pdg_users').subscribe('*', handleSubscription);
+    const unsubscribe = pb.collection('pdg_users').subscribe('*', handleSubscription);
     
     return () => {
-        pb.collection('pdg_users').unsubscribe('*');
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      } else {
+        Promise.resolve(unsubscribe).then(fn => fn());
+      }
     };
     
-  }, [open, toast, currentUser]);
+  }, [open, currentUser, fetchUsersAndChurches]);
+
 
   const requestSort = (key: string) => {
     let direction: 'ascending' | 'descending' = 'ascending';
@@ -132,6 +142,7 @@ export function ManageUsersDialog() {
   }
 
   const handleBackToList = () => {
+    fetchUsersAndChurches();
     setView('list');
     setUserToEdit(null);
   }

@@ -254,13 +254,14 @@ export async function getUsers(userId?: string, userRole?: string, churchId?: st
             }
         }
 
-        if (churchId) {
+        if (churchId && userRole !== 'coordinatore') {
             filterParts.push(`church ?~ "${churchId}"`);
         }
 
-        const options: { sort: string; expand: string; filter?: string } = {
+        const options: { sort: string; expand: string; filter?: string; cache: 'no-store' } = {
             sort: 'name',
             expand: 'church',
+            cache: 'no-store'
         };
 
         if (filterParts.length > 0) {
@@ -874,5 +875,6 @@ export async function updateSetting(key: string, value: string) {
         return await pb.collection('pdg_settings').create({ key, value });
     }
 }
+
 
 
