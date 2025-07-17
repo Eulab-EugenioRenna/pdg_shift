@@ -38,11 +38,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           { href: "/dashboard/social", icon: MessageSquare, label: "Social", roles: ['superuser', 'coordinatore', 'leader', 'volontario'] },
         ]
       },
+      {
+        group: 'Generale',
+        items: [
+           { href: "/dashboard/settings", icon: Settings, label: "Impostazioni", roles: ['superuser', 'coordinatore', 'leader', 'volontario'] }
+        ]
+      }
     ];
 
-    const settingsItem = { href: "/dashboard/settings", icon: Settings, label: "Impostazioni", roles: ['superuser', 'coordinatore', 'leader', 'volontario'] };
-
-    if (!user) return { filteredItems: [], settingsItem: null };
+    if (!user) return [];
 
     const filteredItems = baseItems
       .map(group => ({
@@ -51,7 +55,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }))
       .filter(group => group.items.length > 0);
 
-    return { filteredItems, settingsItem };
+    return filteredItems;
 
   }, [user]);
 
@@ -109,7 +113,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {menuItems.filteredItems.map(group => (
+            {menuItems.map(group => (
               <SidebarGroup key={group.group}>
                 <SidebarGroupLabel>{group.group}</SidebarGroupLabel>
                 {group.items.map(item => (
@@ -124,16 +128,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 ))}
               </SidebarGroup>
             ))}
-             {menuItems.settingsItem && (
-                <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isMenuItemActive(menuItems.settingsItem.href)} tooltip={menuItems.settingsItem.label}>
-                        <Link href={menuItems.settingsItem.href}>
-                            <menuItems.settingsItem.icon />
-                            <span>{menuItems.settingsItem.label}</span>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>

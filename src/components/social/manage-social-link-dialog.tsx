@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect, type Option } from '@/components/ui/multi-select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,18 +34,22 @@ interface ManageSocialLinkDialogProps {
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   link: RecordModel | null;
+  userChurches: RecordModel[];
   onSave: () => void;
 }
 
-export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, onSave }: ManageSocialLinkDialogProps) {
+export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, userChurches, onSave }: ManageSocialLinkDialogProps) {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [type, setType] = useState('altro');
+  const [selectedChurches, setSelectedChurches] = useState<string[]>([]);
   
   const [isDeleting, startDeleteTransition] = useTransition();
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+
+  const churchOptions: Option[] = userChurches.map(c => ({ value: c.id, label: c.name }));
 
   useEffect(() => {
     if (isOpen) {
@@ -52,18 +57,25 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, onSave }: Mana
         setName(link.name || '');
         setUrl(link.url || '');
         setType(link.type || 'altro');
+        setSelectedChurches(link.church || []);
       } else {
         setName('');
         setUrl('');
         setType('altro');
+        // If user has only one church, pre-select it
+        if (userChurches.length === 1) {
+            setSelectedChurches([userChurches[0].id]);
+        } else {
+            setSelectedChurches([]);
+        }
       }
     }
-  }, [isOpen, link]);
+  }, [isOpen, link, userChurches]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !url.trim()) {
-      toast({ variant: 'destructive', title: 'Errore', description: 'Nome e URL sono obbligatori.' });
+    if (!name.trim() || !url.trim() || selectedChurches.length === 0) {
+      toast({ variant: 'destructive', title: 'Errore', description: 'Nome, URL e almeno una chiesa sono obbligatori.' });
       return;
     }
 
@@ -72,6 +84,7 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, onSave }: Mana
       formData.append('name', name.trim());
       formData.append('url', url.trim());
       formData.append('type', type);
+      selectedChurches.forEach(id => formData.append('church', id));
 
       try {
         if (link) {
@@ -109,7 +122,7 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, onSave }: Mana
           <DialogHeader>
             <DialogTitle>{link ? 'Modifica Link Social' : 'Aggiungi Nuovo Link'}</DialogTitle>
             <DialogDescription>
-              Compila i dettagli del link. Verrà visualizzato nella pagina Social.
+              Compila i dettagli del link. Verrà visualizzato nella pagina Social per le chiese selezionate.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -134,6 +147,20 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, onSave }: Mana
                 placeholder="https://..."
                 required
               />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="church-select">Chiesa/e</Label>
+                {userChurches.length > 1 ? (
+                    <MultiSelect
+                        options={churchOptions}
+                        selected={selectedChurches}
+                        onChange={setSelectedChurches}
+                        placeholder="Seleziona una o più chiese"
+                        disabled={isPending}
+                    />
+                ) : (
+                    <Input value={userChurches[0]?.name || 'Nessuna chiesa'} disabled />
+                )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="link-type">Tipo</Label>

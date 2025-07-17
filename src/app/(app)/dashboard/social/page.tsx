@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { RecordModel } from 'pocketbase';
-import { getSocialLinks } from '@/app/actions';
+import { getChurches, getSocialLinks } from '@/app/actions';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ export default function SocialPage() {
 
     const [links, setLinks] = useState<RecordModel[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [userChurches, setUserChurches] = useState<RecordModel[]>([]);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<string | null>(null);
@@ -35,41 +36,52 @@ export default function SocialPage() {
     const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
     const [linkToEdit, setLinkToEdit] = useState<RecordModel | null>(null);
 
-    const fetchLinks = useCallback(() => {
-        setIsLoading(true);
-        getSocialLinks()
-            .then(setLinks)
-            .catch(() => {
-                toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i link social.' });
-            })
-            .finally(() => setIsLoading(false));
-    }, [toast]);
-
     useEffect(() => {
-        fetchLinks();
-
-        const handleSubscription = () => {
-            fetchLinks();
+        if (!user) return;
+    
+        const fetchInitialData = async () => {
+          setIsLoading(true);
+          try {
+            const churches = await getChurches(user.id, user.role);
+            setUserChurches(churches);
+            const churchIds = churches.map((c: RecordModel) => c.id);
+            const socialLinks = await getSocialLinks(churchIds, filterType ?? undefined);
+            setLinks(socialLinks);
+          } catch (error) {
+            toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati.' });
+          } finally {
+            setIsLoading(false);
+          }
         };
-
+    
+        fetchInitialData();
+    
+        const handleSubscription = async () => {
+          if (!user) return;
+          const churchIds = (await getChurches(user.id, user.role)).map((c: RecordModel) => c.id);
+          const socialLinks = await getSocialLinks(churchIds, filterType ?? undefined);
+          setLinks(socialLinks);
+        };
+    
         const unsubscribe = pb.collection('pdg_social_links').subscribe('*', handleSubscription);
-
+    
         return () => {
-            if (typeof unsubscribe === 'function') {
-                unsubscribe();
-            } else {
-                Promise.resolve(unsubscribe).then(fn => fn());
-            }
+          if (typeof unsubscribe === 'function') {
+            unsubscribe();
+          } else {
+            Promise.resolve(unsubscribe).then(fn => fn());
+          }
         };
-    }, [fetchLinks]);
+    }, [user, filterType, toast]);
     
     const filteredLinks = useMemo(() => {
         return links.filter(link => {
             const matchSearch = link.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchType = filterType ? link.type === filterType : true;
-            return matchSearch && matchType;
+            // The type filter is now handled by the useEffect hook which re-fetches data.
+            // We just need to filter by search term on the client side.
+            return matchSearch;
         });
-    }, [links, searchTerm, filterType]);
+    }, [links, searchTerm]);
 
     const handleEditLink = (link: RecordModel) => {
         setLinkToEdit(link);
@@ -90,7 +102,7 @@ export default function SocialPage() {
                     <h1 className="text-3xl font-bold">Social</h1>
                     <p className="text-muted-foreground">Trova tutti i link utili per rimanere connesso.</p>
                 </div>
-                {canManageLinks && (
+                {canManageLinks && userChurches.length > 0 && (
                     <Button onClick={handleAddLink}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Link
                     </Button>
@@ -145,7 +157,7 @@ export default function SocialPage() {
                 </div>
             ) : (
                 <div className="text-center py-16 text-muted-foreground">
-                    <p>Nessun link trovato.</p>
+                    <p>Nessun link trovato per le tue chiese.</p>
                     {canManageLinks && <p className="text-sm">Aggiungine uno per iniziare!</p>}
                 </div>
             )}
@@ -155,9 +167,10 @@ export default function SocialPage() {
                     isOpen={isManageDialogOpen}
                     setIsOpen={setIsManageDialogOpen}
                     link={linkToEdit}
+                    userChurches={userChurches}
                     onSave={() => {
                         setIsManageDialogOpen(false);
-                        fetchLinks();
+                        // The subscription will handle the update
                     }}
                 />
             )}

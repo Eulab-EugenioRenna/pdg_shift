@@ -886,9 +886,25 @@ export async function updateSetting(key: string, value: string) {
 }
 
 // Social Link Actions
-export async function getSocialLinks(type?: string) {
+export async function getSocialLinks(churchIds: string[], type?: string) {
     try {
-        const filter = type ? `type = "${type}"` : '';
+        if (!churchIds || churchIds.length === 0) {
+            return [];
+        }
+
+        let filterParts = [];
+        
+        // Filter by user's churches
+        const churchFilter = `(${churchIds.map(id => `church ?~ "${id}"`).join(' || ')})`;
+        filterParts.push(churchFilter);
+        
+        // Filter by type if provided
+        if (type) {
+            filterParts.push(`type = "${type}"`);
+        }
+
+        const filter = filterParts.join(' && ');
+        
         const records = await pb.collection('pdg_social_links').getFullList({
             filter: filter,
             sort: 'name',
