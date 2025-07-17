@@ -214,12 +214,21 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                 <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="unassign">Non assegnato</SelectItem>
-                                {leaders.map((l) => (
-                                    <SelectItem key={l.id} value={l.id}>
-                                        {l.name}
-                                    </SelectItem>
-                                ))}
+                                {dataLoading ? (
+                                    <div className="flex items-center justify-center p-2">
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        <span>Caricamento utenti...</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <SelectItem value="unassign">Non assegnato</SelectItem>
+                                        {leaders.map((l) => (
+                                            <SelectItem key={l.id} value={l.id}>
+                                                {l.name}
+                                            </SelectItem>
+                                        ))}
+                                    </>
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
@@ -243,14 +252,23 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                             <SelectValue placeholder="Seleziona un volontario..." />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="unassign">Non assegnato</SelectItem>
-                                            {allUsers.map((u) => {
-                                                const isUnavailable = unavailabilityMap[u.id];
-                                                return (
-                                                <SelectItem key={u.id} value={u.id}>
-                                                    {u.name} {isUnavailable ? '(Non Disp.)' : '(Disponibile)'}
-                                                </SelectItem>
-                                            )})}
+                                            {dataLoading ? (
+                                                <div className="flex items-center justify-center p-2">
+                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    <span>Caricamento utenti...</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <SelectItem value="unassign">Non assegnato</SelectItem>
+                                                    {allUsers.map((u) => {
+                                                        const isUnavailable = unavailabilityMap[u.id];
+                                                        return (
+                                                        <SelectItem key={u.id} value={u.id}>
+                                                            {u.name} {isUnavailable ? '(Non Disp.)' : '(Disponibile)'}
+                                                        </SelectItem>
+                                                    )})}
+                                                </>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>
