@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { DashboardEvent } from "@/app/actions";
@@ -6,9 +7,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { Calendar, Clock, Repeat, UserCheck, Users, User } from "lucide-react";
+import { Calendar, Clock, Repeat, UserCheck, Users, AlertTriangle } from "lucide-react";
 import { pb } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 interface EventCardProps {
     event: DashboardEvent;
@@ -84,11 +86,19 @@ export function EventCard({ event }: EventCardProps) {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         {event.name} 
-                        {event.isRecurringInstance && <Repeat className="inline h-4 w-4 text-muted-foreground" title="Evento Ricorrente" />}
                     </CardTitle>
                     <CardDescription>{event.description || 'Nessuna descrizione.'}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow space-y-4">
+                    {event.isRecurringInstance && (
+                        <Alert>
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTitle>Evento Ricorrente</AlertTitle>
+                            <AlertDescription>
+                                Le informazioni di questo evento potrebbero non essere aggiornate. Per i dettagli, fare riferimento alla pagina Programma.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                    {event.expand.services.length > 0 ? (
                     event.expand.services.map(service => (
                         <div key={service.id} className="p-3 rounded-md bg-secondary/50">
