@@ -3,8 +3,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarTrigger, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from '@/components/ui/sidebar';
-import { Home, Calendar, Settings, LogOut } from 'lucide-react';
+import { SidebarProvider, Sidebar, SidebarInset, SidebarHeader, SidebarTrigger, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter, SidebarGroup, SidebarGroupLabel } from '@/components/ui/sidebar';
+import { Home, Calendar, Settings, LogOut, MessageSquare, Users } from 'lucide-react';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { Icons } from '@/components/icons';
@@ -24,18 +24,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [profileJustCompleted, setProfileJustCompleted] = useState(false);
 
   const menuItems = useMemo(() => {
-    const allItems = [
-      { href: "/dashboard", icon: Home, label: "Dashboard" },
-      { href: "/dashboard/schedule", icon: Calendar, label: "Programma" },
-      { href: "/dashboard/settings", icon: Settings, label: "Impostazioni" },
+    const baseItems = [
+      {
+        group: 'Turni',
+        items: [
+          { href: "/dashboard", icon: Home, label: "Calendario", roles: ['superuser', 'coordinatore', 'leader', 'volontario'] },
+          { href: "/dashboard/schedule", icon: Calendar, label: "Programma", roles: ['superuser', 'coordinatore', 'leader'] },
+        ]
+      },
+       {
+        group: 'Social',
+        items: [
+          { href: "/dashboard/social", icon: MessageSquare, label: "Social", roles: ['superuser', 'coordinatore', 'leader', 'volontario'] },
+        ]
+      },
     ];
 
-    if (user?.role === 'volontario') {
-      return allItems.filter(item => item.href !== '/dashboard/schedule');
-    }
+    const settingsItem = { href: "/dashboard/settings", icon: Settings, label: "Impostazioni", roles: ['superuser', 'coordinatore', 'leader', 'volontario'] };
 
-    return allItems;
-  }, [user?.role]);
+    if (!user) return { filteredItems: [], settingsItem: null };
+
+    const filteredItems = baseItems
+      .map(group => ({
+        ...group,
+        items: group.items.filter(item => item.roles.includes(user.role))
+      }))
+      .filter(group => group.items.length > 0);
+
+    return { filteredItems, settingsItem };
+
+  }, [user]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -91,16 +109,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarMenu>
-            {menuItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton asChild isActive={isMenuItemActive(item.href)} tooltip={item.label}>
-                  <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            {menuItems.filteredItems.map(group => (
+              <SidebarGroup key={group.group}>
+                <SidebarGroupLabel>{group.group}</SidebarGroupLabel>
+                {group.items.map(item => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={isMenuItemActive(item.href)} tooltip={item.label}>
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarGroup>
             ))}
+             {menuItems.settingsItem && (
+                <SidebarMenuItem>
+                    <SidebarMenuButton asChild isActive={isMenuItemActive(menuItems.settingsItem.href)} tooltip={menuItems.settingsItem.label}>
+                        <Link href={menuItems.settingsItem.href}>
+                            <menuItems.settingsItem.icon />
+                            <span>{menuItems.settingsItem.label}</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>

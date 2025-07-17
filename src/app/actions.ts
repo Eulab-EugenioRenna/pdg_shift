@@ -885,7 +885,47 @@ export async function updateSetting(key: string, value: string) {
     }
 }
 
+// Social Link Actions
+export async function getSocialLinks(type?: string) {
+    try {
+        const filter = type ? `type = "${type}"` : '';
+        const records = await pb.collection('pdg_social_links').getFullList({
+            filter: filter,
+            sort: 'name',
+        });
+        return JSON.parse(JSON.stringify(records));
+    } catch (error) {
+        console.error("Error fetching social links:", error);
+        throw new Error("Failed to fetch social links.");
+    }
+}
 
+export async function addSocialLink(formData: FormData) {
+    try {
+        const record = await pb.collection('pdg_social_links').create(formData);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error) {
+        console.error("Error adding social link:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
 
+export async function updateSocialLink(id: string, formData: FormData) {
+    try {
+        const record = await pb.collection('pdg_social_links').update(id, formData);
+        return JSON.parse(JSON.stringify(record));
+    } catch (error) {
+        console.error("Error updating social link:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
 
-
+export async function deleteSocialLink(id: string) {
+    try {
+        await pb.collection('pdg_social_links').delete(id);
+        return { success: true };
+    } catch (error) {
+        console.error("Error deleting social link:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
