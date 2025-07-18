@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useTransition, useEffect, useMemo } from 'react';
+import { useState, useTransition, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -56,7 +56,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
 
     const positions = service?.positions || [];
 
-    const fetchUsersAndData = async () => {
+    const fetchUsersAndData = useCallback(async () => {
         if (!churchId) return;
         setDataLoading(true);
         try {
@@ -69,7 +69,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             setAllUsers(usersData);
             setServiceTemplates(templatesData);
 
-            const userIds = usersData.map(u => u.id);
+            const userIds = usersData.map((u: RecordModel) => u.id);
             const eventDateFormatted = new Date(eventDate).toISOString().split('T')[0];
             const unavail = await getAllUnavailabilities(userIds, eventDateFormatted);
             setUnavailabilityMap(unavail);
@@ -78,13 +78,15 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
         } finally {
             setDataLoading(false);
         }
-    }
+    }, [churchId, eventDate, toast]);
 
     useEffect(() => {
         if (isOpen) {
            fetchUsersAndData();
         }
+    }, [isOpen, fetchUsersAndData]);
 
+    useEffect(() => {
         if (service) {
             setName(service.name);
             setDescription(service.description);
@@ -93,7 +95,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             setAiSuggestions(null); // Reset suggestions when opening
             setNewPositions('');
         }
-    }, [isOpen, service, churchId, eventDate]);
+    }, [service]);
 
     const handleGetAiSuggestions = () => {
         if (!service) return;
