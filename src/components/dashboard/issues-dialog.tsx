@@ -86,37 +86,40 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
             {issues.length > 0 ? (
               <ScrollArea className="h-[60vh] pr-4">
                 <Accordion type="multiple" className="w-full space-y-4">
-                    {Object.values(groupedIssues).map(({ event, issues: eventIssues }) => (
-                        <AccordionItem key={event.id} value={event.id} className="border rounded-lg px-4">
-                            <AccordionTrigger className="py-3 hover:no-underline">
-                                <div className='flex flex-col text-left'>
-                                    <span className="font-semibold">{event.name}</span>
-                                    <span className="text-sm text-muted-foreground flex items-center gap-2">
-                                        <Calendar className="h-3 w-3"/>
-                                        {format(new Date(event.start_date), "eeee d MMMM yyyy", { locale: it })}
-                                    </span>
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-3">
-                                <div className="space-y-3">
-                                {eventIssues.map((issue, index) => (
-                                    <div key={index} className="flex items-center justify-between gap-4 p-2 rounded-md bg-secondary/50">
-                                        <div className="flex items-start gap-3">
-                                            {getIconForIssue(issue.type)}
-                                            <div>
-                                                <p className="font-medium text-sm">{issue.details}</p>
-                                                <p className="text-xs text-muted-foreground">{issue.service.name}</p>
-                                            </div>
-                                        </div>
-                                        <Button size="sm" variant="outline" onClick={() => handleManageClick(issue.service)}>
-                                            Gestisci
-                                        </Button>
+                    {Object.values(groupedIssues).map(({ event, issues: eventIssues }) => {
+                        const eventKey = event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id;
+                        return (
+                            <AccordionItem key={eventKey} value={eventKey} className="border rounded-lg px-4">
+                                <AccordionTrigger className="py-3 hover:no-underline">
+                                    <div className='flex flex-col text-left'>
+                                        <span className="font-semibold">{event.name}</span>
+                                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                                            <Calendar className="h-3 w-3"/>
+                                            {format(new Date(event.start_date), "eeee d MMMM yyyy", { locale: it })}
+                                        </span>
                                     </div>
-                                ))}
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    ))}
+                                </AccordionTrigger>
+                                <AccordionContent className="pt-2 pb-3">
+                                    <div className="space-y-3">
+                                    {eventIssues.map((issue, index) => (
+                                        <div key={index} className="flex items-center justify-between gap-4 p-2 rounded-md bg-secondary/50">
+                                            <div className="flex items-start gap-3">
+                                                {getIconForIssue(issue.type)}
+                                                <div>
+                                                    <p className="font-medium text-sm">{issue.details}</p>
+                                                    <p className="text-xs text-muted-foreground">{issue.service.name}</p>
+                                                </div>
+                                            </div>
+                                            <Button size="sm" variant="outline" onClick={() => handleManageClick(issue.service)}>
+                                                Gestisci
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )
+                    })}
                 </Accordion>
               </ScrollArea>
             ) : (
