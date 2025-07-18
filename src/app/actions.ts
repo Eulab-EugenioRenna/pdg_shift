@@ -199,7 +199,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         let finalEventsList = sortedEvents;
 
         if (userRole === 'volontario') {
-            finalEventsList = sortedEvents.filter(e => e.expand.services.length > 0 && !e.name.startsWith('[Annullato]'));
+            finalEventsList = sortedEvents.filter(e => e.expand.services.length > 0);
              finalEventsList.forEach(event => {
                 event.expand.services.forEach(s => {
                     if(!s.expand?.leader) openPositions++;
@@ -218,9 +218,9 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         });
 
         return {
-            events: JSON.parse(JSON.stringify(sortedEvents)), // Send all events to UI
+            events: JSON.parse(JSON.stringify(finalEventsList)),
             stats: {
-                upcomingEvents: activeEventsForStats.length, // Use active events for stats
+                upcomingEvents: activeEventsForStats.length,
                 openPositions,
                 unreadNotifications: unreadNotifications.length,
             }
@@ -1034,3 +1034,4 @@ export async function deleteSocialLink(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
+
