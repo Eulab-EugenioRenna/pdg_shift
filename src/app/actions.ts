@@ -37,6 +37,12 @@ export interface DashboardEvent extends RecordModel {
     }
 }
 
+export interface UnavailabilityRecord extends RecordModel {
+    user: string;
+    start_date: string;
+    end_date: string;
+}
+
 // Helper function to generate recurring event instances for the dashboard
 const generateDashboardRecurringInstances = (
     event: RecordModel,
@@ -86,9 +92,9 @@ const generateDashboardRecurringInstances = (
 
 export async function getDashboardData(userId: string, userRole: string, userChurchIds: string[]): Promise<{
     events: DashboardEvent[];
+    unavailabilities: UnavailabilityRecord[];
     initialStats: {
         upcomingEvents: number;
-        openPositions: number;
         unreadNotifications: number;
     }
 }> {
@@ -101,6 +107,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         const eDate = addMonths(sDate, recurrenceMonths);
 
         let churchFilter: string | null = null;
+        let eventIdsForVolunteer: string[] = [];
 
         if (userRole === 'volontario') {
              const servicesAsLeader = await pb.collection('pdg_services').getFullList({
@@ -115,15 +122,15 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             });
 
             const allUserServices = [...servicesAsLeader, ...servicesAsTeamMember];
-            const eventIdsAsParticipant = [...new Set(allUserServices.map(s => s.event))];
+            eventIdsForVolunteer = [...new Set(allUserServices.map(s => s.event))];
 
-            if (eventIdsAsParticipant.length === 0 && (!userChurchIds || userChurchIds.length === 0)) {
+            if (eventIdsForVolunteer.length === 0 && (!userChurchIds || userChurchIds.length === 0)) {
                  const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
-                 return { events: [], initialStats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
+                 return { events: [], unavailabilities: [], initialStats: { upcomingEvents: 0, unreadNotifications: unreadNotifications.length } };
             }
              if (!userChurchIds || userChurchIds.length === 0) {
                  const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
-                 return { events: [], initialStats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
+                 return { events: [], unavailabilities: [], initialStats: { upcomingEvents: 0, unreadNotifications: unreadNotifications.length } };
             }
             churchFilter = `(${userChurchIds.map(id => `church="${id}"`).join(' || ')})`;
         } else {
@@ -132,13 +139,13 @@ export async function getDashboardData(userId: string, userRole: string, userChu
                 const allChurchIds = allChurches.map(c => c.id);
                 if(allChurchIds.length === 0) {
                      const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
-                    return { events: [], initialStats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
+                    return { events: [], unavailabilities: [], initialStats: { upcomingEvents: 0, unreadNotifications: unreadNotifications.length } };
                 }
                 churchFilter = `(${allChurchIds.map(id => `church="${id}"`).join(' || ')})`;
             } else { // Coordinatore or Leader
                 if (!userChurchIds || userChurchIds.length === 0) {
                     const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
-                    return { events: [], initialStats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
+                    return { events: [], unavailabilities: [], initialStats: { upcomingEvents: 0, unreadNotifications: unreadNotifications.length } };
                 }
                 churchFilter = `(${userChurchIds.map(id => `church="${id}"`).join(' || ')})`;
             }
@@ -164,7 +171,11 @@ export async function getDashboardData(userId: string, userRole: string, userChu
                 return !overrideDateChurchKeys.has(dateKey);
             });
         
-        const allEventInstances = [...singleAndVariationEvents, ...recurringInstances];
+        let allEventInstances = [...singleAndVariationEvents, ...recurringInstances];
+
+        if (userRole === 'volontario') {
+            allEventInstances = allEventInstances.filter(e => eventIdsForVolunteer.includes(e.id));
+        }
         
         const eventIds = [...new Set(allEventInstances.map(e => e.id))];
 
@@ -193,6 +204,22 @@ export async function getDashboardData(userId: string, userRole: string, userChu
                 return e.expand.services.length > 0 || e.name.startsWith('[Annullato]');
             });
         }
+
+        const involvedUserIds = new Set<string>();
+        allServicesForEvents.forEach(service => {
+            if (service.leader) involvedUserIds.add(service.leader);
+            if (service.team) service.team.forEach((t:string) => involvedUserIds.add(t));
+        });
+
+        let allUnavailabilities: UnavailabilityRecord[] = [];
+        if (involvedUserIds.size > 0) {
+            const userFilter = `(${Array.from(involvedUserIds).map(id => `user="${id}"`).join(' || ')})`;
+            const unavailabilityRangeFilter = `start_date <= "${eDate.toISOString()}" && end_date >= "${sDate.toISOString()}"`;
+            allUnavailabilities = await pb.collection('pdg_unavailability').getFullList({
+                filter: `${userFilter} && ${unavailabilityRangeFilter}`,
+                cache: 'no-store',
+            });
+        }
         
         const sortedEvents = eventsWithServices.sort((a,b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
         
@@ -211,30 +238,11 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             return eventDate >= statsStartDate && eventDate <= statsEndDate;
         });
 
-        let openPositionsForInitialStats = 0;
-        activeEventsForInitialStats.forEach(event => {
-            const services = allServicesForEvents.filter(s => s.event === event.id);
-            services.forEach(s => {
-                if(!s.expand?.leader) openPositionsForInitialStats++;
-            });
-        });
-        if (userRole === 'volontario') {
-            openPositionsForInitialStats = 0;
-            activeEventsForInitialStats.forEach(event => {
-                const services = allServicesForEvents.filter(s => s.event === event.id);
-                 if (services.some(s => s.leader === userId || s.team?.includes(userId))) {
-                    services.forEach(s => {
-                        if(!s.expand?.leader) openPositionsForInitialStats++;
-                    });
-                }
-            });
-        }
-
         return {
             events: JSON.parse(JSON.stringify(sortedEvents)),
+            unavailabilities: JSON.parse(JSON.stringify(allUnavailabilities)),
             initialStats: {
                 upcomingEvents: activeEventsForInitialStats.length,
-                openPositions: openPositionsForInitialStats,
                 unreadNotifications: unreadNotifications.length,
             }
         };
@@ -1051,7 +1059,3 @@ export async function deleteSocialLink(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
-
-
-
-

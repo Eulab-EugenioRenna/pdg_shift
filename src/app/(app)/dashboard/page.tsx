@@ -3,11 +3,11 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Users, Bell, Loader2, CalendarDays } from 'lucide-react';
+import { Calendar, Users, Bell, Loader2, CalendarDays, AlertTriangle, UserCheck, UserX, Briefcase } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getDashboardData, type DashboardEvent } from '@/app/actions';
+import { getDashboardData, type DashboardEvent, type UnavailabilityRecord } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format, isWithinInterval, isSameMonth } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format, isWithinInterval, isSameMonth, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardCalendar } from '@/components/dashboard/dashboard-calendar';
@@ -16,7 +16,7 @@ import { EventCard } from '@/components/dashboard/event-card';
 import { useRouter } from 'next/navigation';
 import { NotificationsDialog } from '@/components/dashboard/notifications-dialog';
 import { cn } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button';
+import { IssuesDialog, type Issue } from '@/components/dashboard/issues-dialog';
 
 type ViewMode = 'week' | 'month';
 
@@ -26,7 +26,7 @@ interface DashboardPageProps {
 
 interface Stats {
     upcomingEvents: number;
-    openPositions: number;
+    issues: Issue[];
     unreadNotifications: number;
 }
 
@@ -39,11 +39,13 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
     const [currentDate, setCurrentDate] = useState(new Date());
     
     const [allEvents, setAllEvents] = useState<DashboardEvent[]>([]);
+    const [allUnavailabilities, setAllUnavailabilities] = useState<UnavailabilityRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [displayStats, setDisplayStats] = useState<Stats | null>(null);
 
     const [selectedDate, setSelectedDate] = useState<Date | undefined>();
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [isIssuesOpen, setIsIssuesOpen] = useState(false);
     
     const fetchData = useCallback(() => {
         if (!user) return;
@@ -52,7 +54,8 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
         getDashboardData(user.id, user.role, user.church || [])
             .then(newData => {
                 setAllEvents(newData.events);
-                setDisplayStats(newData.initialStats);
+                setAllUnavailabilities(newData.unavailabilities);
+                setDisplayStats(prev => ({...prev, unreadNotifications: newData.initialStats.unreadNotifications, upcomingEvents: newData.initialStats.upcomingEvents, issues: [] }));
             })
             .catch(error => {
                 console.error(error);
@@ -82,52 +85,62 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
     }, [viewMode, currentDate]);
 
     useEffect(() => {
-        if (isLoading || !allEvents || !displayStats) return;
+        if (isLoading || !allEvents || !user) return;
 
         const now = new Date();
-        // If we are viewing the current month/week, start counting from today.
-        // Otherwise, start from the beginning of the selected period.
         const statsStartDate = isSameMonth(currentDate, now) ? now : dateRange.start;
 
         const eventsInCurrentView = allEvents.filter(event => {
             if (event.name.startsWith('[Annullato]')) return false;
 
             const eventDate = new Date(event.start_date);
-            // Check if the event is within the date range for display AND
-            // if it's after the stats start date for counting.
             return isWithinInterval(eventDate, dateRange) && eventDate >= statsStartDate;
         });
-        
-        let openPositionsInView = 0;
+
+        const issues: Issue[] = [];
+        const unavailabilityMap = new Map(allUnavailabilities.map(u => [u.user, u]));
+
         eventsInCurrentView.forEach(event => {
             event.expand?.services?.forEach((service: any) => {
+                // 1. Check for missing leader
                 if (!service.expand?.leader) {
-                    openPositionsInView++;
+                    issues.push({ event, service, type: 'leader_missing', details: `Leader non assegnato per ${service.name}.` });
+                } else {
+                    // Check leader's availability
+                    const leaderUnavailable = allUnavailabilities.find(u => u.user === service.leader && isWithinInterval(parseISO(event.start_date), { start: parseISO(u.start_date), end: parseISO(u.end_date) }));
+                    if (leaderUnavailable) {
+                        issues.push({ event, service, type: 'availability_conflict', user: service.expand.leader, details: `Il leader ${service.expand.leader.name} si è reso indisponibile.` });
+                    }
                 }
+
+                // 2. Check for unfilled positions
+                const assignments = service.team_assignments || {};
+                const positions = service.positions || [];
+                positions.forEach((position: string) => {
+                    if (!assignments[position]) {
+                        issues.push({ event, service, type: 'position_unfilled', position, details: `Posizione "${position}" scoperta.` });
+                    }
+                });
+
+                // 3. Check for team members' availability
+                const teamMembers = service.expand?.team || [];
+                teamMembers.forEach((member: any) => {
+                    const memberUnavailable = allUnavailabilities.find(u => u.user === member.id && isWithinInterval(parseISO(event.start_date), { start: parseISO(u.start_date), end: parseISO(u.end_date) }));
+                    if (memberUnavailable) {
+                        const position = Object.keys(assignments).find(p => assignments[p] === member.id);
+                        issues.push({ event, service, type: 'availability_conflict', user: member, position, details: `Il volontario ${member.name} (${position || 'team'}) si è reso indisponibile.` });
+                    }
+                });
             });
         });
-        
-        if (user?.role === 'volontario') {
-            openPositionsInView = 0;
-             eventsInCurrentView.forEach(event => {
-                const isParticipant = event.expand.services.some((s: any) => s.leader === user.id || s.team?.includes(user.id));
-                if (isParticipant) {
-                    event.expand.services.forEach((s: any) => {
-                        if (!s.expand?.leader) {
-                             openPositionsInView++;
-                        }
-                    });
-                }
-             });
-        }
-        
+
         setDisplayStats(prev => ({
             ...prev!,
             upcomingEvents: eventsInCurrentView.length,
-            openPositions: openPositionsInView,
+            issues,
         }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentDate, viewMode, allEvents, isLoading]);
+    }, [currentDate, viewMode, allEvents, isLoading, allUnavailabilities, user]);
 
 
     const handleViewChange = (mode: ViewMode) => {
@@ -168,15 +181,17 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
             setSelectedDate(date);
         }
     };
-
-    const getOpenPositionsDescription = () => {
-        if (user?.role === 'volontario') {
-            return "leader non assegnati nei tuoi servizi";
-        }
-        return "leader non assegnati";
-    };
-
+    
     const isVolunteer = user?.role === 'volontario';
+
+    const issueCounts = useMemo(() => {
+        if (!displayStats) return { leaders: 0, positions: 0, conflicts: 0, total: 0 };
+        const leaders = displayStats.issues.filter(i => i.type === 'leader_missing').length;
+        const positions = displayStats.issues.filter(i => i.type === 'position_unfilled').length;
+        const conflicts = displayStats.issues.filter(i => i.type === 'availability_conflict').length;
+        return { leaders, positions, conflicts, total: leaders + positions + conflicts };
+    }, [displayStats]);
+
 
     return (
         <div className="space-y-6">
@@ -211,15 +226,19 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                 </Card>
                 <Card
                   className={cn(isVolunteer ? "cursor-default" : "cursor-pointer hover:bg-card/95 transition-colors")}
-                  onClick={!isVolunteer ? () => router.push('/dashboard/schedule') : undefined}
+                  onClick={() => issueCounts.total > 0 && setIsIssuesOpen(true)}
                 >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Posizioni Aperte</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-medium">Problemi da Risolvere</CardTitle>
+                        <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isLoading || displayStats === null ? <Loader2 className="h-6 w-6 animate-spin" /> : displayStats.openPositions}</div>
-                        <p className="text-xs text-muted-foreground">{getOpenPositionsDescription()}</p>
+                        <div className="text-2xl font-bold">{isLoading || displayStats === null ? <Loader2 className="h-6 w-6 animate-spin" /> : issueCounts.total}</div>
+                         <div className="text-xs text-muted-foreground flex flex-wrap gap-x-2">
+                            <span className="flex items-center gap-1"><UserCheck className="h-3 w-3" />L: {issueCounts.leaders}</span>
+                            <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />R: {issueCounts.positions}</span>
+                            <span className="flex items-center gap-1"><UserX className="h-3 w-3" />S: {issueCounts.conflicts}</span>
+                        </div>
                     </CardContent>
                 </Card>
                 <Card className="cursor-pointer hover:bg-card/95 transition-colors" onClick={() => setIsNotificationsOpen(true)}>
@@ -292,12 +311,17 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                 isOpen={isNotificationsOpen}
                 setIsOpen={setIsNotificationsOpen}
                 onNotificationsHandled={() => {
-                    // Refetch only to update notification count, doesn't affect main data flow
                     if (user) {
                          getDashboardData(user.id, user.role, user.church || [])
                             .then(newData => setDisplayStats(prev => ({...prev!, unreadNotifications: newData.initialStats.unreadNotifications})));
                     }
                 }} 
+            />
+            <IssuesDialog
+                isOpen={isIssuesOpen}
+                setIsOpen={setIsIssuesOpen}
+                issues={displayStats?.issues || []}
+                onIssueHandled={fetchData}
             />
         </div>
     );
