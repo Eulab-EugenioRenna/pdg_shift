@@ -91,16 +91,15 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
         const statsStartDate = isSameMonth(currentDate, now) ? now : dateRange.start;
 
         const eventsInCurrentView = allEvents.filter(event => {
-            if (event.name.startsWith('[Annullato]')) return false;
-
             const eventDate = new Date(event.start_date);
             return isWithinInterval(eventDate, dateRange) && eventDate >= statsStartDate;
         });
 
         const issues: Issue[] = [];
-        const unavailabilityMap = new Map(allUnavailabilities.map(u => [u.user, u]));
 
         eventsInCurrentView.forEach(event => {
+             if (event.name.startsWith('[Annullato]')) return;
+
             event.expand?.services?.forEach((service: any) => {
                 // 1. Check for missing leader
                 if (!service.expand?.leader) {
@@ -115,7 +114,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
 
                 // 2. Check for unfilled positions
                 const assignments = service.team_assignments || {};
-                const positions = service.positions || [];
+                const positions = Array.isArray(service.positions) ? service.positions : [];
                 positions.forEach((position: string) => {
                     if (!assignments[position]) {
                         issues.push({ event, service, type: 'position_unfilled', position, details: `Posizione "${position}" scoperta.` });
@@ -133,10 +132,12 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                 });
             });
         });
+        
+        const activeEventsInView = eventsInCurrentView.filter(e => !e.name.startsWith('[Annullato]'));
 
         setDisplayStats(prev => ({
             ...prev!,
-            upcomingEvents: eventsInCurrentView.length,
+            upcomingEvents: activeEventsInView.length,
             issues,
         }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -225,8 +226,8 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                     </CardContent>
                 </Card>
                 <Card
-                  className={cn(isVolunteer ? "cursor-default" : "cursor-pointer hover:bg-card/95 transition-colors")}
-                  onClick={() => issueCounts.total > 0 && setIsIssuesOpen(true)}
+                  className={cn(isVolunteer || issueCounts.total === 0 ? "cursor-default" : "cursor-pointer hover:bg-card/95 transition-colors")}
+                  onClick={() => !isVolunteer && issueCounts.total > 0 && setIsIssuesOpen(true)}
                 >
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Problemi da Risolvere</CardTitle>
