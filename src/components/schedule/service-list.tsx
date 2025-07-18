@@ -16,7 +16,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
 
 interface ServiceListProps {
-    eventId: string;
+    eventId: string; // The ID of the template or single event
+    eventInstanceId: string; // A unique ID for the specific instance (for recurring events)
+    isRecurringInstance: boolean;
     churchId: string;
     eventDate: string;
 }
@@ -89,7 +91,7 @@ function TeamDisplay({ service }: { service: RecordModel }) {
     );
 }
 
-export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) {
+export function ServiceList({ eventId, eventInstanceId, isRecurringInstance, churchId, eventDate }: ServiceListProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const [services, setServices] = useState<RecordModel[]>([]);
@@ -103,11 +105,13 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
 
     useEffect(() => {
         setIsLoading(true);
+        // The eventId will always be the ID of the template/base event.
         getServicesForEvent(eventId)
             .then(data => setServices(data.sort((a,b) => a.name.localeCompare(b.name))))
             .finally(() => setIsLoading(false));
 
         const handleServiceSubscription = ({ action, record }: { action: string; record: RecordModel }) => {
+            // We only care about services related to our base event.
             if (record.event !== eventId) return;
 
             const sortServices = (s: RecordModel[]) => s.sort((a, b) => a.name.localeCompare(b.name));
@@ -129,10 +133,10 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
             }
         };
 
-        pb.collection('pdg_services').subscribe('*', handleServiceSubscription);
+        const unsubscribePromise = pb.collection('pdg_services').subscribe('*', handleServiceSubscription);
 
         return () => {
-            pb.collection('pdg_services').unsubscribe('*');
+            Promise.resolve(unsubscribePromise).then(unsubscribe => unsubscribe());
         };
     }, [eventId]);
 
@@ -156,11 +160,20 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
 
     const canManageService = (service: RecordModel) => {
         if (!user) return false;
-        if (user.role === 'superuser') return true;
-        if (user.role === 'coordinatore' && user.church?.includes(churchId)) return true;
-        if (user.role === 'leader' && user.id === service.leader) return true;
+        // Superuser and coordinators of the church can always manage.
+        if (user.role === 'superuser' || (user.role === 'coordinatore' && user.church?.includes(churchId))) return true;
+        // Leaders can manage services they are assigned to, but not on recurring instances
+        // because those edits should happen on the template or a variation.
+        if (user.role === 'leader' && user.id === service.leader && !isRecurringInstance) return true;
         return false;
     };
+    
+    const canAddService = () => {
+        if (!user) return false;
+        // Cannot add services to a recurring instance, must create a variation.
+        if (isRecurringInstance) return false;
+        return user.role === 'superuser' || (user.role === 'coordinatore' && user.church?.includes(churchId));
+    }
 
     if (isLoading) {
         return <Loader2 className="h-4 w-4 animate-spin my-2" />;
@@ -169,7 +182,7 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
     return (
         <TooltipProvider>
             <div className="space-y-4">
-                {(user?.role === 'superuser' || user?.role === 'coordinatore') && (
+                {canAddService() && (
                     <div className="flex justify-end">
                         <Button variant="outline" size="sm" onClick={() => setIsAddDialogOpen(true)}>
                             <PlusCircle className="mr-2 h-4 w-4" />
@@ -207,7 +220,7 @@ export function ServiceList({ eventId, churchId, eventDate }: ServiceListProps) 
                                                     Gestisci Team
                                                 </Button>
                                             )}
-                                            {(user?.role === 'superuser' || user?.role === 'coordinatore') && (
+                                            {canAddService() && (
                                                 <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setServiceToDelete(service)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>

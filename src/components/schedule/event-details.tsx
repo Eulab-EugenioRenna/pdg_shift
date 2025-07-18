@@ -131,7 +131,13 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <ServiceList eventId={event.id} churchId={event.church} eventDate={event.start_date} />
+                    <ServiceList 
+                        eventId={event.id}
+                        eventInstanceId={event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id}
+                        isRecurringInstance={!!event.isRecurringInstance}
+                        churchId={event.church}
+                        eventDate={event.start_date}
+                    />
                 </CardContent>
                 <CardFooter className="flex flex-wrap gap-x-6 gap-y-2 justify-between text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
@@ -199,4 +205,3 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
         </>
     );
 }
-
