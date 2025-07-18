@@ -89,6 +89,11 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
         setSelectedDate(undefined);
     };
     
+    const handleMonthChange = (month: Date) => {
+        setCurrentDate(month);
+        setSelectedDate(undefined);
+    }
+    
     const eventsForCalendar = useMemo(() => data?.events.map(e => new Date(e.start_date)) || [], [data]);
 
     const eventsForSelectedDay = useMemo(() => {
@@ -96,7 +101,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
         return data.events.filter(event => isSameDay(new Date(event.start_date), selectedDate));
     }, [data?.events, selectedDate]);
     
-    const calendarMonth = selectedDate || dateRange.start;
+    const calendarMonth = dateRange.start;
 
     const handleSelectDate = (date: Date | undefined) => {
         if (date && !eventsForCalendar.some(eventDate => isSameDay(eventDate, date))) {
@@ -190,6 +195,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                                     month={calendarMonth}
                                     selected={selectedDate}
                                     onSelect={handleSelectDate}
+                                    onMonthChange={handleMonthChange}
                                 />
                             ) : (
                                 data && (

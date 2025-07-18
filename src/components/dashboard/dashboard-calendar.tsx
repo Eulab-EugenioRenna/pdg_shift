@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Calendar } from "@/components/ui/calendar";
@@ -8,9 +9,10 @@ interface DashboardCalendarProps {
     month: Date;
     selected: Date | undefined;
     onSelect: (date: Date | undefined) => void;
+    onMonthChange: (month: Date) => void;
 }
 
-export function DashboardCalendar({ events, month, selected, onSelect }: DashboardCalendarProps) {
+export function DashboardCalendar({ events, month, selected, onSelect, onMonthChange }: DashboardCalendarProps) {
     const eventDays = events.map(d => new Date(d));
 
     return (
@@ -18,6 +20,7 @@ export function DashboardCalendar({ events, month, selected, onSelect }: Dashboa
             locale={it}
             mode="single"
             month={month}
+            onMonthChange={onMonthChange}
             selected={selected}
             onSelect={onSelect}
             showOutsideDays
