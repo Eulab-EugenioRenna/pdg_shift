@@ -137,7 +137,8 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
                                         <Edit className="mr-2 h-4 w-4" /> Modifica
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={handleDeleteClick} className="text-destructive">
-                                        <Trash2 className="mr-2 h-4 w-4" /> {event.isRecurringInstance ? "Annulla Occorrenza" : "Elimina"}
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        <span>{event.isRecurringInstance ? "Annulla Occorrenza" : "Elimina"}</span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -172,8 +173,8 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
                     eventToEdit={eventToEdit}
                     userChurches={userChurches}
                     selectedChurchId={eventToEdit.church}
-                    onEventUpserted={() => {
-                       // List will update via subscription, parent handles detail view
+                    onEventUpserted={(updatedEvent) => {
+                       onEventUpserted(updatedEvent);
                     }}
                 />
             )}
