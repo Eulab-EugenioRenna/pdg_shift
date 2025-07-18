@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { createContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { pb } from '@/lib/pocketbase';
-import type { RecordModel, Admin } from 'pocketbase';
+import type { RecordModel, Admin, ClientResponseError } from 'pocketbase';
 import { useToast } from '@/hooks/use-toast';
 import { sendNotification } from '@/lib/notifications';
 
@@ -48,9 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         expand: 'church',
       });
     } catch (error) {
-      console.error("Impossibile aggiornare l'utente, logout in corso:", error);
-      // The token is probably invalid, so log out.
-      logout();
+       // If the refresh fails with a 401, it means the token is invalid/expired.
+       // We can just log out silently without polluting the console.
+      if (error instanceof Error && (error as ClientResponseError).status === 401) {
+        logout();
+      } else {
+        console.error("Impossibile aggiornare l'utente:", error);
+      }
     }
   }, [logout]);
 
