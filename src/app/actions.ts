@@ -162,23 +162,28 @@ export async function getDashboardData(userId: string, userRole: string, userChu
                 return !overrideDateChurchKeys.has(dateKey);
             });
         
-        const allEventInstances = [...singleAndVariationEvents, ...recurringInstances]
-            .filter(e => !e.name.startsWith('[Annullato]')); // Filter out cancelled events from the final list
+        const allEventInstances = [...singleAndVariationEvents, ...recurringInstances];
         
-        const eventIds = [...new Set(allEventInstances.map(e => e.id))];
-        if (eventIds.length === 0) {
-            const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
-            return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
-        }
+        // Filter out cancelled events for stats, but keep them for display
+        const activeEventsForStats = allEventInstances.filter(e => !e.name.startsWith('[Annullato]'));
 
-        const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
-        const allServicesForEvents = await pb.collection('pdg_services').getFullList({
-            filter: eventIdFilter,
-            expand: 'leader,team',
-            cache: 'no-store',
-        });
+        const eventIds = [...new Set(activeEventsForStats.map(e => e.id))];
+
+        let allServicesForEvents: RecordModel[] = [];
+        if (eventIds.length > 0) {
+            const eventIdFilter = `(${eventIds.map(id => `event="${id}"`).join(' || ')})`;
+            allServicesForEvents = await pb.collection('pdg_services').getFullList({
+                filter: eventIdFilter,
+                expand: 'leader,team',
+                cache: 'no-store',
+            });
+        }
         
         const eventsWithServices = allEventInstances.map(eventInstance => {
+            // Cancelled events have no services
+            if (eventInstance.name.startsWith('[Annullato]')) {
+                 return { ...eventInstance, expand: { services: [] }};
+            }
             const relatedServices = allServicesForEvents.filter(s => s.event === eventInstance.id);
             return {
                 ...eventInstance,
@@ -194,7 +199,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         let finalEventsList = sortedEvents;
 
         if (userRole === 'volontario') {
-            finalEventsList = sortedEvents.filter(e => e.expand.services.length > 0);
+            finalEventsList = sortedEvents.filter(e => e.expand.services.length > 0 && !e.name.startsWith('[Annullato]'));
              finalEventsList.forEach(event => {
                 event.expand.services.forEach(s => {
                     if(!s.expand?.leader) openPositions++;
@@ -213,9 +218,9 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         });
 
         return {
-            events: JSON.parse(JSON.stringify(finalEventsList)),
+            events: JSON.parse(JSON.stringify(sortedEvents)), // Send all events to UI
             stats: {
-                upcomingEvents: finalEventsList.length,
+                upcomingEvents: activeEventsForStats.length, // Use active events for stats
                 openPositions,
                 unreadNotifications: unreadNotifications.length,
             }
