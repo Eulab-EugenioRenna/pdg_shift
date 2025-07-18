@@ -7,7 +7,7 @@ import { Calendar, Users, Bell, Loader2, CalendarDays } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getDashboardData, type DashboardEvent } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format, isWithinInterval } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardCalendar } from '@/components/dashboard/dashboard-calendar';
@@ -23,6 +23,12 @@ interface DashboardPageProps {
     profileJustCompleted?: boolean;
 }
 
+interface Stats {
+    upcomingEvents: number;
+    openPositions: number;
+    unreadNotifications: number;
+}
+
 export default function DashboardPage({ profileJustCompleted }: DashboardPageProps) {
     const { user } = useAuth();
     const { toast } = useToast();
@@ -31,10 +37,35 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
     const [viewMode, setViewMode] = useState<ViewMode>('month');
     const [currentDate, setCurrentDate] = useState(new Date());
     
-    const [data, setData] = useState<{ events: DashboardEvent[], stats: { upcomingEvents: number, openPositions: number, unreadNotifications: number } } | null>(null);
+    const [allEvents, setAllEvents] = useState<DashboardEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [displayStats, setDisplayStats] = useState<Stats | null>(null);
+
     const [selectedDate, setSelectedDate] = useState<Date | undefined>();
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    
+    const fetchData = useCallback(() => {
+        if (!user) return;
+        
+        setIsLoading(true);
+        getDashboardData(user.id, user.role, user.church || [])
+            .then(newData => {
+                setAllEvents(newData.events);
+                setDisplayStats(newData.initialStats);
+            })
+            .catch(error => {
+                console.error(error);
+                toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati della dashboard.' });
+            })
+            .finally(() => setIsLoading(false));
+    }, [user, toast]);
+    
+    useEffect(() => {
+        if (user) {
+            fetchData();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, profileJustCompleted]);
 
     const dateRange = useMemo(() => {
         if (viewMode === 'week') {
@@ -48,39 +79,46 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
             end: endOfMonth(currentDate)
         };
     }, [viewMode, currentDate]);
-    
-    const fetchData = useCallback(() => {
-        if (!user) return;
-        
-        setIsLoading(true);
-        getDashboardData(user.id, user.role, user.church || [])
-            .then(newData => {
-                setData(newData);
-                if (selectedDate) {
-                    const isSelectedDateStillPresent = newData.events.some(e => isSameDay(new Date(e.start_date), selectedDate));
-                    if (!isSelectedDateStillPresent) {
-                        setSelectedDate(undefined);
-                    }
-                }
-            })
-            .catch(error => {
-                console.error(error);
-                toast({ variant: 'destructive', title: 'Errore', description: 'Impossibile caricare i dati della dashboard.' });
-            })
-            .finally(() => setIsLoading(false));
-    }, [user, toast, selectedDate]);
 
     useEffect(() => {
-        if (user) {
-            fetchData();
+        if (isLoading || !allEvents || !displayStats) return;
+
+        const eventsInCurrentView = allEvents.filter(event => {
+            if (event.name.startsWith('[Annullato]')) return false;
+            return isWithinInterval(new Date(event.start_date), dateRange);
+        });
+
+        let openPositionsInView = 0;
+        eventsInCurrentView.forEach(event => {
+            event.expand?.services?.forEach((service: any) => {
+                if (!service.expand?.leader) {
+                    openPositionsInView++;
+                }
+            });
+        });
+        
+        if (user?.role === 'volontario') {
+            openPositionsInView = 0;
+             eventsInCurrentView.forEach(event => {
+                const isParticipant = event.expand.services.some((s: any) => s.leader === user.id || s.team?.includes(user.id));
+                if (isParticipant) {
+                    event.expand.services.forEach((s: any) => {
+                        if (!s.expand?.leader) {
+                             openPositionsInView++;
+                        }
+                    });
+                }
+             });
         }
-    }, [user, dateRange, fetchData]);
-    
-    useEffect(() => {
-        if(profileJustCompleted) {
-            fetchData();
-        }
-    }, [profileJustCompleted, fetchData]);
+        
+        setDisplayStats(prev => ({
+            ...prev!,
+            upcomingEvents: eventsInCurrentView.length,
+            openPositions: openPositionsInView,
+        }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentDate, viewMode, allEvents, isLoading]);
+
 
     const handleViewChange = (mode: ViewMode) => {
         if (!mode) return;
@@ -94,12 +132,12 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
         setSelectedDate(undefined);
     }
     
-    const eventsForCalendar = useMemo(() => data?.events.map(e => new Date(e.start_date)) || [], [data]);
+    const eventsForCalendar = useMemo(() => allEvents.map(e => new Date(e.start_date)) || [], [allEvents]);
 
     const eventsForSelectedDay = useMemo(() => {
-        if (!selectedDate || !data?.events) return [];
-        return data.events.filter(event => isSameDay(new Date(event.start_date), selectedDate));
-    }, [data?.events, selectedDate]);
+        if (!selectedDate || !allEvents) return [];
+        return allEvents.filter(event => isSameDay(new Date(event.start_date), selectedDate));
+    }, [allEvents, selectedDate]);
     
     const calendarMonth = dateRange.start;
 
@@ -152,7 +190,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : data?.stats.upcomingEvents ?? 0}</div>
+                        <div className="text-2xl font-bold">{isLoading || displayStats === null ? <Loader2 className="h-6 w-6 animate-spin" /> : displayStats.upcomingEvents}</div>
                         <p className="text-xs text-muted-foreground">in questo periodo</p>
                     </CardContent>
                 </Card>
@@ -165,7 +203,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : data?.stats.openPositions ?? 0}</div>
+                        <div className="text-2xl font-bold">{isLoading || displayStats === null ? <Loader2 className="h-6 w-6 animate-spin" /> : displayStats.openPositions}</div>
                         <p className="text-xs text-muted-foreground">{getOpenPositionsDescription()}</p>
                     </CardContent>
                 </Card>
@@ -175,7 +213,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                         <Bell className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : data?.stats.unreadNotifications ?? 0}</div>
+                        <div className="text-2xl font-bold">{isLoading || displayStats === null ? <Loader2 className="h-6 w-6 animate-spin" /> : displayStats.unreadNotifications}</div>
                         <p className="text-xs text-muted-foreground">nuove notifiche</p>
                     </CardContent>
                 </Card>
@@ -198,14 +236,12 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                                     onMonthChange={handleMonthChange}
                                 />
                             ) : (
-                                data && (
-                                    <WeeklyCalendarView 
-                                        week={dateRange}
-                                        events={data.events}
-                                        selected={selectedDate}
-                                        onSelect={handleSelectDate}
-                                    />
-                                )
+                                <WeeklyCalendarView 
+                                    week={dateRange}
+                                    events={allEvents}
+                                    selected={selectedDate}
+                                    onSelect={handleSelectDate}
+                                />
                             )}
                         </CardContent>
                     </Card>
@@ -239,7 +275,13 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
              <NotificationsDialog
                 isOpen={isNotificationsOpen}
                 setIsOpen={setIsNotificationsOpen}
-                onNotificationsHandled={fetchData} 
+                onNotificationsHandled={() => {
+                    // Refetch only to update notification count, doesn't affect main data flow
+                    if (user) {
+                         getDashboardData(user.id, user.role, user.church || [])
+                            .then(newData => setDisplayStats(prev => ({...prev!, unreadNotifications: newData.initialStats.unreadNotifications})));
+                    }
+                }} 
             />
         </div>
     );
