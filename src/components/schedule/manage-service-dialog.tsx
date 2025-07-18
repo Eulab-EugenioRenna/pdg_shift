@@ -15,14 +15,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { updateService, getLeaders, getUsers, getAiTeamSuggestions, getServiceTemplates, getAllUnavailabilities } from '@/app/actions';
-import { Loader2, Wand2, UserPlus } from 'lucide-react';
+import { Loader2, Wand2, UserPlus, CircleUser, CheckCircle, XCircle } from 'lucide-react';
 import type { RecordModel } from 'pocketbase';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Textarea } from '../ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import type { SuggestTeamOutput } from '@/ai/flows/smart-team-builder';
 import { useAuth } from '@/hooks/useAuth';
 import { ManageUsersDialog } from '../admin/manage-users-dialog';
+import { cn } from '@/lib/utils';
+
 
 interface ManageServiceDialogProps {
   isOpen: boolean;
@@ -63,7 +65,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             const [leadersData, usersData, templatesData] = await Promise.all([
                 getLeaders(churchId),
                 getUsers(undefined, undefined, churchId),
-                getServiceTemplates(),
+                getServiceTemplates(user?.id, user?.role, churchId),
             ]);
             setLeaders(leadersData);
             setAllUsers(usersData);
@@ -78,7 +80,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
         } finally {
             setDataLoading(false);
         }
-    }, [churchId, eventDate, toast]);
+    }, [churchId, eventDate, toast, user]);
 
     useEffect(() => {
         if (isOpen) {
@@ -96,6 +98,40 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             setNewPositions('');
         }
     }, [service]);
+
+    const usersByPreferenceAndAvailability = useMemo(() => {
+        if (!service || allUsers.length === 0) {
+            return { suggested: [], available: [], unavailable: [] };
+        }
+
+        const serviceNameLower = service.name.toLowerCase();
+        
+        // Find a template that matches the current service's name to check preferences
+        const matchingTemplate = serviceTemplates.find(t => t.name.toLowerCase() === serviceNameLower);
+        const preferredUserIds = new Set(
+            allUsers
+                .filter(u => matchingTemplate && (u.service_preferences || []).includes(matchingTemplate.id))
+                .map(u => u.id)
+        );
+        
+        const suggested: RecordModel[] = [];
+        const available: RecordModel[] = [];
+        const unavailable: RecordModel[] = [];
+
+        allUsers.forEach(u => {
+            const isUnavailable = unavailabilityMap[u.id];
+            if (isUnavailable) {
+                unavailable.push(u);
+            } else if (preferredUserIds.has(u.id)) {
+                suggested.push(u);
+            } else {
+                available.push(u);
+            }
+        });
+        
+        return { suggested, available, unavailable };
+    }, [allUsers, service, serviceTemplates, unavailabilityMap]);
+
 
     const handleGetAiSuggestions = () => {
         if (!service) return;
@@ -196,6 +232,17 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             }
         });
     };
+
+    const renderUserOptions = (users: RecordModel[], icon?: React.ReactNode) => {
+        return users.map(u => (
+            <SelectItem key={u.id} value={u.id} disabled={unavailabilityMap[u.id]}>
+                <div className="flex items-center gap-2">
+                    {icon}
+                    <span>{u.name}</span>
+                </div>
+            </SelectItem>
+        ));
+    };
     
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -270,18 +317,28 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                             {dataLoading ? (
                                                 <div className="flex items-center justify-center p-2">
                                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    <span>Caricamento utenti...</span>
                                                 </div>
                                             ) : (
                                                 <>
                                                     <SelectItem value="unassign">Non assegnato</SelectItem>
-                                                    {allUsers.map((u) => {
-                                                        const isUnavailable = unavailabilityMap[u.id];
-                                                        return (
-                                                        <SelectItem key={u.id} value={u.id}>
-                                                            {u.name} {isUnavailable ? '(Non Disp.)' : '(Disponibile)'}
-                                                        </SelectItem>
-                                                    )})}
+                                                    {usersByPreferenceAndAvailability.suggested.length > 0 && (
+                                                        <SelectGroup>
+                                                            <SelectLabel className="text-primary">Suggeriti (disponibili con preferenza)</SelectLabel>
+                                                            {renderUserOptions(usersByPreferenceAndAvailability.suggested, <CheckCircle className="text-green-500" />)}
+                                                        </SelectGroup>
+                                                    )}
+                                                    {usersByPreferenceAndAvailability.available.length > 0 && (
+                                                        <SelectGroup>
+                                                            <SelectLabel>Disponibili</SelectLabel>
+                                                            {renderUserOptions(usersByPreferenceAndAvailability.available, <CircleUser />)}
+                                                        </SelectGroup>
+                                                    )}
+                                                     {usersByPreferenceAndAvailability.unavailable.length > 0 && (
+                                                        <SelectGroup>
+                                                            <SelectLabel className="text-destructive">Indisponibili</SelectLabel>
+                                                            {renderUserOptions(usersByPreferenceAndAvailability.unavailable, <XCircle className="text-destructive"/>)}
+                                                        </SelectGroup>
+                                                    )}
                                                 </>
                                             )}
                                         </SelectContent>
