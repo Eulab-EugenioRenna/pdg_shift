@@ -4,7 +4,7 @@
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
 import { pb } from "@/lib/pocketbase";
 import { ClientResponseError, type RecordModel } from "pocketbase";
-import { format, startOfMonth, endOfMonth, addDays, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addDays, isSameDay, addMonths } from 'date-fns';
 import { sendNotification } from "@/lib/notifications";
 
 
@@ -95,7 +95,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
     try {
         const now = new Date();
         const sDate = startOfMonth(now);
-        const eDate = endOfMonth(now);
+        const eDate = addMonths(sDate, 3); // Look 3 months ahead
 
         let churchFilter: string | null = null;
 
@@ -114,7 +114,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             const allUserServices = [...servicesAsLeader, ...servicesAsTeamMember];
             const eventIdsAsParticipant = [...new Set(allUserServices.map(s => s.event))];
 
-            if (eventIdsAsParticipant.length === 0) {
+            if (eventIdsAsParticipant.length === 0 && (!userChurchIds || userChurchIds.length === 0)) {
                  const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
                  return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
             }
@@ -199,7 +199,11 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         let finalEventsList = sortedEvents;
 
         if (userRole === 'volontario') {
-            finalEventsList = sortedEvents.filter(e => e.expand.services.length > 0);
+            finalEventsList = sortedEvents.filter(e => {
+                const isCancelled = e.name.startsWith('[Annullato]');
+                if (isCancelled) return true; // Show cancelled events
+                return e.expand.services.length > 0
+            });
              finalEventsList.forEach(event => {
                 event.expand.services.forEach(s => {
                     if(!s.expand?.leader) openPositions++;
@@ -217,10 +221,18 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             cache: 'no-store',
         });
 
+        const statsStartDate = new Date();
+        const statsEndDate = endOfMonth(statsStartDate);
+
+        const upcomingEventsForStats = activeEventsForStats.filter(e => {
+            const eventDate = new Date(e.start_date);
+            return eventDate >= statsStartDate && eventDate <= statsEndDate;
+        });
+
         return {
             events: JSON.parse(JSON.stringify(finalEventsList)),
             stats: {
-                upcomingEvents: activeEventsForStats.length,
+                upcomingEvents: upcomingEventsForStats.length,
                 openPositions,
                 unreadNotifications: unreadNotifications.length,
             }
@@ -1034,4 +1046,5 @@ export async function deleteSocialLink(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
+
 
