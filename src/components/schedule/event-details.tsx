@@ -4,7 +4,7 @@
 import { useState, useTransition } from 'react';
 import type { RecordModel } from 'pocketbase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Calendar, Clock, MoreVertical, Repeat } from 'lucide-react';
+import { Loader2, Calendar, Clock, MoreVertical, Repeat, Trash2, Edit } from 'lucide-react';
 import { Button } from '../ui/button';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -14,7 +14,7 @@ import { ManageEventDialog } from './manage-event-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceList } from './service-list';
-import { deleteEvent, createEventOverride } from '@/app/actions';
+import { deleteEvent, createEventOverride, createCancellationEvent } from '@/app/actions';
 
 interface EventDetailsProps {
     event: RecordModel;
@@ -34,6 +34,9 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
 
     const [overrideInfo, setOverrideInfo] = useState<{ event: RecordModel; date: Date } | null>(null);
     const [isCreatingOverride, startOverrideTransition] = useTransition();
+    
+    const [occurrenceToCancel, setOccurrenceToCancel] = useState<{ event: RecordModel; date: Date } | null>(null);
+    const [isCancelling, startCancelTransition] = useTransition();
 
     const canManageEvent = () => {
         if (!user || !event) return false;
@@ -53,11 +56,7 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
 
     const handleDeleteClick = () => {
         if (event.isRecurringInstance) {
-            toast({
-                variant: 'destructive',
-                title: 'Azione non permessa',
-                description: "Non puoi eliminare una singola occorrenza di un evento ricorrente. Devi eliminare l'intera serie dalle impostazioni dell'evento."
-            });
+            setOccurrenceToCancel({ event, date: new Date(event.start_date) });
         } else {
             setEventToDelete(event);
         }
@@ -100,6 +99,21 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
         }
     };
 
+    const handleCancelOccurrence = () => {
+        if (!occurrenceToCancel || !user) return;
+        
+        startCancelTransition(async () => {
+            try {
+                const cancelledEvent = await createCancellationEvent(occurrenceToCancel.event.id, occurrenceToCancel.date.toISOString(), user);
+                toast({ title: "Successo", description: "L'occorrenza dell'evento è stata annullata." });
+                onEventUpserted(cancelledEvent); 
+                setOccurrenceToCancel(null);
+            } catch (error: any) {
+                toast({ variant: "destructive", title: "Errore", description: error.message });
+            }
+        });
+    };
+
 
     return (
         <>
@@ -120,10 +134,10 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuItem onSelect={handleEditClick}>
-                                        Modifica
+                                        <Edit className="mr-2 h-4 w-4" /> Modifica
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={handleDeleteClick} className="text-destructive">
-                                        Elimina
+                                        <Trash2 className="mr-2 h-4 w-4" /> {event.isRecurringInstance ? "Annulla Occorrenza" : "Elimina"}
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -180,6 +194,24 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
                         <AlertDialogAction onClick={handleCreateOverride} disabled={isCreatingOverride}>
                             {isCreatingOverride && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Crea Variazione per questa data
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            
+            <AlertDialog open={!!occurrenceToCancel} onOpenChange={() => setOccurrenceToCancel(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Annullare questa occorrenza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Questa azione non può essere annullata. Questo annullerà l'evento "{occurrenceToCancel?.event.name}" solo per la data {occurrenceToCancel && format(occurrenceToCancel.date, 'dd MMMM yyyy')}.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isCancelling}>Indietro</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleCancelOccurrence} disabled={isCancelling} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                             {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Sì, annulla
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

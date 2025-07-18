@@ -127,11 +127,13 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
     }, [churchIds, user]);
     
     const filteredEvents = useMemo(() => {
-        const singleEvents = events.filter(e => !e.is_recurring);
+        const singleAndVariationEvents = events.filter(e => !e.is_recurring);
         const recurringTemplates = events.filter(e => e.is_recurring);
     
-        const singleEventDateKeys = new Set(
-            singleEvents.map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
+        const overrideDateChurchKeys = new Set(
+            singleAndVariationEvents
+                .filter(e => e.name.startsWith('[Variazione]') || e.name.startsWith('[Annullato]'))
+                .map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
         );
         
         let recurrenceRangeStart = new Date();
@@ -151,10 +153,11 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
             .flatMap(event => generateRecurringInstances(event, recurrenceRangeStart, futureLimit))
             .filter(instance => {
                 const dateKey = `${format(new Date(instance.start_date), 'yyyy-MM-dd')}-${instance.church}`;
-                return !singleEventDateKeys.has(dateKey);
+                return !overrideDateChurchKeys.has(dateKey);
             });
     
-        const allPossibleEvents = [...singleEvents, ...recurringInstances];
+        const allPossibleEvents = [...singleAndVariationEvents, ...recurringInstances]
+            .filter(e => !e.name.startsWith('[Annullato]'));
     
         const finalFilteredEvents = allPossibleEvents.filter(event => {
             const matchSearch = searchTerm

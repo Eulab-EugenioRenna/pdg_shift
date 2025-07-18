@@ -149,9 +149,9 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         const recurringTemplateFilter = `is_recurring = true && ${churchFilter}`;
         const recurringTemplates = await pb.collection('pdg_events').getFullList({ filter: recurringTemplateFilter, cache: 'no-store' });
 
-        const variationDateChurchKeys = new Set(
+        const overrideDateChurchKeys = new Set(
             singleAndVariationEvents
-                .filter(e => e.name.startsWith('[Variazione]'))
+                .filter(e => e.name.startsWith('[Variazione]') || e.name.startsWith('[Annullato]'))
                 .map(e => `${format(new Date(e.start_date), 'yyyy-MM-dd')}-${e.church}`)
         );
 
@@ -159,10 +159,11 @@ export async function getDashboardData(userId: string, userRole: string, userChu
             .flatMap(event => generateDashboardRecurringInstances(event, sDate, eDate))
             .filter(instance => {
                 const dateKey = `${format(new Date(instance.start_date), 'yyyy-MM-dd')}-${instance.church}`;
-                return !variationDateChurchKeys.has(dateKey);
+                return !overrideDateChurchKeys.has(dateKey);
             });
         
-        const allEventInstances = [...singleAndVariationEvents, ...recurringInstances];
+        const allEventInstances = [...singleAndVariationEvents, ...recurringInstances]
+            .filter(e => !e.name.startsWith('[Annullato]')); // Filter out cancelled events from the final list
         
         const eventIds = [...new Set(allEventInstances.map(e => e.id))];
         if (eventIds.length === 0) {
@@ -609,6 +610,40 @@ export async function createEventOverride(originalEventId: string, occurrenceDat
 
     } catch (error: any) {
         console.error("Error creating event override:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function createCancellationEvent(originalEventId: string, occurrenceDateISO: string, user: any) {
+    try {
+        const templateEvent = await pb.collection('pdg_events').getOne(originalEventId);
+        
+        const occurrenceDate = new Date(occurrenceDateISO);
+        const templateStartDate = new Date(templateEvent.start_date);
+        const templateEndDate = new Date(templateEvent.end_date);
+        const duration = templateEndDate.getTime() - templateStartDate.getTime();
+        
+        const newStartDate = new Date(occurrenceDate);
+        newStartDate.setHours(templateStartDate.getHours(), templateStartDate.getMinutes(), templateStartDate.getSeconds());
+        
+        const newEndDate = new Date(newStartDate.getTime() + duration);
+        
+        const newEventData = {
+            church: templateEvent.church,
+            name: `[Annullato] ${templateEvent.name}`,
+            description: `Evento annullato per questa data da ${user.name}.`,
+            start_date: newStartDate.toISOString(),
+            end_date: newEndDate.toISOString(),
+            is_recurring: false,
+            recurring_day: null,
+        };
+        
+        const newEventRecord = await pb.collection('pdg_events').create(newEventData);
+        
+        return JSON.parse(JSON.stringify(newEventRecord));
+
+    } catch (error: any) {
+        console.error("Error creating cancellation event:", error);
         throw new Error(getErrorMessage(error));
     }
 }
