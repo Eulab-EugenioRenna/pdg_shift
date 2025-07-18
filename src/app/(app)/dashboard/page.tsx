@@ -7,7 +7,7 @@ import { Calendar, Users, Bell, Loader2, CalendarDays } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getDashboardData, type DashboardEvent } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format, isWithinInterval } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, format, isWithinInterval, isSameMonth } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DashboardCalendar } from '@/components/dashboard/dashboard-calendar';
@@ -16,6 +16,7 @@ import { EventCard } from '@/components/dashboard/event-card';
 import { useRouter } from 'next/navigation';
 import { NotificationsDialog } from '@/components/dashboard/notifications-dialog';
 import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
 
 type ViewMode = 'week' | 'month';
 
@@ -83,11 +84,20 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
     useEffect(() => {
         if (isLoading || !allEvents || !displayStats) return;
 
+        const now = new Date();
+        // If we are viewing the current month/week, start counting from today.
+        // Otherwise, start from the beginning of the selected period.
+        const statsStartDate = isSameMonth(currentDate, now) ? now : dateRange.start;
+
         const eventsInCurrentView = allEvents.filter(event => {
             if (event.name.startsWith('[Annullato]')) return false;
-            return isWithinInterval(new Date(event.start_date), dateRange);
-        });
 
+            const eventDate = new Date(event.start_date);
+            // Check if the event is within the date range for display AND
+            // if it's after the stats start date for counting.
+            return isWithinInterval(eventDate, dateRange) && eventDate >= statsStartDate;
+        });
+        
         let openPositionsInView = 0;
         eventsInCurrentView.forEach(event => {
             event.expand?.services?.forEach((service: any) => {
@@ -129,6 +139,11 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
     
     const handleMonthChange = (month: Date) => {
         setCurrentDate(month);
+        setSelectedDate(undefined);
+    }
+
+    const handleGoToToday = () => {
+        setCurrentDate(new Date());
         setSelectedDate(undefined);
     }
     
@@ -234,6 +249,7 @@ export default function DashboardPage({ profileJustCompleted }: DashboardPagePro
                                     selected={selectedDate}
                                     onSelect={handleSelectDate}
                                     onMonthChange={handleMonthChange}
+                                    onGoToToday={handleGoToToday}
                                 />
                             ) : (
                                 <WeeklyCalendarView 
