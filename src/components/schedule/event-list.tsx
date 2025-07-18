@@ -191,16 +191,18 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <Card className="h-full">
+                <CardContent className="pt-6 h-full flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </CardContent>
+            </Card>
         );
     }
     
     if (events.length === 0 && churchIds.length > 0) {
         return (
-            <Card>
-                <CardContent className="pt-6">
+            <Card className="h-full">
+                <CardContent className="pt-6 h-full flex items-center justify-center">
                     <p className="text-center text-muted-foreground">Nessun evento trovato. Crea il primo!</p>
                 </CardContent>
             </Card>
@@ -209,8 +211,8 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
 
     if (filteredEvents.length === 0) {
         return (
-            <Card>
-                <CardContent className="pt-6">
+            <Card className="h-full">
+                <CardContent className="pt-6 h-full flex items-center justify-center">
                     <p className="text-center text-muted-foreground">Nessun evento corrisponde ai filtri selezionati.</p>
                 </CardContent>
             </Card>
@@ -233,8 +235,8 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
                         </TooltipContent>
                     </Tooltip>
                 </CardHeader>
-                <CardContent className="p-0 flex-grow min-h-0">
-                    <ScrollArea className={cn("flex-grow", isMaximized ? 'h-auto' : 'h-[300px]')}>
+                <CardContent className={cn("p-0 flex-grow", isMaximized ? 'h-auto' : 'h-[300px] lg:h-auto')}>
+                    <ScrollArea className="h-full">
                         <div className="space-y-2 p-4 pt-0">
                             {filteredEvents.map(event => (
                                 <button
