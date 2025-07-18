@@ -47,6 +47,7 @@ function getIconForIssue(type: Issue['type']) {
 export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: IssuesDialogProps) {
 
   const [serviceToManage, setServiceToManage] = useState<RecordModel | null>(null);
+  const [eventForService, setEventForService] = useState<RecordModel | null>(null);
   const [isManageServiceOpen, setIsManageServiceOpen] = useState(false);
 
   const groupedIssues = issues.reduce((acc, issue) => {
@@ -62,8 +63,9 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
   }, {} as Record<string, { event: RecordModel; issues: Issue[] }>);
 
 
-  const handleManageClick = (service: RecordModel) => {
-    setServiceToManage(service);
+  const handleManageClick = (issue: Issue) => {
+    setServiceToManage(issue.service);
+    setEventForService(issue.event);
     setIsManageServiceOpen(true);
   };
   
@@ -110,7 +112,7 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
                                                     <p className="text-xs text-muted-foreground">{issue.service.name}</p>
                                                 </div>
                                             </div>
-                                            <Button size="sm" variant="outline" onClick={() => handleManageClick(issue.service)}>
+                                            <Button size="sm" variant="outline" onClick={() => handleManageClick(issue)}>
                                                 Gestisci
                                             </Button>
                                         </div>
@@ -138,13 +140,13 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
         </DialogContent>
       </Dialog>
 
-      {serviceToManage && (
+      {serviceToManage && eventForService && (
          <ManageServiceDialog
             isOpen={isManageServiceOpen}
             setIsOpen={setIsManageServiceOpen}
             service={serviceToManage}
             churchId={serviceToManage.church}
-            eventDate={serviceToManage.event.start_date}
+            eventDate={eventForService.start_date}
             onServiceUpdated={handleServiceUpdated}
         />
       )}
