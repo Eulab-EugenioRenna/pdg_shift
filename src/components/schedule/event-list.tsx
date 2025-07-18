@@ -235,7 +235,7 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
                         </TooltipContent>
                     </Tooltip>
                 </CardHeader>
-                <CardContent className={cn("p-0 flex-grow", isMaximized ? 'h-auto' : 'h-[300px] lg:h-auto')}>
+                <CardContent className={cn("p-0 flex-grow", isMaximized ? 'h-auto' : 'h-[300px] ')}>
                     <ScrollArea className="h-full">
                         <div className="space-y-2 p-4 pt-0">
                             {filteredEvents.map(event => (
