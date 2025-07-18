@@ -221,7 +221,7 @@ export default function SchedulePage() {
                     )}
                 </div>
 
-                <div className="xl:col-span-2" ref={detailsRef}>
+                <div className="xl:col-span-2 h-full" ref={detailsRef}>
                     {selectedEvent ? (
                         <EventDetails 
                             key={selectedEvent.isRecurringInstance ? `${selectedEvent.id}-${selectedEvent.start_date}` : selectedEvent.id}
