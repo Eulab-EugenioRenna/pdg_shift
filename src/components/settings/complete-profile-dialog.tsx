@@ -30,7 +30,7 @@ interface CompleteProfileDialogProps {
 }
 
 export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompleteProfileDialogProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -170,6 +170,7 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
             onProfileCompleted();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Errore', description: error.message || 'Impossibile aggiornare il profilo.' });
+            logout();
         }
     });
   };
