@@ -47,14 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await pb.collection('pdg_users').authRefresh({
         expand: 'church',
       });
-    } catch (error) {
-       // If the refresh fails with a 401, it means the token is invalid/expired.
-       // We can just log out silently without polluting the console.
-      if (error instanceof Error && (error as ClientResponseError).status === 401) {
+    } catch (_) {
+       // If the refresh fails for ANY reason (e.g., token invalid, user deleted),
+       // the safest thing to do is to clear the invalid auth state.
         logout();
-      } else {
-        console.error("Impossibile aggiornare l'utente:", error);
-      }
     }
   }, [logout]);
 
