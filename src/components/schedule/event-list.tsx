@@ -249,9 +249,8 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
                                         className={cn(
                                             "w-full text-left p-3 rounded-lg border transition-colors",
                                             selectedEventId === (event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id) ? "bg-accent border-primary" : "hover:bg-accent/50",
-                                            isCancelled && "border-destructive/30 bg-destructive/10 text-muted-foreground line-through pointer-events-none"
+                                            isCancelled && "border-destructive/30 bg-destructive/10 text-muted-foreground line-through"
                                         )}
-                                        disabled={isCancelled}
                                     >
                                         <div className="flex justify-between items-start">
                                             <p className="font-semibold">{event.name}</p>
