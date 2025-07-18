@@ -150,14 +150,13 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
         recurrenceRangeStart.setHours(0, 0, 0, 0);
     
         const recurringInstances = recurringTemplates
-            .flatMap(event => generateRecurringInstances(event, recurrenceRangeStart, futureLimit))
+            .flatMap(event => generateRecurringInstances(event, recurrenceRangeStart, dateRange?.to || futureLimit))
             .filter(instance => {
                 const dateKey = `${format(new Date(instance.start_date), 'yyyy-MM-dd')}-${instance.church}`;
                 return !overrideDateChurchKeys.has(dateKey);
             });
     
-        const allPossibleEvents = [...singleAndVariationEvents, ...recurringInstances]
-            .filter(e => !e.name.startsWith('[Annullato]'));
+        const allPossibleEvents = [...singleAndVariationEvents, ...recurringInstances];
     
         const finalFilteredEvents = allPossibleEvents.filter(event => {
             const matchSearch = searchTerm
@@ -238,31 +237,36 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
                         </TooltipContent>
                     </Tooltip>
                 </CardHeader>
-                <CardContent className={cn("p-0 flex-grow", isMaximized ? 'h-auto' : 'h-[300px] ')}>
+                <CardContent className={cn("p-0 flex-grow", isMaximized ? 'h-auto' : 'h-[300px] lg:h-auto min-h-0')}>
                     <ScrollArea className="h-full">
                         <div className="space-y-2 p-4 pt-0">
-                            {filteredEvents.map(event => (
-                                <button
-                                    key={event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id}
-                                    onClick={() => onSelectEvent(event)}
-                                    className={cn(
-                                        "w-full text-left p-3 rounded-lg border transition-colors",
-                                        selectedEventId === (event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id) ? "bg-accent border-primary" : "hover:bg-accent/50"
-                                    )}
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <p className="font-semibold">{event.name}</p>
-                                        {event.isRecurringInstance && <Repeat className="h-4 w-4 text-muted-foreground" title="Evento Ricorrente" />}
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {format(new Date(event.start_date), "eeee d MMMM yyyy", { locale: it })}
-                                    </p>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                        <Building className="h-3 w-3" />
-                                        <span>{churchesMap.get(event.church) || 'Chiesa non trovata'}</span>
-                                    </div>
-                                </button>
-                            ))}
+                            {filteredEvents.map(event => {
+                                const isCancelled = event.name.startsWith('[Annullato]');
+                                return (
+                                    <button
+                                        key={event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id}
+                                        onClick={() => onSelectEvent(event)}
+                                        className={cn(
+                                            "w-full text-left p-3 rounded-lg border transition-colors",
+                                            selectedEventId === (event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id) ? "bg-accent border-primary" : "hover:bg-accent/50",
+                                            isCancelled && "border-destructive/30 bg-destructive/10 text-muted-foreground line-through pointer-events-none"
+                                        )}
+                                        disabled={isCancelled}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <p className="font-semibold">{event.name}</p>
+                                            {event.isRecurringInstance && <Repeat className="h-4 w-4 text-muted-foreground" title="Evento Ricorrente" />}
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            {format(new Date(event.start_date), "eeee d MMMM yyyy", { locale: it })}
+                                        </p>
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                            <Building className="h-3 w-3" />
+                                            <span>{churchesMap.get(event.church) || 'Chiesa non trovata'}</span>
+                                        </div>
+                                    </button>
+                                )
+                            })}
                         </div>
                     </ScrollArea>
                 </CardContent>
