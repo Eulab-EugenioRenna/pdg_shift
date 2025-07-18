@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building, UserPlus, UserCog, Trash2, ListTodo, ClipboardPlus, Rss } from 'lucide-react';
+import { Building, UserPlus, UserCog, Trash2, ListTodo, ClipboardPlus, Rss, History } from 'lucide-react';
 import { ManageChurchesDialog } from '@/components/admin/manage-churches-dialog';
 import { ManageUsersDialog } from '@/components/admin/manage-users-dialog';
 import { ManageProfileDialog } from '@/components/settings/manage-profile-dialog';
@@ -12,6 +12,7 @@ import { ManageServiceTemplatesDialog } from '@/components/admin/manage-service-
 import { ManageEventTemplatesDialog } from '@/components/admin/manage-event-templates-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { ManageWebhookSettingsCard } from './manage-webhook-settings-card';
+import { ManageRecurrenceSettingsCard } from './manage-recurrence-settings-card';
 
 export default function AdminSettings() {
     const { user } = useAuth();
@@ -104,7 +105,12 @@ export default function AdminSettings() {
                     </CardContent>
                 </Card>
             </div>
-             {user?.role === 'superuser' && <ManageWebhookSettingsCard />}
+             {user?.role === 'superuser' && (
+                <div className="grid gap-6 md:grid-cols-2">
+                    <ManageWebhookSettingsCard />
+                    <ManageRecurrenceSettingsCard />
+                </div>
+             )}
         </div>
     );
 }

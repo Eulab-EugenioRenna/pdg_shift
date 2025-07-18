@@ -93,9 +93,12 @@ export async function getDashboardData(userId: string, userRole: string, userChu
     }
 }> {
     try {
+        const recurrenceMonthsSetting = await getSetting('recurring_event_months_visibility');
+        const recurrenceMonths = recurrenceMonthsSetting ? parseInt(recurrenceMonthsSetting.value, 10) : 3;
+
         const now = new Date();
         const sDate = startOfMonth(now);
-        const eDate = addMonths(sDate, 3); // Look 3 months ahead
+        const eDate = addMonths(sDate, recurrenceMonths);
 
         let churchFilter: string | null = null;
 
@@ -118,7 +121,6 @@ export async function getDashboardData(userId: string, userRole: string, userChu
                  const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
                  return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
             }
-            // Volunteers need to see events from all their churches to know about recurring events they are not yet part of
             if (!userChurchIds || userChurchIds.length === 0) {
                  const unreadNotifications = await pb.collection('pdg_notifications').getFullList({ filter: `user = "${userId}" && read = false`, fields: 'id', cache: 'no-store' });
                  return { events: [], stats: { upcomingEvents: 0, openPositions: 0, unreadNotifications: unreadNotifications.length } };
@@ -164,7 +166,6 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         
         const allEventInstances = [...singleAndVariationEvents, ...recurringInstances];
         
-        // Filter out cancelled events for stats, but keep them for display
         const activeEventsForStats = allEventInstances.filter(e => !e.name.startsWith('[Annullato]'));
 
         const eventIds = [...new Set(activeEventsForStats.map(e => e.id))];
@@ -180,7 +181,6 @@ export async function getDashboardData(userId: string, userRole: string, userChu
         }
         
         const eventsWithServices = allEventInstances.map(eventInstance => {
-            // Cancelled events have no services
             if (eventInstance.name.startsWith('[Annullato]')) {
                  return { ...eventInstance, expand: { services: [] }};
             }
@@ -200,9 +200,7 @@ export async function getDashboardData(userId: string, userRole: string, userChu
 
         if (userRole === 'volontario') {
             finalEventsList = sortedEvents.filter(e => {
-                const isCancelled = e.name.startsWith('[Annullato]');
-                if (isCancelled) return true; // Show cancelled events
-                return e.expand.services.length > 0
+                return e.expand.services.length > 0 || e.name.startsWith('[Annullato]');
             });
              finalEventsList.forEach(event => {
                 event.expand.services.forEach(s => {
@@ -978,11 +976,15 @@ export async function getSetting(key: string) {
 }
 
 export async function updateSetting(key: string, value: string) {
-    const existing = await getSetting(key);
-    if (existing) {
-        return await pb.collection('pdg_settings').update(existing.id, { value });
-    } else {
-        return await pb.collection('pdg_settings').create({ key, value });
+    try {
+        const existing = await getSetting(key);
+        if (existing) {
+            return await pb.collection('pdg_settings').update(existing.id, { value });
+        } else {
+            return await pb.collection('pdg_settings').create({ key, value });
+        }
+    } catch (error: any) {
+         throw new Error(getErrorMessage(error));
     }
 }
 
@@ -1046,5 +1048,6 @@ export async function deleteSocialLink(id: string) {
         throw new Error(getErrorMessage(error));
     }
 }
+
 
 

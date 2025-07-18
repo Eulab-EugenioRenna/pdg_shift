@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getEvents, getChurches } from '@/app/actions';
+import { getEvents, getChurches, getSetting } from '@/app/actions';
 import type { RecordModel } from 'pocketbase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Repeat, Building, Maximize, Minimize } from 'lucide-react';
 import { Button } from '../ui/button';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { pb } from '@/lib/pocketbase';
@@ -79,6 +79,16 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
     const [churchesMap, setChurchesMap] = useState<Map<string, string>>(new Map());
     const [isLoading, setIsLoading] = useState(true);
     const [isMaximized, setIsMaximized] = useState(false);
+    const [recurrenceMonths, setRecurrenceMonths] = useState(3);
+    
+    useEffect(() => {
+        getSetting('recurring_event_months_visibility')
+            .then(setting => {
+                if (setting) {
+                    setRecurrenceMonths(parseInt(setting.value, 10));
+                }
+            });
+    }, []);
     
     const fetchAndSetEvents = () => {
         if (churchIds.length === 0) {
@@ -138,7 +148,7 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
         
         let recurrenceRangeStart = new Date();
         const futureLimit = new Date();
-        futureLimit.setMonth(futureLimit.getMonth() + 3);
+        futureLimit.setMonth(futureLimit.getMonth() + recurrenceMonths);
     
         if (dateRange?.from) {
             recurrenceRangeStart = new Date(dateRange.from);
@@ -184,7 +194,7 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
         });
     
         return finalFilteredEvents.sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-    }, [events, searchTerm, dateRange, showPastEvents]);
+    }, [events, searchTerm, dateRange, showPastEvents, recurrenceMonths]);
     
     useEffect(() => {
         onEventsFiltered(filteredEvents);
@@ -249,11 +259,11 @@ export function EventList({ churchIds, searchTerm, dateRange, showPastEvents, on
                                         className={cn(
                                             "w-full text-left p-3 rounded-lg border transition-colors",
                                             selectedEventId === (event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id) ? "bg-accent border-primary" : "hover:bg-accent/50",
-                                            isCancelled && "border-destructive/30 bg-destructive/10 text-muted-foreground line-through"
+                                            isCancelled && "border-destructive/30 bg-destructive/10 text-muted-foreground"
                                         )}
                                     >
                                         <div className="flex justify-between items-start">
-                                            <p className="font-semibold">{event.name}</p>
+                                            <p className={cn("font-semibold", isCancelled && "line-through")}>{event.name}</p>
                                             {event.isRecurringInstance && <Repeat className="h-4 w-4 text-muted-foreground" title="Evento Ricorrente" />}
                                         </div>
                                         <p className="text-sm text-muted-foreground">
