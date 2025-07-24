@@ -5,6 +5,7 @@ import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
 import { pb } from "@/lib/pocketbase";
 import { ClientResponseError, type RecordModel } from "pocketbase";
 import { format, startOfMonth, endOfMonth, addDays, isSameDay, addMonths, eachWeekOfInterval, previousSunday, isBefore } from 'date-fns';
+import { it } from 'date-fns/locale';
 import { sendNotification } from "@/lib/notifications";
 
 
@@ -347,7 +348,7 @@ export async function getUsers(userId?: string, userRole?: string, churchId?: st
 
         const options: { sort: string; expand: string; filter?: string; cache: 'no-store' } = {
             sort: 'name',
-            expand: 'church',
+            expand: 'church,service_preferences',
             cache: 'no-store'
         };
 
@@ -744,6 +745,38 @@ export async function getServicesForEvent(eventId: string) {
     }
 }
 
+const generateServiceSummaryBody = (service: RecordModel, event: RecordModel): string => {
+    const assignedRoles: string[] = [];
+    const unassignedRoles: string[] = [];
+
+    const leaderName = service.expand?.leader?.name || 'Non assegnato';
+    assignedRoles.push(`Leader: ${leaderName}`);
+
+    const teamMembersMap = new Map(service.expand?.team?.map((m: RecordModel) => [m.id, m.name]) || []);
+
+    if (service.positions && service.positions.length > 0) {
+        service.positions.forEach((position: string) => {
+            const assignedUserId = service.team_assignments?.[position];
+            if (assignedUserId && teamMembersMap.has(assignedUserId)) {
+                assignedRoles.push(`${position}: ${teamMembersMap.get(assignedUserId)}`);
+            } else {
+                unassignedRoles.push(position);
+            }
+        });
+    }
+
+    let body = `Riepilogo per il servizio "${service.name}" dell'evento "${event.name}" del ${format(new Date(event.start_date), 'dd/MM/yyyy', { locale: it })}.\n\n`;
+    body += 'Persone in turno:\n';
+    body += assignedRoles.map(r => `- ${r}`).join('\n');
+    
+    if (unassignedRoles.length > 0) {
+        body += '\n\nPosizioni scoperte:\n';
+        body += unassignedRoles.map(r => `- ${r}`).join('\n');
+    }
+
+    return body;
+};
+
 export async function createService(serviceData: any, user: any) {
     try {
         const record = await pb.collection('pdg_services').create(serviceData);
@@ -760,6 +793,8 @@ export async function createService(serviceData: any, user: any) {
             // Fetch event details to include in notification
             const eventRecord = await pb.collection('pdg_events').getOne(finalRecord.event);
             
+            const notificationBody = generateServiceSummaryBody(finalRecord, eventRecord);
+
             // Enrich the data for the notification
             const notificationData = {
                 event: eventRecord,
@@ -770,7 +805,7 @@ export async function createService(serviceData: any, user: any) {
             await sendNotification({
                 type: 'service_created',
                 title: `Nuovo servizio: ${finalRecord.name}`,
-                body: `Sei stato aggiunto al servizio "${finalRecord.name}" per l'evento "${eventRecord.name}".`,
+                body: notificationBody,
                 data: notificationData,
                 userIds: userIdsToNotify
             });
@@ -800,6 +835,8 @@ export async function updateService(id: string, serviceData: any, user: any) {
         if (allInvolvedUsers.length > 0) {
             // Fetch event details to include in notification
             const eventRecord = await pb.collection('pdg_events').getOne(finalRecord.event);
+
+            const notificationBody = generateServiceSummaryBody(finalRecord, eventRecord);
             
             // Enrich the data for the notification
             const notificationData = {
@@ -811,7 +848,7 @@ export async function updateService(id: string, serviceData: any, user: any) {
             await sendNotification({
                 type: 'service_updated',
                 title: `Team aggiornato per: ${finalRecord.name}`,
-                body: `Il team per il servizio "${finalRecord.name}" dell'evento "${eventRecord.name}" è stato aggiornato.`,
+                body: notificationBody,
                 data: notificationData,
                 userIds: allInvolvedUsers
             });
@@ -1145,9 +1182,12 @@ export async function getServiceTemplatesForUserPreferences(userId: string) {
         const user = await pb.collection('pdg_users').getOne(userId, {
             expand: 'service_preferences'
         });
-        return user.expand?.service_preferences?.map((st: any) => st.name) || [];
+        return user.expand?.service_preferences?.map((st: any) => st.id) || [];
     } catch (error) {
         console.error("Error fetching service templates for user:", error);
         return [];
     }
 }
+
+
+    
