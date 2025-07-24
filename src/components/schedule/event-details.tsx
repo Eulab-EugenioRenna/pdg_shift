@@ -14,7 +14,7 @@ import { ManageEventDialog } from './manage-event-dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '../ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ServiceList } from './service-list';
-import { deleteEvent, createEventOverride, createCancellationEvent } from '@/app/actions';
+import { deleteEvent, createEventOverride, createCancellationEvent, deleteRecurringEventAndPreserveHistory } from '@/app/actions';
 
 interface EventDetailsProps {
     event: RecordModel;
@@ -38,6 +38,9 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
     const [occurrenceToCancel, setOccurrenceToCancel] = useState<{ event: RecordModel; date: Date } | null>(null);
     const [isCancelling, startCancelTransition] = useTransition();
 
+    const [seriesToDelete, setSeriesToDelete] = useState<RecordModel | null>(null);
+    const [isDeletingSeries, startDeleteSeriesTransition] = useTransition();
+
     const canManageEvent = () => {
         if (!user || !event) return false;
         if (user.role === 'superuser') return true;
@@ -55,11 +58,7 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
     };
 
     const handleDeleteClick = () => {
-        if (event.isRecurringInstance) {
-            setOccurrenceToCancel({ event, date: new Date(event.start_date) });
-        } else {
-            setEventToDelete(event);
-        }
+        setEventToDelete(event);
     };
     
     const handleCreateOverride = () => {
@@ -84,7 +83,7 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
         setOverrideInfo(null);
     };
 
-    const handleDeleteConfirm = async () => {
+    const handleDeleteSingleEvent = async () => {
         if (!eventToDelete) return;
         setIsDeleting(true);
         try {
@@ -100,18 +99,88 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
     };
 
     const handleCancelOccurrence = () => {
-        if (!occurrenceToCancel || !user) return;
+        if (!eventToDelete || !user) return;
         
         startCancelTransition(async () => {
             try {
-                const cancelledEvent = await createCancellationEvent(occurrenceToCancel.event.id, occurrenceToCancel.date.toISOString(), user);
+                const cancelledEvent = await createCancellationEvent(eventToDelete.id, eventToDelete.start_date, user);
                 toast({ title: "Successo", description: "L'occorrenza dell'evento è stata annullata." });
                 onEventUpserted(cancelledEvent); 
-                setOccurrenceToCancel(null);
+                setEventToDelete(null);
             } catch (error: any) {
                 toast({ variant: "destructive", title: "Errore", description: error.message });
+            } finally {
+                setEventToDelete(null);
             }
         });
+    };
+
+    const handleDeleteSeries = () => {
+        if (!eventToDelete || !user) return;
+        
+        startDeleteSeriesTransition(async () => {
+            try {
+                await deleteRecurringEventAndPreserveHistory(eventToDelete.id, user);
+                toast({ title: "Successo", description: "La serie di eventi è stata terminata e lo storico preservato." });
+                onEventUpserted();
+            } catch (error: any) {
+                toast({ variant: "destructive", title: "Errore", description: error.message });
+            } finally {
+                setEventToDelete(null);
+            }
+        });
+    }
+
+    const DeleteDialog = () => {
+        if (!eventToDelete) return null;
+
+        if (eventToDelete.isRecurringInstance) {
+            // Dialog with 3 options for recurring instances
+            return (
+                <AlertDialog open={!!eventToDelete} onOpenChange={() => setEventToDelete(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Gestisci Evento Ricorrente</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Stai agendo su un'occorrenza di un evento ricorrente. Cosa vorresti fare?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="flex-col sm:flex-col sm:space-x-0 gap-2">
+                             <Button onClick={handleCancelOccurrence} disabled={isCancelling}>
+                                {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Annulla solo questa data
+                            </Button>
+                             <Button variant="destructive" onClick={handleDeleteSeries} disabled={isDeletingSeries}>
+                                {isDeletingSeries && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Elimina l'intera serie (conserva lo storico)
+                            </Button>
+                            <AlertDialogCancel>Indietro</AlertDialogCancel>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            );
+        } else {
+            // Simple delete confirmation for single events
+            return (
+                 <AlertDialog open={!!eventToDelete} onOpenChange={() => setEventToDelete(null)}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Questa azione non può essere annullata. Questo eliminerà permanentemente l'evento "{eventToDelete?.name}" e tutti i suoi servizi.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Annulla</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteSingleEvent} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Elimina
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            );
+        }
     };
 
 
@@ -134,11 +203,12 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuItem onSelect={handleEditClick}>
-                                        <Edit className="mr-2 h-4 w-4" /> Modifica
+                                        <Edit className="mr-2 h-4 w-4" /> 
+                                        <span>{event.isRecurringInstance ? "Modifica / Varia" : "Modifica"}</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onSelect={handleDeleteClick} className="text-destructive">
                                         <Trash2 className="mr-2 h-4 w-4" />
-                                        <span>{event.isRecurringInstance ? "Annulla Occorrenza" : "Elimina"}</span>
+                                        <span>{event.isRecurringInstance ? "Annulla / Elimina" : "Elimina"}</span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -200,41 +270,7 @@ export function EventDetails({ event, userChurches, onEventUpserted }: EventDeta
                 </AlertDialogContent>
             </AlertDialog>
             
-            <AlertDialog open={!!occurrenceToCancel} onOpenChange={() => setOccurrenceToCancel(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Annullare questa occorrenza?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Questa azione non può essere annullata. Questo annullerà l'evento "{occurrenceToCancel?.event.name}" solo per la data {occurrenceToCancel && format(occurrenceToCancel.date, 'dd MMMM yyyy')}.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isCancelling}>Indietro</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleCancelOccurrence} disabled={isCancelling} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                             {isCancelling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Sì, annulla
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={!!eventToDelete} onOpenChange={() => setEventToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Questa azione non può essere annullata. Questo eliminerà permanentemente l'evento "{eventToDelete?.name}" e tutti i suoi servizi.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Annulla</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteConfirm} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                             {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Elimina
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <DeleteDialog />
         </>
     );
 }

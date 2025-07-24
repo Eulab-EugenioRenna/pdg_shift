@@ -4,7 +4,7 @@
 import { suggestTeam, SuggestTeamInput } from "@/ai/flows/smart-team-builder";
 import { pb } from "@/lib/pocketbase";
 import { ClientResponseError, type RecordModel } from "pocketbase";
-import { format, startOfMonth, endOfMonth, addDays, isSameDay, addMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addDays, isSameDay, addMonths, eachWeekOfInterval, previousSunday, isBefore } from 'date-fns';
 import { sendNotification } from "@/lib/notifications";
 
 
@@ -61,6 +61,7 @@ const generateDashboardRecurringInstances = (
     
     const recurringDay = parseInt(event.recurring_day, 10);
     
+    // Adjust currentDate to the first occurrence of recurringDay on or after rangeStart
     const dayOfWeek = currentDate.getDay();
     const daysToAdd = (recurringDay - dayOfWeek + 7) % 7;
     currentDate.setDate(currentDate.getDate() + daysToAdd);
@@ -70,19 +71,20 @@ const generateDashboardRecurringInstances = (
     const duration = originalEndTime.getTime() - originalStartTime.getTime();
 
     while (currentDate <= rangeEnd) {
-        const newStartDate = new Date(currentDate);
-        newStartDate.setHours(originalStartTime.getHours(), originalStartTime.getMinutes(), originalStartTime.getSeconds());
-        
-        const newEndDate = new Date(newStartDate.getTime() + duration);
+        if (currentDate >= recurrenceStartDate) {
+            const newStartDate = new Date(currentDate);
+            newStartDate.setHours(originalStartTime.getHours(), originalStartTime.getMinutes(), originalStartTime.getSeconds());
+            
+            const newEndDate = new Date(newStartDate.getTime() + duration);
 
-        instances.push({
-            ...event,
-            id: event.id, // The ID of the template event
-            start_date: newStartDate.toISOString(),
-            end_date: newEndDate.toISOString(),
-            isRecurringInstance: true,
-        });
-
+            instances.push({
+                ...event,
+                id: event.id, // The ID of the template event
+                start_date: newStartDate.toISOString(),
+                end_date: newEndDate.toISOString(),
+                isRecurringInstance: true,
+            });
+        }
         currentDate.setDate(currentDate.getDate() + 7);
     }
 
@@ -583,6 +585,58 @@ export async function deleteEvent(id: string) {
         return { success: true };
     } catch (error: any) {
         console.error("Error deleting event:", error);
+        throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function deleteRecurringEventAndPreserveHistory(templateEventId: string, user: any) {
+    try {
+        const templateEvent = await pb.collection('pdg_events').getOne(templateEventId);
+        
+        const today = new Date();
+        const recurrenceStartDate = new Date(templateEvent.start_date);
+
+        // 1. Get all past occurrences that should have happened
+        const pastInstances = generateDashboardRecurringInstances(templateEvent, recurrenceStartDate, today);
+        
+        // 2. Get existing variations/cancellations for this church
+        const existingOverrides = await pb.collection('pdg_events').getFullList({
+            filter: `church = "${templateEvent.church}" && is_recurring = false && (name ~ "${templateEvent.name}" || description ~ "${templateEvent.name}")`,
+            fields: 'start_date',
+        });
+        const overrideDates = new Set(existingOverrides.map(e => format(new Date(e.start_date), 'yyyy-MM-dd')));
+
+        // 3. For each past instance, if no override exists, create a snapshot event
+        for (const instance of pastInstances) {
+            const instanceDateStr = format(new Date(instance.start_date), 'yyyy-MM-dd');
+
+            if (!overrideDates.has(instanceDateStr)) {
+                // No override exists, create a snapshot
+                const snapshotEvent = await createEventOverride(templateEventId, instance.start_date);
+                
+                await sendNotification({
+                    type: 'event_created_from_recurring',
+                    title: `Evento salvato: ${snapshotEvent.name}`,
+                    body: `L'evento ricorrente è stato terminato e questo evento passato è stato salvato come singolo.`,
+                    data: { event: snapshotEvent, user },
+                });
+            }
+        }
+
+        // 4. Finally, delete the recurring event template
+        await deleteEvent(templateEventId);
+
+        await sendNotification({
+            type: 'event_series_deleted',
+            title: `Serie di eventi terminata: ${templateEvent.name}`,
+            body: `La serie di eventi ricorrenti è stata terminata da ${user.name}. Gli eventi passati sono stati conservati.`,
+            data: { event: templateEvent, user },
+        });
+
+        return { success: true, message: 'Serie ricorrente terminata, storico preservato.' };
+
+    } catch (error: any) {
+        console.error("Error deleting recurring event series:", error);
         throw new Error(getErrorMessage(error));
     }
 }
