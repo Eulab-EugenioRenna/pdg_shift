@@ -104,16 +104,14 @@ export function SmartRosterDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-3xl">
-        <ScrollArea className="max-h-[90vh]">
-          <div className="p-6 pt-0">
-            <DialogHeader className="pt-6">
-              <DialogTitle className="font-headline text-2xl text-center">Composizione Intelligente dei Turni</DialogTitle>
-              <DialogDescription className="text-center">
-                Usa la nostra IA per trovare i volontari più adatti per ogni ruolo.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 px-4 py-2">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-2xl text-center">Composizione Intelligente dei Turni</DialogTitle>
+            <DialogDescription className="text-center">
+              Usa la nostra IA per trovare i volontari più adatti per ogni ruolo.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh] p-4">
+            <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <div className="space-y-2">
                       <Label htmlFor="serviceName">Nome del Servizio</Label>
@@ -135,7 +133,7 @@ export function SmartRosterDialog() {
                 </div>
             </div>
             
-            <div className="flex justify-center my-2">
+            <div className="flex justify-center my-4">
               <Button onClick={handleSuggestion} disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                 Suggerisci Volontari
@@ -181,7 +179,7 @@ export function SmartRosterDialog() {
                 </div>
               )}
 
-            <Accordion type="single" collapsible className="w-full">
+            <Accordion type="single" collapsible className="w-full mt-4">
                 <AccordionItem value="item-1">
                     <AccordionTrigger>Visualizza l'elenco dei volontari di esempio</AccordionTrigger>
                     <AccordionContent>
@@ -196,8 +194,7 @@ export function SmartRosterDialog() {
                     </AccordionContent>
                 </AccordionItem>
             </Accordion>
-          </div>
-        </ScrollArea>
+          </ScrollArea>
       </DialogContent>
     </Dialog>
   );
