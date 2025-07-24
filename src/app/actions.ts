@@ -747,19 +747,31 @@ export async function getServicesForEvent(eventId: string) {
 export async function createService(serviceData: any, user: any) {
     try {
         const record = await pb.collection('pdg_services').create(serviceData);
+        
+        // Fetch the full record with expansions
         const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader,team' });
         
         const userIdsToNotify = [
             ...(finalRecord.leader ? [finalRecord.leader] : []),
             ...(finalRecord.team || [])
         ].filter((id, index, self) => self.indexOf(id) === index);
-        
+
         if (userIdsToNotify.length > 0) {
+            // Fetch event details to include in notification
+            const eventRecord = await pb.collection('pdg_events').getOne(finalRecord.event);
+            
+            // Enrich the data for the notification
+            const notificationData = {
+                event: eventRecord,
+                service: finalRecord,
+                user: user, // The user who made the change
+            };
+
             await sendNotification({
                 type: 'service_created',
                 title: `Nuovo servizio: ${finalRecord.name}`,
-                body: `Sei stato aggiunto al servizio "${finalRecord.name}".`,
-                data: { service: finalRecord, user },
+                body: `Sei stato aggiunto al servizio "${finalRecord.name}" per l'evento "${eventRecord.name}".`,
+                data: notificationData,
                 userIds: userIdsToNotify
             });
         }
@@ -775,20 +787,33 @@ export async function updateService(id: string, serviceData: any, user: any) {
     try {
         const oldRecord = await pb.collection('pdg_services').getOne(id);
         const record = await pb.collection('pdg_services').update(id, serviceData);
+        
+        // Fetch the full record with expansions
         const finalRecord = await pb.collection('pdg_services').getOne(record.id, { expand: 'leader,team' });
 
-        const oldTeam = new Set([...(oldRecord.team || []), oldRecord.leader].filter(Boolean));
-        const newTeam = new Set([...(finalRecord.team || []), finalRecord.leader].filter(Boolean));
+        const oldTeamSet = new Set([...(oldRecord.team || []), oldRecord.leader].filter(Boolean));
+        const newTeamSet = new Set([...(finalRecord.team || []), finalRecord.leader].filter(Boolean));
         
-        const addedUsers = [...newTeam].filter(x => !oldTeam.has(x));
-        
-        if (addedUsers.length > 0) {
-             await sendNotification({
-                type: 'service_updated_added',
-                title: `Aggiunto al servizio: ${finalRecord.name}`,
-                body: `Sei stato aggiunto al servizio "${finalRecord.name}".`,
-                data: { service: finalRecord, user },
-                userIds: addedUsers
+        const addedUsers = [...newTeamSet].filter(x => !oldTeamSet.has(x));
+        const allInvolvedUsers = [...newTeamSet];
+
+        if (allInvolvedUsers.length > 0) {
+            // Fetch event details to include in notification
+            const eventRecord = await pb.collection('pdg_events').getOne(finalRecord.event);
+            
+            // Enrich the data for the notification
+            const notificationData = {
+                event: eventRecord,
+                service: finalRecord,
+                user: user, // The user who made the change
+            };
+
+            await sendNotification({
+                type: 'service_updated',
+                title: `Team aggiornato per: ${finalRecord.name}`,
+                body: `Il team per il servizio "${finalRecord.name}" dell'evento "${eventRecord.name}" è stato aggiornato.`,
+                data: notificationData,
+                userIds: allInvolvedUsers
             });
         }
 
@@ -798,6 +823,7 @@ export async function updateService(id: string, serviceData: any, user: any) {
         throw new Error(getErrorMessage(error));
     }
 }
+
 
 export async function deleteService(id: string) {
     try {
@@ -1111,5 +1137,17 @@ export async function deleteSocialLink(id: string) {
     } catch (error) {
         console.error("Error deleting social link:", error);
         throw new Error(getErrorMessage(error));
+    }
+}
+
+export async function getServiceTemplatesForUserPreferences(userId: string) {
+    try {
+        const user = await pb.collection('pdg_users').getOne(userId, {
+            expand: 'service_preferences'
+        });
+        return user.expand?.service_preferences?.map((st: any) => st.name) || [];
+    } catch (error) {
+        console.error("Error fetching service templates for user:", error);
+        return [];
     }
 }

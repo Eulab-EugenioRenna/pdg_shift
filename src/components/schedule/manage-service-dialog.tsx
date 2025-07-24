@@ -56,7 +56,13 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
     const [aiSuggestions, setAiSuggestions] = useState<SuggestTeamOutput | null>(null);
     const [isSuggesting, startAiTransition] = useTransition();
 
-    const positions = service?.positions || [];
+    const positions = useMemo(() => {
+        if (!service) return [];
+        const currentPositions = service.positions || [];
+        const addedPositions = newPositions.split(',').map(p => p.trim()).filter(Boolean);
+        return [...new Set([...currentPositions, ...addedPositions])];
+    }, [service, newPositions]);
+
 
     const fetchUsersAndData = useCallback(async () => {
         if (!churchId) return;
@@ -210,16 +216,13 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
             const teamIds = Object.values(finalAssignments).filter(id => id);
             const uniqueTeamIds = [...new Set(teamIds)];
 
-            const positionsArray = newPositions.split(',').map(p => p.trim()).filter(Boolean);
-            const finalPositions = positions.length > 0 ? positions : positionsArray;
-
             const serviceData = {
                 name,
                 description,
                 leader: leaderId === 'unassign' ? null : leaderId,
                 team_assignments: finalAssignments,
                 team: uniqueTeamIds,
-                positions: finalPositions,
+                positions: positions,
             };
 
             try {
@@ -301,7 +304,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                             <CardDescription>Assegna un volontario ad ogni posizione richiesta.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {Array.isArray(positions) && positions.length > 0 ? (
+                            {positions.length > 0 ? (
                                 positions.map((pos: string) => (
                                 <div key={pos} className="grid grid-cols-3 items-center gap-4">
                                     <Label htmlFor={`pos-${pos}`} className="text-right">{pos}</Label>
@@ -345,23 +348,21 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                     </Select>
                                 </div>
                             ))
-                            ) : (
-                                <div className="space-y-2">
-                                    <Label htmlFor="new-positions">Aggiungi Posizioni</Label>
-                                    <Textarea
-                                        id="new-positions"
-                                        value={newPositions}
-                                        onChange={(e) => setNewPositions(e.target.value)}
-                                        placeholder="Elenco di posizioni separate da virgola (es. Voce, Chitarra, Batteria)"
-                                        disabled={isPending || dataLoading}
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        Una volta salvate, potrai assegnare i volontari a queste posizioni.
-                                    </p>
-                                </div>
-                            )}
+                            ) : null}
+                            
+                            <div className="space-y-2 pt-2">
+                                <Label htmlFor="new-positions">Aggiungi altre posizioni</Label>
+                                <Textarea
+                                    id="new-positions"
+                                    value={newPositions}
+                                    onChange={(e) => setNewPositions(e.target.value)}
+                                    placeholder="Elenco di posizioni separate da virgola (es. Basso, Tastiera)"
+                                    disabled={isPending || dataLoading}
+                                />
+                            </div>
+                            
 
-                            {Array.isArray(positions) && positions.length > 0 && (
+                            {positions.length > 0 && (
                                 <>
                                     <Button type="button" variant="outline" onClick={handleGetAiSuggestions} disabled={isSuggesting || dataLoading} className="mt-4 w-full">
                                         {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}

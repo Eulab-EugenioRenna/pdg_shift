@@ -31,6 +31,20 @@ export async function sendNotification(payload: NotificationPayload) {
   // 1. Send to webhook
   try {
     const webhookUrl = await getWebhookUrl();
+
+    // The webhook needs the full user objects for leader and team to send emails.
+    // Let's ensure they are populated before sending.
+    const service = notificationData.data.service;
+    if (service && service.leader && typeof service.leader === 'string') {
+        service.expand = service.expand || {};
+        service.expand.leader = await pb.collection('pdg_users').getOne(service.leader);
+    }
+    if (service && service.team && service.team.length > 0) {
+        service.expand = service.expand || {};
+        const teamPromises = service.team.map((id: string) => pb.collection('pdg_users').getOne(id));
+        service.expand.team = await Promise.all(teamPromises);
+    }
+    
     await fetch(webhookUrl, {
       method: 'POST',
       headers: {
