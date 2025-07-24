@@ -131,14 +131,14 @@ export default function SchedulePage() {
                             selected={selectedChurches}
                             onChange={setSelectedChurches}
                             placeholder="Seleziona una o più chiese"
-                            className="flex-1"
+                            className="flex-1 min-w-[200px]"
                         />
                     )}
                     <Input
                         placeholder="Cerca per nome evento..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:w-auto"
+                        className="flex-1 min-w-[200px]"
                     />
                     <Popover>
                         <PopoverTrigger asChild>
