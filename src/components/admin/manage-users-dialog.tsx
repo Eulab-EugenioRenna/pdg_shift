@@ -37,6 +37,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { UserForm } from '@/components/admin/user-form';
 import { useAuth } from '@/hooks/useAuth';
 import { ScrollArea } from '../ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface ManageUsersDialogProps {
     triggerButton?: React.ReactNode;
@@ -215,7 +216,7 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
     return false;
   }
 
-  const Trigger = triggerButton ? triggerButton : (
+  const DefaultTrigger = (
       <Button>
         <UserCog className="mr-2" />
         Gestisci Utenti
@@ -226,9 +227,9 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          {Trigger}
+          {triggerButton || DefaultTrigger}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{getDialogTitle()}</DialogTitle>
              {view === 'list' && (
@@ -238,7 +239,7 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
 
           {view === 'list' ? (
              <>
-                <div className="px-6 space-y-4">
+                <div className="space-y-4 border-b pb-4">
                     <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                         <Input
                             placeholder="Cerca per nome o email..."
@@ -274,42 +275,67 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                         <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
                     </div>
                 </div>
-                <ScrollArea className="flex-grow min-h-0 border-t border-b">
-                <div className="px-6">
-                    {isLoading ? (
-                        <div className="flex items-center justify-center h-full py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                    ) : (
-                        <Table className="table-fixed">
+                <ScrollArea className="max-h-[50vh]">
+                  {isLoading ? (
+                      <div className="flex items-center justify-center h-full py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                  ) : (
+                    <>
+                      {/* Mobile View */}
+                      <div className="md:hidden space-y-3 py-4">
+                        {processedUsers.length > 0 ? processedUsers.map(user => {
+                          const canManage = canManageUser(user);
+                          return (
+                            <div key={user.id} className="border rounded-lg p-3 flex flex-col space-y-2">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                  <Avatar>
+                                      <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
+                                      <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-semibold">{user.name}</p>
+                                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-1">
+                                    <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per modificare questo utente" : "Modifica utente"}><Edit className="h-4 w-4" /></Button>
+                                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per eliminare questo utente" : "Elimina utente"}><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                              </div>
+                              <div className="text-xs space-y-1 pl-12">
+                                  <p><span className="font-medium">Ruolo:</span> <span className="capitalize">{user.role}</span></p>
+                                  <div className="flex items-start"><span className="font-medium w-12 shrink-0">Chiese:</span> <ChurchList user={user} /></div>
+                              </div>
+                            </div>
+                          )
+                        }) : (
+                          <div className="text-center py-10 text-muted-foreground">Nessun utente trovato.</div>
+                        )}
+                      </div>
+
+                      {/* Desktop View */}
+                      <Table className="hidden md:table">
                         <TableHeader className="sticky top-0 bg-background z-10">
                             <TableRow>
                             <TableHead className="w-[60px] px-2">Avatar</TableHead>
                             <TableHead className="w-1/4 px-2">
-                                <span className="hidden md:inline-flex">
-                                    <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
-                                        Nome
-                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </span>
-                                <span className="md:hidden">Nome</span>
+                                <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                    Nome
+                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
                             </TableHead>
                             <TableHead className="w-1/4 px-2">
-                                <span className="hidden md:inline-flex">
-                                    <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
-                                        Email
-                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </span>
-                                <span className="md:hidden">Email</span>
+                                <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
+                                    Email
+                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
                             </TableHead>
                             <TableHead className="w-1/4 px-2">Chiesa</TableHead>
                             <TableHead className="w-1/4 px-2">
-                                <span className="hidden md:inline-flex">
-                                    <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
-                                        Ruolo
-                                        <ArrowUpDown className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </span>
-                                <span className="md:hidden">Ruolo</span>
+                                <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
+                                    Ruolo
+                                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                                </Button>
                             </TableHead>
                             <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
                             </TableRow>
@@ -340,8 +366,8 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                             })}
                         </TableBody>
                         </Table>
-                    )}
-                </div>
+                    </>
+                  )}
                 </ScrollArea>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Chiudi</Button></DialogClose>
@@ -375,5 +401,3 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
     </>
   );
 }
-
-    

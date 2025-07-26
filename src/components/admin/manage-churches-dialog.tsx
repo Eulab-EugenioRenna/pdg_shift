@@ -169,7 +169,7 @@ export function ManageChurchesDialog() {
 
           {view === 'list' ? (
              <>
-                <div className="px-6 space-y-4">
+                <div className="space-y-4">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <Input
                             placeholder="Cerca chiese..."
@@ -180,8 +180,8 @@ export function ManageChurchesDialog() {
                         <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Chiesa</Button>
                     </div>
                 </div>
-                 <div className="flex-grow min-h-0 px-6">
-                    <ScrollArea className="h-full">
+                 <ScrollArea>
+                    <div className="flex-grow min-h-0">
                         {isLoading ? (
                             <div className="flex items-center justify-center h-40">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -232,8 +232,8 @@ export function ManageChurchesDialog() {
                             </TableBody>
                             </Table>
                         )}
-                    </ScrollArea>
-                 </div>
+                    </div>
+                 </ScrollArea>
                 <DialogFooter>
                     <DialogClose asChild>
                     <Button variant="outline">Chiudi</Button>
@@ -241,15 +241,11 @@ export function ManageChurchesDialog() {
                 </DialogFooter>
             </>
           ) : (
-             <div className="flex-grow min-h-0 px-6">
-                <ScrollArea className="h-full">
-                    <ChurchForm 
-                        church={churchToEdit}
-                        onSave={handleBackToList}
-                        onCancel={() => setView('list')}
-                    />
-                </ScrollArea>
-            </div>
+            <ChurchForm 
+                church={churchToEdit}
+                onSave={handleBackToList}
+                onCancel={() => setView('list')}
+            />
           )}
         </DialogContent>
       </Dialog>

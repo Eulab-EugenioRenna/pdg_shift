@@ -126,8 +126,7 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, userChurches, 
               Compila i dettagli del link. Verrà visualizzato nella pagina Social per le chiese selezionate.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-grow min-h-0">
-            <ScrollArea className="h-full -mx-6 px-6">
+            <ScrollArea>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
                     <Label htmlFor="link-name">Nome</Label>
@@ -182,7 +181,6 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, userChurches, 
                     </div>
                 </form>
             </ScrollArea>
-          </div>
             <DialogFooter className="flex-row justify-between pt-4">
             <div>
                 {link && (

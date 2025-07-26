@@ -96,7 +96,7 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
             Qui trovi tutti gli aggiornamenti che ti riguardano.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-grow min-h-0 relative">
+        <div className="relative">
             {isUpdating && (
                 <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
                     <Loader2 className="h-6 w-6 animate-spin" />
@@ -107,7 +107,7 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
             ) : notifications.length > 0 ? (
-            <ScrollArea className="h-full -mx-6 px-6">
+            <ScrollArea>
                 <div className="space-y-3 py-4">
                 {notifications.map((n) => (
                     <div
