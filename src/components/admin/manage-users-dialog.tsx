@@ -9,7 +9,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
@@ -241,7 +240,7 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
           </DialogHeader>
 
           {view === 'list' ? (
-             <div className="space-y-4 py-4">
+             <div className="space-y-4">
                 <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                      <Input
                         placeholder="Cerca per nome o email..."
@@ -343,6 +342,9 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                     </Table>
                 )}
                 </ScrollArea>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Chiudi</Button></DialogClose>
+                </DialogFooter>
              </div>
           ) : (
              <UserForm 
@@ -350,12 +352,6 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                 onSave={handleBackToList}
                 onCancel={() => setView('list')}
             />
-          )}
-
-          {view === 'list' && (
-            <DialogFooter>
-                <DialogClose asChild><Button variant="outline">Chiudi</Button></DialogClose>
-            </DialogFooter>
           )}
         </DialogContent>
       </Dialog>
@@ -378,3 +374,5 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
     </>
   );
 }
+
+    
