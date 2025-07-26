@@ -87,14 +87,10 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
         fetchUsersAndChurches();
     };
     
-    const unsubscribe = pb.collection('pdg_users').subscribe('*', handleSubscription);
+    const unsubscribePromise = pb.collection('pdg_users').subscribe('*', handleSubscription);
     
     return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      } else {
-        Promise.resolve(unsubscribe).then(fn => fn());
-      }
+        Promise.resolve(unsubscribePromise).then(unsubscribe => unsubscribe());
     };
     
   }, [open, currentUser, fetchUsersAndChurches]);
@@ -232,7 +228,7 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
         <DialogTrigger asChild>
           {Trigger}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{getDialogTitle()}</DialogTitle>
              {view === 'list' && (
@@ -241,112 +237,116 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
           </DialogHeader>
 
           {view === 'list' ? (
-             <div className="space-y-4">
-                <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                     <Input
-                        placeholder="Cerca per nome o email..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="max-w-sm"
-                    />
-                    <div className='flex flex-col sm:flex-row gap-2 w-full md:w-auto'>
-                      <Select value={churchFilter} onValueChange={setChurchFilter}>
-                          <SelectTrigger className="w-full sm:w-[180px]">
-                              <SelectValue placeholder="Filtra per chiesa" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="all">Tutte le chiese</SelectItem>
-                              {allChurches.map(church => (
-                                  <SelectItem key={church.id} value={church.id}>{church.name}</SelectItem>
-                              ))}
-                          </SelectContent>
-                      </Select>
-                      <Select value={roleFilter} onValueChange={setRoleFilter}>
-                          <SelectTrigger className="w-full sm:w-[150px]">
-                              <SelectValue placeholder="Filtra per ruolo" />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="all">Tutti i ruoli</SelectItem>
-                              {currentUser?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
-                              {(currentUser?.role === 'superuser' || currentUser?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
-                              <SelectItem value="leader">Leader</SelectItem>
-                              <SelectItem value="volontario">Volontario</SelectItem>
-                          </SelectContent>
-                      </Select>
+             <>
+                <div className="px-6 space-y-4">
+                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                        <Input
+                            placeholder="Cerca per nome o email..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="max-w-sm"
+                        />
+                        <div className='flex flex-col sm:flex-row gap-2 w-full md:w-auto'>
+                        <Select value={churchFilter} onValueChange={setChurchFilter}>
+                            <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectValue placeholder="Filtra per chiesa" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tutte le chiese</SelectItem>
+                                {allChurches.map(church => (
+                                    <SelectItem key={church.id} value={church.id}>{church.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select value={roleFilter} onValueChange={setRoleFilter}>
+                            <SelectTrigger className="w-full sm:w-[150px]">
+                                <SelectValue placeholder="Filtra per ruolo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Tutti i ruoli</SelectItem>
+                                {currentUser?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
+                                {(currentUser?.role === 'superuser' || currentUser?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
+                                <SelectItem value="leader">Leader</SelectItem>
+                                <SelectItem value="volontario">Volontario</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        </div>
+                        <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
                     </div>
-                    <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
                 </div>
-                <ScrollArea className="h-[60vh] rounded-md border">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                ) : (
-                    <Table className="table-fixed">
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                        <TableRow>
-                          <TableHead className="w-[60px] px-2">Avatar</TableHead>
-                          <TableHead className="w-1/4 px-2">
-                            <span className="hidden md:inline-flex">
-                                <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
-                                    Nome
-                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </span>
-                            <span className="md:hidden">Nome</span>
-                          </TableHead>
-                          <TableHead className="w-1/4 px-2">
-                            <span className="hidden md:inline-flex">
-                                <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
-                                    Email
-                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </span>
-                            <span className="md:hidden">Email</span>
-                          </TableHead>
-                          <TableHead className="w-1/4 px-2">Chiesa</TableHead>
-                          <TableHead className="w-1/4 px-2">
-                            <span className="hidden md:inline-flex">
-                                <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
-                                    Ruolo
-                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </span>
-                             <span className="md:hidden">Ruolo</span>
-                          </TableHead>
-                          <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {processedUsers.map((user) => {
-                            const canManage = canManageUser(user);
-                            return (
-                                <TableRow key={user.id}>
-                                    <TableCell className="p-2">
-                                        <Avatar>
-                                            <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
-                                            <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                    </TableCell>
-                                    <TableCell className="font-medium p-2 whitespace-nowrap">{user.name}</TableCell>
-                                    <TableCell className="p-2 whitespace-nowrap truncate">{user.email}</TableCell>
-                                    <TableCell className="p-2 whitespace-nowrap"><ChurchList user={user} /></TableCell>
-                                    <TableCell className="capitalize p-2 whitespace-nowrap">{user.role}</TableCell>
-                                    <TableCell className="text-right p-2">
-                                        <div className="flex gap-2 justify-end">
-                                            <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per modificare questo utente" : "Modifica utente"}><Edit className="h-4 w-4" /></Button>
-                                            <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per eliminare questo utente" : "Elimina utente"}><Trash2 className="h-4 w-4" /></Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                    </Table>
-                )}
+                <ScrollArea className="flex-grow min-h-0 border-t border-b">
+                <div className="px-6">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-full py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                    ) : (
+                        <Table className="table-fixed">
+                        <TableHeader className="sticky top-0 bg-background z-10">
+                            <TableRow>
+                            <TableHead className="w-[60px] px-2">Avatar</TableHead>
+                            <TableHead className="w-1/4 px-2">
+                                <span className="hidden md:inline-flex">
+                                    <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                        Nome
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </span>
+                                <span className="md:hidden">Nome</span>
+                            </TableHead>
+                            <TableHead className="w-1/4 px-2">
+                                <span className="hidden md:inline-flex">
+                                    <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
+                                        Email
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </span>
+                                <span className="md:hidden">Email</span>
+                            </TableHead>
+                            <TableHead className="w-1/4 px-2">Chiesa</TableHead>
+                            <TableHead className="w-1/4 px-2">
+                                <span className="hidden md:inline-flex">
+                                    <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
+                                        Ruolo
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </span>
+                                <span className="md:hidden">Ruolo</span>
+                            </TableHead>
+                            <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {processedUsers.map((user) => {
+                                const canManage = canManageUser(user);
+                                return (
+                                    <TableRow key={user.id}>
+                                        <TableCell className="p-2">
+                                            <Avatar>
+                                                <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
+                                                <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                        </TableCell>
+                                        <TableCell className="font-medium p-2 whitespace-nowrap">{user.name}</TableCell>
+                                        <TableCell className="p-2 whitespace-nowrap truncate">{user.email}</TableCell>
+                                        <TableCell className="p-2 whitespace-nowrap"><ChurchList user={user} /></TableCell>
+                                        <TableCell className="capitalize p-2 whitespace-nowrap">{user.role}</TableCell>
+                                        <TableCell className="text-right p-2">
+                                            <div className="flex gap-2 justify-end">
+                                                <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per modificare questo utente" : "Modifica utente"}><Edit className="h-4 w-4" /></Button>
+                                                <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per eliminare questo utente" : "Elimina utente"}><Trash2 className="h-4 w-4" /></Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                        </Table>
+                    )}
+                </div>
                 </ScrollArea>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Chiudi</Button></DialogClose>
                 </DialogFooter>
-             </div>
+             </>
           ) : (
              <UserForm 
                 user={userToEdit}
@@ -375,3 +375,5 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
     </>
   );
 }
+
+    
