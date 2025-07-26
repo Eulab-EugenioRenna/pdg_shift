@@ -278,7 +278,7 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                 </div>
                 <ScrollArea className="h-[60vh] rounded-md border">
                 {isLoading ? (
-                    <div className="flex items-center justify-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                    <div className="flex items-center justify-center h-full"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : (
                     <Table className="table-fixed">
                     <TableHeader className="sticky top-0 bg-background z-10">
@@ -375,7 +375,3 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
     </>
   );
 }
-
-    
-
-    
