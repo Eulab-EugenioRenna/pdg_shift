@@ -32,6 +32,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { pb } from '@/lib/pocketbase';
 import { ChurchForm } from '@/components/admin/church-form';
 import { useAuth } from '@/hooks/useAuth';
+import { ScrollArea } from '../ui/scroll-area';
 
 
 export function ManageChurchesDialog() {
@@ -177,7 +178,7 @@ export function ManageChurchesDialog() {
                     />
                     <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Chiesa</Button>
                 </div>
-                <div className="rounded-md border max-h-80 overflow-y-auto">
+                <ScrollArea className="h-[60vh] rounded-md border">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-40">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -228,14 +229,16 @@ export function ManageChurchesDialog() {
                     </TableBody>
                     </Table>
                 )}
-                </div>
+                </ScrollArea>
              </div>
           ) : (
-            <ChurchForm 
-              church={churchToEdit}
-              onSave={handleBackToList}
-              onCancel={() => setView('list')}
-            />
+             <ScrollArea className="h-[70vh] p-4">
+                <ChurchForm 
+                    church={churchToEdit}
+                    onSave={handleBackToList}
+                    onCancel={() => setView('list')}
+                />
+            </ScrollArea>
           )}
 
           {view === 'list' && (

@@ -35,6 +35,7 @@ import { pb } from '@/lib/pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import { useAuth } from '@/hooks/useAuth';
+import { ScrollArea } from '../ui/scroll-area';
 
 
 function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
@@ -122,73 +123,75 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 py-4">
-      <div>
-        <Label htmlFor="template-name">Nome Tipo di Servizio</Label>
-        <Input 
-          id="template-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={isPending}
-          placeholder="Es. Team Lode"
-          required
-        />
-      </div>
-      <div>
-        <Label htmlFor="church-select">Chiesa/e</Label>
-        <MultiSelect
-            id="church-select"
-            options={churchOptions}
-            selected={churchIds}
-            onChange={handleChurchChange}
-            placeholder={dataLoading ? "Caricamento..." : "Seleziona una o più chiese"}
-            disabled={isPending || dataLoading}
-        />
-      </div>
-       <div>
-        <Label htmlFor="template-description">Descrizione (Opzionale)</Label>
-        <Textarea 
-          id="template-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          disabled={isPending}
-          placeholder="Breve descrizione del servizio"
-        />
-      </div>
-       <div>
-        <Label htmlFor="template-positions">Posizioni del Team</Label>
-        <Textarea 
-          id="template-positions"
-          value={positions}
-          onChange={(e) => setPositions(e.target.value)}
-          disabled={isPending}
-          placeholder="Elenco di posizioni separate da virgola (es. Voce, Chitarra, Batteria)"
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          Inserisci le posizioni richieste per questo servizio, separate da una virgola.
-        </p>
-      </div>
-      <div>
-        <Label htmlFor="leader-select">Leader Predefinito (Opzionale)</Label>
-        <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading || churchIds.length === 0 || leaders.length === 0}>
-            <SelectTrigger id="leader-select">
-                <SelectValue placeholder={churchIds.length === 0 ? "Prima seleziona una chiesa" : "Seleziona un leader..."} />
-            </SelectTrigger>
-            <SelectContent>
-                 <SelectItem value="unassign">Nessun leader predefinito</SelectItem>
-                {leaders.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
-      </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
-        <Button type="submit" disabled={isPending || dataLoading}>
-          {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
-        </Button>
-      </DialogFooter>
-    </form>
+    <ScrollArea className="h-[70vh]">
+        <form onSubmit={handleSubmit} className="space-y-4 py-4 pr-4">
+        <div>
+            <Label htmlFor="template-name">Nome Tipo di Servizio</Label>
+            <Input 
+            id="template-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isPending}
+            placeholder="Es. Team Lode"
+            required
+            />
+        </div>
+        <div>
+            <Label htmlFor="church-select">Chiesa/e</Label>
+            <MultiSelect
+                id="church-select"
+                options={churchOptions}
+                selected={churchIds}
+                onChange={handleChurchChange}
+                placeholder={dataLoading ? "Caricamento..." : "Seleziona una o più chiese"}
+                disabled={isPending || dataLoading}
+            />
+        </div>
+        <div>
+            <Label htmlFor="template-description">Descrizione (Opzionale)</Label>
+            <Textarea 
+            id="template-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={isPending}
+            placeholder="Breve descrizione del servizio"
+            />
+        </div>
+        <div>
+            <Label htmlFor="template-positions">Posizioni del Team</Label>
+            <Textarea 
+            id="template-positions"
+            value={positions}
+            onChange={(e) => setPositions(e.target.value)}
+            disabled={isPending}
+            placeholder="Elenco di posizioni separate da virgola (es. Voce, Chitarra, Batteria)"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+            Inserisci le posizioni richieste per questo servizio, separate da una virgola.
+            </p>
+        </div>
+        <div>
+            <Label htmlFor="leader-select">Leader Predefinito (Opzionale)</Label>
+            <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading || churchIds.length === 0 || leaders.length === 0}>
+                <SelectTrigger id="leader-select">
+                    <SelectValue placeholder={churchIds.length === 0 ? "Prima seleziona una chiesa" : "Seleziona un leader..."} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="unassign">Nessun leader predefinito</SelectItem>
+                    {leaders.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+        <DialogFooter className="sticky bottom-0 bg-background pt-4 -mx-4 px-4 pb-0">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
+            <Button type="submit" disabled={isPending || dataLoading}>
+            {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
+            </Button>
+        </DialogFooter>
+        </form>
+    </ScrollArea>
   )
 }
 
@@ -334,7 +337,7 @@ export function ManageServiceTemplatesDialog() {
                     />
                     <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Tipo</Button>
                 </div>
-                <div className="rounded-md border max-h-80 overflow-y-auto">
+                <ScrollArea className="h-[60vh] rounded-md border">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-40">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -382,7 +385,7 @@ export function ManageServiceTemplatesDialog() {
                     </TableBody>
                     </Table>
                 )}
-                </div>
+                </ScrollArea>
              </div>
           ) : (
             <ServiceTemplateForm 

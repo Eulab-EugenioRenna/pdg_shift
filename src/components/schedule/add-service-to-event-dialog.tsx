@@ -21,6 +21,7 @@ import type { RecordModel } from 'pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '../ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface AddServiceToEventDialogProps {
   isOpen: boolean;
@@ -158,83 +159,87 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
             Aggiungi un servizio da un modello pre-configurato o creane uno nuovo. È obbligatorio assegnare un leader.
           </DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="template" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="template">Da Modello</TabsTrigger>
-            <TabsTrigger value="custom">Nuovo Servizio</TabsTrigger>
-          </TabsList>
-          <TabsContent value="template">
-            <form onSubmit={handleTemplateSubmit} className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label htmlFor="template-select">Modello di Servizio</Label>
-                    <Select onValueChange={setSelectedTemplateId} value={selectedTemplateId} disabled={isPending || dataLoading || serviceTemplates.length === 0} required>
-                        <SelectTrigger id="template-select">
-                            <SelectValue placeholder="Seleziona un modello..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {serviceTemplates.length > 0 ? serviceTemplates.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>
-                                    {t.name}
-                                </SelectItem>
-                            )) : <p className="text-sm text-muted-foreground p-2">Nessun modello per questa chiesa.</p>}
-                        </SelectContent>
-                    </Select>
-                </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="template-leader-select">Leader</Label>
-                    <Select onValueChange={setTemplateLeaderId} value={templateLeaderId} disabled={isPending || dataLoading || leaders.length === 0} required>
-                        <SelectTrigger id="template-leader-select">
-                            <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {leaders.map((l) => (
-                                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                    <Button type="submit" disabled={isPending || dataLoading || !selectedTemplateId}>
-                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Aggiungi Servizio
-                    </Button>
-                </DialogFooter>
-            </form>
-          </TabsContent>
-          <TabsContent value="custom">
-            <form onSubmit={handleCustomSubmit} className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="custom-name">Nome Servizio</Label>
-                <Input id="custom-name" value={customName} onChange={(e) => setCustomName(e.target.value)} disabled={isPending} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="custom-description">Descrizione (opzionale)</Label>
-                <Textarea id="custom-description" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} disabled={isPending} />
-              </div>
-               <div className="space-y-2">
-                    <Label htmlFor="custom-leader-select">Leader</Label>
-                    <Select onValueChange={setCustomLeaderId} value={customLeaderId} disabled={isPending || dataLoading || leaders.length === 0} required>
-                        <SelectTrigger id="custom-leader-select">
-                            <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {leaders.map((l) => (
-                                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                <Button type="submit" disabled={isPending || dataLoading}>
-                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Crea Servizio
-                </Button>
-              </DialogFooter>
-            </form>
-          </TabsContent>
-        </Tabs>
+        <ScrollArea className="max-h-[70vh] -mx-6">
+            <div className="px-6">
+                <Tabs defaultValue="template" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="template">Da Modello</TabsTrigger>
+                    <TabsTrigger value="custom">Nuovo Servizio</TabsTrigger>
+                </TabsList>
+                <TabsContent value="template">
+                    <form onSubmit={handleTemplateSubmit} className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="template-select">Modello di Servizio</Label>
+                            <Select onValueChange={setSelectedTemplateId} value={selectedTemplateId} disabled={isPending || dataLoading || serviceTemplates.length === 0} required>
+                                <SelectTrigger id="template-select">
+                                    <SelectValue placeholder="Seleziona un modello..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {serviceTemplates.length > 0 ? serviceTemplates.map((t) => (
+                                        <SelectItem key={t.id} value={t.id}>
+                                            {t.name}
+                                        </SelectItem>
+                                    )) : <p className="text-sm text-muted-foreground p-2">Nessun modello per questa chiesa.</p>}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="template-leader-select">Leader</Label>
+                            <Select onValueChange={setTemplateLeaderId} value={templateLeaderId} disabled={isPending || dataLoading || leaders.length === 0} required>
+                                <SelectTrigger id="template-leader-select">
+                                    <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {leaders.map((l) => (
+                                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <DialogFooter className="pt-4">
+                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
+                            <Button type="submit" disabled={isPending || dataLoading || !selectedTemplateId}>
+                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Aggiungi Servizio
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </TabsContent>
+                <TabsContent value="custom">
+                    <form onSubmit={handleCustomSubmit} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="custom-name">Nome Servizio</Label>
+                        <Input id="custom-name" value={customName} onChange={(e) => setCustomName(e.target.value)} disabled={isPending} required />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="custom-description">Descrizione (opzionale)</Label>
+                        <Textarea id="custom-description" value={customDescription} onChange={(e) => setCustomDescription(e.target.value)} disabled={isPending} />
+                    </div>
+                    <div className="space-y-2">
+                            <Label htmlFor="custom-leader-select">Leader</Label>
+                            <Select onValueChange={setCustomLeaderId} value={customLeaderId} disabled={isPending || dataLoading || leaders.length === 0} required>
+                                <SelectTrigger id="custom-leader-select">
+                                    <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {leaders.map((l) => (
+                                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    <DialogFooter className="pt-4">
+                        <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
+                        <Button type="submit" disabled={isPending || dataLoading}>
+                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Crea Servizio
+                        </Button>
+                    </DialogFooter>
+                    </form>
+                </TabsContent>
+                </Tabs>
+            </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

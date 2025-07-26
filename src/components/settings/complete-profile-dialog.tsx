@@ -23,6 +23,7 @@ import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import type { RecordModel } from 'pocketbase';
 import { sendNotification } from '@/lib/notifications';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface CompleteProfileDialogProps {
     isOpen: boolean;
@@ -189,71 +190,73 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
             Benvenuto in Grace Services! Per continuare, ti chiediamo di completare il tuo profilo. Questo ci aiuterà a suggerirti i turni più adatti a te.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-4">
-          <div className="flex flex-col items-center gap-4">
-              <Avatar className="w-24 h-24">
-                  <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />
-                  <AvatarFallback>{formData.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-              </Avatar>
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  {preview ? 'Cambia Avatar' : 'Carica Avatar'}
-              </Button>
-              <Input 
-                  ref={fileInputRef}
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={handleFileChange}
-                  disabled={isPending}
-              />
-          </div>
+        <ScrollArea className="h-[70vh] -mx-6">
+            <form onSubmit={handleSubmit} className="space-y-4 py-4 px-6">
+            <div className="flex flex-col items-center gap-4">
+                <Avatar className="w-24 h-24">
+                    <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />
+                    <AvatarFallback>{formData.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                </Avatar>
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    {preview ? 'Cambia Avatar' : 'Carica Avatar'}
+                </Button>
+                <Input 
+                    ref={fileInputRef}
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleFileChange}
+                    disabled={isPending}
+                />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome e Cognome</Label>
-            <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
-          </div>
-          
-           <div className="space-y-2">
-            <Label htmlFor="phone">Numero di Telefono</Label>
-            <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isPending} required />
-          </div>
+            <div className="space-y-2">
+                <Label htmlFor="name">Nome e Cognome</Label>
+                <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
+            </div>
+            
+            <div className="space-y-2">
+                <Label htmlFor="phone">Numero di Telefono</Label>
+                <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isPending} required />
+            </div>
 
-          <div className="space-y-2">
-              <Label htmlFor="church">Chiesa/e</Label>
-              <MultiSelect
-                  id="church"
-                  options={churchOptions}
-                  selected={formData.church}
-                  onChange={handleSelectChange('church')}
-                  placeholder={dataLoading ? "Caricamento..." : "Seleziona una o più chiese"}
-                  disabled={dataLoading || isPending}
-              />
-          </div>
+            <div className="space-y-2">
+                <Label htmlFor="church">Chiesa/e</Label>
+                <MultiSelect
+                    id="church"
+                    options={churchOptions}
+                    selected={formData.church}
+                    onChange={handleSelectChange('church')}
+                    placeholder={dataLoading ? "Caricamento..." : "Seleziona una o più chiese"}
+                    disabled={dataLoading || isPending}
+                />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="skills">Competenze (opzionale)</Label>
-            <Textarea id="skills" name="skills" value={formData.skills} onChange={handleChange} disabled={isPending} placeholder="Es. Canto, chitarra, social..." />
-          </div>
+            <div className="space-y-2">
+                <Label htmlFor="skills">Competenze (opzionale)</Label>
+                <Textarea id="skills" name="skills" value={formData.skills} onChange={handleChange} disabled={isPending} placeholder="Es. Canto, chitarra, social..." />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="service_preferences">Preferenze di Servizio (opzionale)</Label>
-            <MultiSelect
-                id="service_preferences"
-                options={filteredServiceOptions}
-                selected={formData.service_preferences}
-                onChange={handleSelectChange('service_preferences')}
-                placeholder={dataLoading ? "Caricamento..." : (formData.church.length === 0 ? "Seleziona prima una chiesa" : "Seleziona i servizi")}
-                disabled={dataLoading || isPending || formData.church.length === 0}
-            />
-          </div>
-          
-          <DialogFooter>
-            <Button type="submit" disabled={isPending || dataLoading}>
-              {isPending ? <Loader2 className="animate-spin" /> : 'Salva e Continua'}
-            </Button>
-          </DialogFooter>
-        </form>
+            <div className="space-y-2">
+                <Label htmlFor="service_preferences">Preferenze di Servizio (opzionale)</Label>
+                <MultiSelect
+                    id="service_preferences"
+                    options={filteredServiceOptions}
+                    selected={formData.service_preferences}
+                    onChange={handleSelectChange('service_preferences')}
+                    placeholder={dataLoading ? "Caricamento..." : (formData.church.length === 0 ? "Seleziona prima una chiesa" : "Seleziona i servizi")}
+                    disabled={dataLoading || isPending || formData.church.length === 0}
+                />
+            </div>
+            
+            <DialogFooter className="sticky bottom-0 bg-background py-4">
+                <Button type="submit" disabled={isPending || dataLoading}>
+                {isPending ? <Loader2 className="animate-spin" /> : 'Salva e Continua'}
+                </Button>
+            </DialogFooter>
+            </form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

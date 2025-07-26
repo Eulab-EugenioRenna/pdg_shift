@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition, useRef, useEffect } from 'react';
@@ -22,6 +23,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import type { RecordModel } from 'pocketbase';
+import { ScrollArea } from '../ui/scroll-area';
 
 export function ManageProfileDialog() {
   const { user, refreshUser } = useAuth();
@@ -154,76 +156,78 @@ export function ManageProfileDialog() {
             Aggiorna le tue informazioni personali. Lascia i campi password vuoti per non modificarla.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-4">
-          <div className="flex flex-col items-center gap-4">
-              <Avatar className="w-24 h-24">
-                  <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />
-                  <AvatarFallback>{formData.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-              </Avatar>
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
-                  <Upload className="mr-2 h-4 w-4" />
-                  {preview ? 'Cambia Avatar' : 'Carica Avatar'}
-              </Button>
-              <Input 
-                  ref={fileInputRef}
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={handleFileChange}
-                  disabled={isPending}
-              />
-          </div>
+        <ScrollArea className="max-h-[70vh] -mx-6">
+            <form onSubmit={handleSubmit} className="space-y-4 py-4 px-6">
+                <div className="flex flex-col items-center gap-4">
+                    <Avatar className="w-24 h-24">
+                        <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />
+                        <AvatarFallback>{formData.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isPending}>
+                        <Upload className="mr-2 h-4 w-4" />
+                        {preview ? 'Cambia Avatar' : 'Carica Avatar'}
+                    </Button>
+                    <Input 
+                        ref={fileInputRef}
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleFileChange}
+                        disabled={isPending}
+                    />
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome e Cognome</Label>
-            <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
-          </div>
+                <div className="space-y-2">
+                    <Label htmlFor="name">Nome e Cognome</Label>
+                    <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" value={user?.email || ''} disabled />
-          </div>
+                <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" name="email" type="email" value={user?.email || ''} disabled />
+                </div>
 
-           <div className="space-y-2">
-            <Label htmlFor="phone">Numero di Telefono</Label>
-            <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isPending} />
-          </div>
+                <div className="space-y-2">
+                    <Label htmlFor="phone">Numero di Telefono</Label>
+                    <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} disabled={isPending} />
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="skills">Competenze</Label>
-            <Textarea id="skills" name="skills" value={formData.skills} onChange={handleChange} disabled={isPending} placeholder="Es. Canto, chitarra, social..." />
-          </div>
+                <div className="space-y-2">
+                    <Label htmlFor="skills">Competenze</Label>
+                    <Textarea id="skills" name="skills" value={formData.skills} onChange={handleChange} disabled={isPending} placeholder="Es. Canto, chitarra, social..." />
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="service_preferences">Preferenze di Servizio</Label>
-            <MultiSelect
-                id="service_preferences"
-                options={serviceOptions}
-                selected={formData.service_preferences}
-                onChange={handleSelectChange}
-                placeholder={templatesLoading ? "Caricamento..." : "Seleziona i servizi"}
-                disabled={templatesLoading || isPending}
-            />
-          </div>
+                <div className="space-y-2">
+                    <Label htmlFor="service_preferences">Preferenze di Servizio</Label>
+                    <MultiSelect
+                        id="service_preferences"
+                        options={serviceOptions}
+                        selected={formData.service_preferences}
+                        onChange={handleSelectChange}
+                        placeholder={templatesLoading ? "Caricamento..." : "Seleziona i servizi"}
+                        disabled={templatesLoading || isPending}
+                    />
+                </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-                <Label htmlFor="password">Nuova Password</Label>
-                <Input id="password" name="password" type="password" value={formData.password} onChange={handleChange} disabled={isPending} />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="passwordConfirm">Conferma Password</Label>
-                <Input id="passwordConfirm" name="passwordConfirm" type="password" value={formData.passwordConfirm} onChange={handleChange} disabled={isPending} />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Annulla</Button>
-            <Button type="submit" disabled={isPending || templatesLoading}>
-              {isPending ? <Loader2 className="animate-spin" /> : 'Salva Modifiche'}
-            </Button>
-          </DialogFooter>
-        </form>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="password">Nuova Password</Label>
+                        <Input id="password" name="password" type="password" value={formData.password} onChange={handleChange} disabled={isPending} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="passwordConfirm">Conferma Password</Label>
+                        <Input id="passwordConfirm" name="passwordConfirm" type="password" value={formData.passwordConfirm} onChange={handleChange} disabled={isPending} />
+                    </div>
+                </div>
+                
+                <DialogFooter className="sticky bottom-0 bg-background pt-4 -mx-6 px-6 pb-0">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Annulla</Button>
+                    <Button type="submit" disabled={isPending || templatesLoading}>
+                    {isPending ? <Loader2 className="animate-spin" /> : 'Salva Modifiche'}
+                    </Button>
+                </DialogFooter>
+            </form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

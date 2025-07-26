@@ -34,6 +34,7 @@ import { MultiSelect, type Option } from '../ui/multi-select';
 import { Badge } from '../ui/badge';
 import { pb } from '@/lib/pocketbase';
 import { useAuth } from '@/hooks/useAuth';
+import { ScrollArea } from '../ui/scroll-area';
 
 
 function EventTemplateForm({ template, onSave, onCancel }: { template: RecordModel | null; onSave: () => void; onCancel: () => void }) {
@@ -121,69 +122,71 @@ function EventTemplateForm({ template, onSave, onCancel }: { template: RecordMod
   const showNoServicesMessage = selectedChurches.length > 0 && filteredServiceOptions.length === 0 && !dataLoading;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 py-4">
-      <div>
-        <Label htmlFor="template-name">Nome Modello</Label>
-        <Input 
-          id="template-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={isPending}
-          placeholder="Es. Culto Domenicale"
-          required
-        />
-      </div>
-       <div>
-        <Label htmlFor="template-description">Descrizione (Opzionale)</Label>
-        <Textarea 
-          id="template-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          disabled={isPending}
-          placeholder="Breve descrizione del modello di evento"
-        />
-      </div>
-      <div>
-        <Label htmlFor="church-select">Chiese Applicabili</Label>
-        <MultiSelect
-            id="church-select"
-            options={churchOptions}
-            selected={selectedChurches}
-            onChange={setSelectedChurches}
-            placeholder={dataLoading ? "Caricamento..." : "Seleziona le chiese"}
-            disabled={dataLoading || isPending}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          Questo modello sarà disponibile solo per le chiese selezionate.
-        </p>
-      </div>
-      <div>
-        <Label htmlFor="service-templates">Tipi di Servizio inclusi</Label>
-        <MultiSelect
-            id="service-templates"
-            options={filteredServiceOptions}
-            selected={selectedServices}
-            onChange={setSelectedServices}
-            placeholder={dataLoading ? "Caricamento..." : "Seleziona i servizi"}
-            disabled={dataLoading || isPending || selectedChurches.length === 0 || showNoServicesMessage}
-        />
-         {showNoServicesMessage ? (
-            <p className="text-xs text-destructive mt-1">
-                Nessun servizio disponibile per le chiese selezionate.
-            </p>
-         ) : (
-            <p className="text-xs text-muted-foreground mt-1">
-                Vengono mostrati solo i servizi compatibili con le chiese selezionate.
-            </p>
-         )}
-      </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
-        <Button type="submit" disabled={isPending || dataLoading}>
-          {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
-        </Button>
-      </DialogFooter>
-    </form>
+    <ScrollArea className="h-[70vh]">
+      <form onSubmit={handleSubmit} className="space-y-4 py-4 pr-4">
+        <div>
+          <Label htmlFor="template-name">Nome Modello</Label>
+          <Input 
+            id="template-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={isPending}
+            placeholder="Es. Culto Domenicale"
+            required
+          />
+        </div>
+        <div>
+          <Label htmlFor="template-description">Descrizione (Opzionale)</Label>
+          <Textarea 
+            id="template-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={isPending}
+            placeholder="Breve descrizione del modello di evento"
+          />
+        </div>
+        <div>
+          <Label htmlFor="church-select">Chiese Applicabili</Label>
+          <MultiSelect
+              id="church-select"
+              options={churchOptions}
+              selected={selectedChurches}
+              onChange={setSelectedChurches}
+              placeholder={dataLoading ? "Caricamento..." : "Seleziona le chiese"}
+              disabled={dataLoading || isPending}
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Questo modello sarà disponibile solo per le chiese selezionate.
+          </p>
+        </div>
+        <div>
+          <Label htmlFor="service-templates">Tipi di Servizio inclusi</Label>
+          <MultiSelect
+              id="service-templates"
+              options={filteredServiceOptions}
+              selected={selectedServices}
+              onChange={setSelectedServices}
+              placeholder={dataLoading ? "Caricamento..." : "Seleziona i servizi"}
+              disabled={dataLoading || isPending || selectedChurches.length === 0 || showNoServicesMessage}
+          />
+          {showNoServicesMessage ? (
+              <p className="text-xs text-destructive mt-1">
+                  Nessun servizio disponibile per le chiese selezionate.
+              </p>
+          ) : (
+              <p className="text-xs text-muted-foreground mt-1">
+                  Vengono mostrati solo i servizi compatibili con le chiese selezionate.
+              </p>
+          )}
+        </div>
+        <DialogFooter className="sticky bottom-0 bg-background pt-4 -mx-4 px-4 pb-0">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
+          <Button type="submit" disabled={isPending || dataLoading}>
+            {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
+          </Button>
+        </DialogFooter>
+      </form>
+    </ScrollArea>
   )
 }
 
@@ -336,7 +339,7 @@ export function ManageEventTemplatesDialog() {
                     />
                     <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Modello</Button>
                 </div>
-                <div className="rounded-md border max-h-80 overflow-y-auto">
+                <ScrollArea className="h-[60vh] rounded-md border">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-40">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -396,7 +399,7 @@ export function ManageEventTemplatesDialog() {
                     </TableBody>
                     </Table>
                 )}
-                </div>
+                </ScrollArea>
              </div>
           ) : (
             <EventTemplateForm 

@@ -36,6 +36,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { UserForm } from '@/components/admin/user-form';
 import { useAuth } from '@/hooks/useAuth';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface ManageUsersDialogProps {
     triggerButton?: React.ReactNode;
@@ -275,7 +276,7 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                     </div>
                     <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
                 </div>
-                <div className="rounded-md border max-h-[60vh] overflow-y-auto">
+                <ScrollArea className="h-[60vh] rounded-md border">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                 ) : (
@@ -341,10 +342,10 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                     </TableBody>
                     </Table>
                 )}
-                </div>
+                </ScrollArea>
              </div>
           ) : (
-            <UserForm 
+             <UserForm 
                 user={userToEdit}
                 onSave={handleBackToList}
                 onCancel={() => setView('list')}

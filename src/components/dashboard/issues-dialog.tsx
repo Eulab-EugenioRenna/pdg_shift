@@ -84,10 +84,10 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
               Ecco un elenco dei problemi che richiedono la tua attenzione.
             </DialogDescription>
           </DialogHeader>
-          <div className="relative">
+          
             {issues.length > 0 ? (
-              <ScrollArea className="h-[60vh] pr-4">
-                <Accordion type="multiple" className="w-full space-y-4">
+              <ScrollArea className="h-[60vh] -mx-6">
+                <Accordion type="multiple" className="w-full space-y-4 px-6">
                     {Object.values(groupedIssues).map(({ event, issues: eventIssues }) => {
                         const eventKey = event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id;
                         return (
@@ -131,7 +131,7 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
                     <p className="text-xs">Tutti i turni sono coperti e non ci sono conflitti.</p>
                 </div>
             )}
-          </div>
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsOpen(false)}>
               Chiudi

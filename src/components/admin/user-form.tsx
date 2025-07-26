@@ -15,6 +15,7 @@ import { pb } from '@/lib/pocketbase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MultiSelect, type Option } from '@/components/ui/multi-select';
 import { useAuth } from '@/hooks/useAuth';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface UserFormProps {
     user: RecordModel | null;
@@ -128,76 +129,78 @@ export function UserForm({ user, onSave, onCancel }: UserFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 py-4">
-      <div className="flex flex-col items-center gap-4 col-span-full">
-          <Avatar className="w-24 h-24">
-              <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />
-              <AvatarFallback>{formData.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
-          </Avatar>
-          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" />
-              {preview ? 'Cambia Avatar' : 'Carica Avatar'}
-          </Button>
-          <Input 
-              ref={fileInputRef}
-              type="file" 
-              className="hidden" 
-              accept="image/*" 
-              onChange={handleFileChange} 
-          />
-      </div>
-       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="name">Nome e Cognome</Label>
-          <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
+     <ScrollArea className="h-[70vh]">
+        <form onSubmit={handleSubmit} className="space-y-6 py-4 pr-4">
+        <div className="flex flex-col items-center gap-4 col-span-full">
+            <Avatar className="w-24 h-24">
+                <AvatarImage src={preview || `https://placehold.co/100x100.png`} alt="Avatar preview" />
+                <AvatarFallback>{formData.name?.charAt(0).toUpperCase() || 'U'}</AvatarFallback>
+            </Avatar>
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" />
+                {preview ? 'Cambia Avatar' : 'Carica Avatar'}
+            </Button>
+            <Input 
+                ref={fileInputRef}
+                type="file" 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleFileChange} 
+            />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isPending || !!user} required={!user} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
+            <div className="space-y-2">
+            <Label htmlFor="name">Nome e Cognome</Label>
+            <Input id="name" name="name" value={formData.name} onChange={handleChange} disabled={isPending} required />
+            </div>
+            <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isPending || !!user} required={!user} />
+            </div>
+        
+            {!user && (
+            <>
+                <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input id="password" name="password" type="password" value={formData.password} onChange={handleChange} disabled={isPending} required={!user} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="passwordConfirm">Conferma Password</Label>
+                    <Input id="passwordConfirm" name="passwordConfirm" type="password" value={formData.passwordConfirm} onChange={handleChange} disabled={isPending} required={!user} />
+                </div>
+            </>
+            )}
+        
+            <div className="space-y-2">
+            <Label htmlFor="church">Chiesa/e</Label>
+            <MultiSelect
+                options={churchOptions}
+                selected={formData.church}
+                onChange={handleSelectChange('church')}
+                placeholder={churchesLoading ? "caricamento..." : "Seleziona una o più chiese"}
+                disabled={churchesLoading || isPending}
+            />
+            </div>
+            <div className="space-y-2">
+            <Label htmlFor="role">Ruolo</Label>
+            <Select name="role" onValueChange={handleSelectChange('role')} value={formData.role} required disabled={isPending}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Seleziona un ruolo" /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="volontario">Volontario</SelectItem>
+                    <SelectItem value="leader">Leader</SelectItem>
+                    {(currentUser?.role === 'superuser' || currentUser?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
+                    {currentUser?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
+                </SelectContent>
+            </Select>
+            </div>
         </div>
-      
-        {!user && (
-           <>
-              <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input id="password" name="password" type="password" value={formData.password} onChange={handleChange} disabled={isPending} required={!user} />
-              </div>
-              <div className="space-y-2">
-                  <Label htmlFor="passwordConfirm">Conferma Password</Label>
-                  <Input id="passwordConfirm" name="passwordConfirm" type="password" value={formData.passwordConfirm} onChange={handleChange} disabled={isPending} required={!user} />
-              </div>
-           </>
-        )}
-      
-        <div className="space-y-2">
-          <Label htmlFor="church">Chiesa/e</Label>
-          <MultiSelect
-            options={churchOptions}
-            selected={formData.church}
-            onChange={handleSelectChange('church')}
-            placeholder={churchesLoading ? "caricamento..." : "Seleziona una o più chiese"}
-            disabled={churchesLoading || isPending}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="role">Ruolo</Label>
-          <Select name="role" onValueChange={handleSelectChange('role')} value={formData.role} required disabled={isPending}>
-            <SelectTrigger className="w-full"><SelectValue placeholder="Seleziona un ruolo" /></SelectTrigger>
-            <SelectContent>
-                <SelectItem value="volontario">Volontario</SelectItem>
-                <SelectItem value="leader">Leader</SelectItem>
-                {(currentUser?.role === 'superuser' || currentUser?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
-                {currentUser?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
-        <Button type="submit" disabled={isPending || churchesLoading}>
-          {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
-        </Button>
-      </DialogFooter>
-    </form>
+        <DialogFooter className="sticky bottom-0 bg-background pt-4 -mx-4 px-4 pb-0">
+            <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
+            <Button type="submit" disabled={isPending || churchesLoading}>
+            {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
+            </Button>
+        </DialogFooter>
+        </form>
+    </ScrollArea>
   )
 }

@@ -107,7 +107,7 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
             ) : notifications.length > 0 ? (
-            <ScrollArea className="h-80 pr-4">
+            <ScrollArea className="h-[60vh] -mx-6 px-6">
                 <div className="space-y-3">
                 {notifications.map((n) => (
                     <div
