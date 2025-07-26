@@ -152,16 +152,16 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Aggiungi Servizio all'Evento</DialogTitle>
           <DialogDescription>
             Aggiungi un servizio da un modello pre-configurato o creane uno nuovo. È obbligatorio assegnare un leader.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh] -mx-6">
-            <div className="px-6">
-                <Tabs defaultValue="template" className="w-full">
+        <div className="flex-grow min-h-0 -mx-6">
+            <ScrollArea className="h-full px-6">
+                <Tabs defaultValue="template" className="w-full pt-4">
                 <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="template">Da Modello</TabsTrigger>
                     <TabsTrigger value="custom">Nuovo Servizio</TabsTrigger>
@@ -238,8 +238,8 @@ export function AddServiceToEventDialog({ isOpen, setIsOpen, eventId, churchId, 
                     </form>
                 </TabsContent>
                 </Tabs>
-            </div>
-        </ScrollArea>
+            </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

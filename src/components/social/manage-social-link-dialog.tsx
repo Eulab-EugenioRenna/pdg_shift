@@ -119,84 +119,86 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, userChurches, 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{link ? 'Modifica Link Social' : 'Aggiungi Nuovo Link'}</DialogTitle>
             <DialogDescription>
               Compila i dettagli del link. Verrà visualizzato nella pagina Social per le chiese selezionate.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="max-h-[70vh] -mx-6">
-            <form onSubmit={handleSubmit} className="space-y-4 py-4 px-6">
-                <div className="space-y-2">
-                <Label htmlFor="link-name">Nome</Label>
-                <Input
-                    id="link-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    disabled={isPending}
-                    placeholder="Es. Gruppo Lode"
-                    required
-                />
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="link-url">URL</Label>
-                <Input
-                    id="link-url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    disabled={isPending}
-                    placeholder="https://..."
-                    required
-                />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="church-select">Chiesa/e</Label>
-                    {userChurches.length > 1 ? (
-                        <MultiSelect
-                            options={churchOptions}
-                            selected={selectedChurches}
-                            onChange={setSelectedChurches}
-                            placeholder="Seleziona una o più chiese"
-                            disabled={isPending}
-                        />
-                    ) : (
-                        <Input value={userChurches[0]?.name || 'Nessuna chiesa'} disabled />
-                    )}
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="link-type">Tipo</Label>
-                <Select onValueChange={setType} value={type} disabled={isPending}>
-                    <SelectTrigger id="link-type">
-                    <SelectValue placeholder="Seleziona un tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                    <SelectItem value="telegram">Telegram</SelectItem>
-                    <SelectItem value="altro">Altro</SelectItem>
-                    </SelectContent>
-                </Select>
-                </div>
-                <DialogFooter className="flex-row justify-between pt-4 sticky bottom-0 bg-background -mx-6 px-6 pb-0">
-                <div>
-                    {link && (
-                        <Button type="button" variant="destructive" onClick={() => setIsDeleteAlertOpen(true)} disabled={isPending}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Elimina
-                        </Button>
-                    )}
-                </div>
-                <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                    <Button type="submit" disabled={isPending}>
-                    {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
+          <div className="flex-grow min-h-0">
+            <ScrollArea className="h-full -mx-6 px-6">
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                    <Label htmlFor="link-name">Nome</Label>
+                    <Input
+                        id="link-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        disabled={isPending}
+                        placeholder="Es. Gruppo Lode"
+                        required
+                    />
+                    </div>
+                    <div className="space-y-2">
+                    <Label htmlFor="link-url">URL</Label>
+                    <Input
+                        id="link-url"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        disabled={isPending}
+                        placeholder="https://..."
+                        required
+                    />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="church-select">Chiesa/e</Label>
+                        {userChurches.length > 1 ? (
+                            <MultiSelect
+                                options={churchOptions}
+                                selected={selectedChurches}
+                                onChange={setSelectedChurches}
+                                placeholder="Seleziona una o più chiese"
+                                disabled={isPending}
+                            />
+                        ) : (
+                            <Input value={userChurches[0]?.name || 'Nessuna chiesa'} disabled />
+                        )}
+                    </div>
+                    <div className="space-y-2">
+                    <Label htmlFor="link-type">Tipo</Label>
+                    <Select onValueChange={setType} value={type} disabled={isPending}>
+                        <SelectTrigger id="link-type">
+                        <SelectValue placeholder="Seleziona un tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        <SelectItem value="facebook">Facebook</SelectItem>
+                        <SelectItem value="instagram">Instagram</SelectItem>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="telegram">Telegram</SelectItem>
+                        <SelectItem value="altro">Altro</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    </div>
+                </form>
+            </ScrollArea>
+          </div>
+            <DialogFooter className="flex-row justify-between pt-4">
+            <div>
+                {link && (
+                    <Button type="button" variant="destructive" onClick={() => setIsDeleteAlertOpen(true)} disabled={isPending}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Elimina
                     </Button>
-                </div>
-                </DialogFooter>
-            </form>
-          </ScrollArea>
+                )}
+            </div>
+            <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
+                <Button type="submit" onClick={handleSubmit} disabled={isPending}>
+                {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
+                </Button>
+            </div>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>

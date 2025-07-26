@@ -250,157 +250,158 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
     
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-2xl max-h-[90vh]">
                 <DialogHeader>
                 <DialogTitle>Gestisci Servizio: {service?.name}</DialogTitle>
                 <DialogDescription>
                     Modifica i dettagli, assegna un leader e componi il team per ogni posizione.
                 </DialogDescription>
                 </DialogHeader>
-                 <ScrollArea className="max-h-[70vh] -mx-6">
-                    <form onSubmit={handleSubmit} className="space-y-4 py-4 px-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="service-name">Nome Servizio</Label>
-                            <Input id="service-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} required />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="service-description">Descrizione (opzionale)</Label>
-                            <Textarea id="service-description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={isPending} />
-                        </div>
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                                <Label htmlFor="leader-select">Leader</Label>
-                                <ManageUsersDialog onUsersUpdated={fetchUsersAndData} triggerButton={
-                                    <Button type="button" variant="ghost" size="sm" className="h-auto px-2 py-1">
-                                        <UserPlus className="h-4 w-4 mr-1"/> Aggiungi Utente
-                                    </Button>
-                                }/>
+                <div className="flex-grow min-h-0">
+                    <ScrollArea className="h-full -mx-6 px-6">
+                        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="service-name">Nome Servizio</Label>
+                                <Input id="service-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} required />
                             </div>
-                            <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading}>
-                                <SelectTrigger id="leader-select">
-                                    <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {dataLoading ? (
-                                        <div className="flex items-center justify-center p-2">
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            <span>Caricamento utenti...</span>
+                            <div className="space-y-2">
+                                <Label htmlFor="service-description">Descrizione (opzionale)</Label>
+                                <Textarea id="service-description" value={description} onChange={(e) => setDescription(e.target.value)} disabled={isPending} />
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <Label htmlFor="leader-select">Leader</Label>
+                                    <ManageUsersDialog onUsersUpdated={fetchUsersAndData} triggerButton={
+                                        <Button type="button" variant="ghost" size="sm" className="h-auto px-2 py-1">
+                                            <UserPlus className="h-4 w-4 mr-1"/> Aggiungi Utente
+                                        </Button>
+                                    }/>
+                                </div>
+                                <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading}>
+                                    <SelectTrigger id="leader-select">
+                                        <SelectValue placeholder={dataLoading ? "Caricamento..." : "Seleziona un leader"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {dataLoading ? (
+                                            <div className="flex items-center justify-center p-2">
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                <span>Caricamento utenti...</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <SelectItem value="unassign">Non assegnato</SelectItem>
+                                                {leaders.map((l) => (
+                                                    <SelectItem key={l.id} value={l.id}>
+                                                        {l.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Team</CardTitle>
+                                    <CardDescription>Assegna un volontario ad ogni posizione richiesta.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {positions.length > 0 ? (
+                                        positions.map((pos: string) => (
+                                        <div key={pos} className="grid grid-cols-3 items-center gap-4">
+                                            <Label htmlFor={`pos-${pos}`} className="text-right">{pos}</Label>
+                                            <Select
+                                                value={teamAssignments[pos] || ''}
+                                                onValueChange={(value) => setTeamAssignments(prev => ({...prev, [pos]: value}))}
+                                                disabled={isPending || dataLoading}
+                                            >
+                                                <SelectTrigger id={`pos-${pos}`} className="col-span-2">
+                                                    <SelectValue placeholder="Seleziona un volontario..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {dataLoading ? (
+                                                        <div className="flex items-center justify-center p-2">
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <SelectItem value="unassign">Non assegnato</SelectItem>
+                                                            {usersByPreferenceAndAvailability.suggested.length > 0 && (
+                                                                <SelectGroup>
+                                                                    <SelectLabel className="text-primary">Suggeriti (disponibili con preferenza)</SelectLabel>
+                                                                    {renderUserOptions(usersByPreferenceAndAvailability.suggested, <CheckCircle className="text-green-500" />)}
+                                                                </SelectGroup>
+                                                            )}
+                                                            {usersByPreferenceAndAvailability.available.length > 0 && (
+                                                                <SelectGroup>
+                                                                    <SelectLabel>Disponibili</SelectLabel>
+                                                                    {renderUserOptions(usersByPreferenceAndAvailability.available, <CircleUser />)}
+                                                                </SelectGroup>
+                                                            )}
+                                                            {usersByPreferenceAndAvailability.unavailable.length > 0 && (
+                                                                <SelectGroup>
+                                                                    <SelectLabel className="text-destructive">Indisponibili</SelectLabel>
+                                                                    {renderUserOptions(usersByPreferenceAndAvailability.unavailable, <XCircle className="text-destructive"/>)}
+                                                                </SelectGroup>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
-                                    ) : (
+                                    ))
+                                    ) : null}
+                                    
+                                    <div className="space-y-2 pt-2">
+                                        <Label htmlFor="new-positions">Aggiungi altre posizioni</Label>
+                                        <Textarea
+                                            id="new-positions"
+                                            value={newPositions}
+                                            onChange={(e) => setNewPositions(e.target.value)}
+                                            placeholder="Elenco di posizioni separate da virgola (es. Basso, Tastiera)"
+                                            disabled={isPending || dataLoading}
+                                        />
+                                    </div>
+                                    
+
+                                    {positions.length > 0 && (
                                         <>
-                                            <SelectItem value="unassign">Non assegnato</SelectItem>
-                                            {leaders.map((l) => (
-                                                <SelectItem key={l.id} value={l.id}>
-                                                    {l.name}
-                                                </SelectItem>
-                                            ))}
+                                            <Button type="button" variant="outline" onClick={handleGetAiSuggestions} disabled={isSuggesting || dataLoading} className="mt-4 w-full">
+                                                {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
+                                                Suggerisci Team con IA
+                                            </Button>
+                                            {aiSuggestions && (
+                                                <div className="space-y-2 mt-4 p-4 bg-accent/50 rounded-lg">
+                                                    <h4 className="font-semibold text-accent-foreground">Suggerimenti IA:</h4>
+                                                    {aiSuggestions.suggestions && aiSuggestions.suggestions.length > 0 ? (
+                                                        aiSuggestions.suggestions.map((s, i) => (
+                                                            <div key={i} className="text-sm flex items-center justify-between gap-2">
+                                                            <div>
+                                                                    <span className="font-medium">{s.position}:</span> {s.volunteerName} - <em className="text-muted-foreground">{s.reason}</em>
+                                                            </div>
+                                                                <Button type="button" size="sm" variant="secondary" onClick={() => applySuggestion(s.position, s.volunteerName)}>Applica</Button>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <p className="text-sm text-muted-foreground">{aiSuggestions.message || "L'IA non è riuscita a trovare candidati idonei."}</p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </>
                                     )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Team</CardTitle>
-                                <CardDescription>Assegna un volontario ad ogni posizione richiesta.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {positions.length > 0 ? (
-                                    positions.map((pos: string) => (
-                                    <div key={pos} className="grid grid-cols-3 items-center gap-4">
-                                        <Label htmlFor={`pos-${pos}`} className="text-right">{pos}</Label>
-                                        <Select
-                                            value={teamAssignments[pos] || ''}
-                                            onValueChange={(value) => setTeamAssignments(prev => ({...prev, [pos]: value}))}
-                                            disabled={isPending || dataLoading}
-                                        >
-                                            <SelectTrigger id={`pos-${pos}`} className="col-span-2">
-                                                <SelectValue placeholder="Seleziona un volontario..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {dataLoading ? (
-                                                    <div className="flex items-center justify-center p-2">
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    </div>
-                                                ) : (
-                                                    <>
-                                                        <SelectItem value="unassign">Non assegnato</SelectItem>
-                                                        {usersByPreferenceAndAvailability.suggested.length > 0 && (
-                                                            <SelectGroup>
-                                                                <SelectLabel className="text-primary">Suggeriti (disponibili con preferenza)</SelectLabel>
-                                                                {renderUserOptions(usersByPreferenceAndAvailability.suggested, <CheckCircle className="text-green-500" />)}
-                                                            </SelectGroup>
-                                                        )}
-                                                        {usersByPreferenceAndAvailability.available.length > 0 && (
-                                                            <SelectGroup>
-                                                                <SelectLabel>Disponibili</SelectLabel>
-                                                                {renderUserOptions(usersByPreferenceAndAvailability.available, <CircleUser />)}
-                                                            </SelectGroup>
-                                                        )}
-                                                        {usersByPreferenceAndAvailability.unavailable.length > 0 && (
-                                                            <SelectGroup>
-                                                                <SelectLabel className="text-destructive">Indisponibili</SelectLabel>
-                                                                {renderUserOptions(usersByPreferenceAndAvailability.unavailable, <XCircle className="text-destructive"/>)}
-                                                            </SelectGroup>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                ))
-                                ) : null}
-                                
-                                <div className="space-y-2 pt-2">
-                                    <Label htmlFor="new-positions">Aggiungi altre posizioni</Label>
-                                    <Textarea
-                                        id="new-positions"
-                                        value={newPositions}
-                                        onChange={(e) => setNewPositions(e.target.value)}
-                                        placeholder="Elenco di posizioni separate da virgola (es. Basso, Tastiera)"
-                                        disabled={isPending || dataLoading}
-                                    />
-                                </div>
-                                
-
-                                {positions.length > 0 && (
-                                    <>
-                                        <Button type="button" variant="outline" onClick={handleGetAiSuggestions} disabled={isSuggesting || dataLoading} className="mt-4 w-full">
-                                            {isSuggesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
-                                            Suggerisci Team con IA
-                                        </Button>
-                                        {aiSuggestions && (
-                                            <div className="space-y-2 mt-4 p-4 bg-accent/50 rounded-lg">
-                                                <h4 className="font-semibold text-accent-foreground">Suggerimenti IA:</h4>
-                                                {aiSuggestions.suggestions && aiSuggestions.suggestions.length > 0 ? (
-                                                    aiSuggestions.suggestions.map((s, i) => (
-                                                        <div key={i} className="text-sm flex items-center justify-between gap-2">
-                                                        <div>
-                                                                <span className="font-medium">{s.position}:</span> {s.volunteerName} - <em className="text-muted-foreground">{s.reason}</em>
-                                                        </div>
-                                                            <Button type="button" size="sm" variant="secondary" onClick={() => applySuggestion(s.position, s.volunteerName)}>Applica</Button>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <p className="text-sm text-muted-foreground">{aiSuggestions.message || "L'IA non è riuscita a trovare candidati idonei."}</p>
-                                                )}
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        <DialogFooter className="sticky bottom-0 bg-background py-4">
-                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                            <Button type="submit" disabled={isPending || dataLoading}>
-                                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Salva Modifiche
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </ScrollArea>
+                                </CardContent>
+                            </Card>
+                        </form>
+                    </ScrollArea>
+                </div>
+                 <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
+                    <Button type="submit" onClick={handleSubmit} disabled={isPending || dataLoading}>
+                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salva Modifiche
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

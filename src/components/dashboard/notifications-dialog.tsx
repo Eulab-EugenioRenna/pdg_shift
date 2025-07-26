@@ -89,26 +89,26 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Notifiche</DialogTitle>
           <DialogDescription>
             Qui trovi tutti gli aggiornamenti che ti riguardano.
           </DialogDescription>
         </DialogHeader>
-        <div className="relative">
+        <div className="flex-grow min-h-0 relative">
             {isUpdating && (
                 <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
                     <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
             )}
             {isLoading ? (
-            <div className="flex items-center justify-center h-60">
+            <div className="flex items-center justify-center h-full">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
             ) : notifications.length > 0 ? (
-            <ScrollArea className="h-[60vh] -mx-6 px-6">
-                <div className="space-y-3">
+            <ScrollArea className="h-full -mx-6 px-6">
+                <div className="space-y-3 py-4">
                 {notifications.map((n) => (
                     <div
                     key={n.id}
@@ -151,7 +151,7 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
                 </div>
             </ScrollArea>
             ) : (
-                <div className="h-60 flex flex-col items-center justify-center text-center text-muted-foreground">
+                <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground">
                     <BellOff className="h-10 w-10 mb-2"/>
                     <p>Nessuna notifica</p>
                     <p className="text-xs">Quando ci saranno novità, le troverai qui.</p>

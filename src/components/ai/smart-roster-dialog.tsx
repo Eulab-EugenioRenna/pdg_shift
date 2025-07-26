@@ -103,98 +103,100 @@ export function SmartRosterDialog() {
             Prova l'Assistente IA
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="font-headline text-2xl text-center">Composizione Intelligente dei Turni</DialogTitle>
             <DialogDescription className="text-center">
               Usa la nostra IA per trovare i volontari più adatti per ogni ruolo.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="max-h-[70vh] p-4">
-            <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                      <Label htmlFor="serviceName">Nome del Servizio</Label>
-                      <Input id="serviceName" value={serviceName} onChange={(e) => setServiceName(e.target.value)} />
+          <div className="flex-grow min-h-0">
+            <ScrollArea className="h-full -mx-6 px-6">
+                <div className="space-y-4 pt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                        <Label htmlFor="serviceName">Nome del Servizio</Label>
+                        <Input id="serviceName" value={serviceName} onChange={(e) => setServiceName(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                        <Label htmlFor="date">Data</Label>
+                        <Input id="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                        </div>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="date">Data</Label>
-                      <Input id="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                    <Label htmlFor="positions">Posizioni da ricoprire (separate da virgola)</Label>
+                    <Textarea 
+                        id="positions"
+                        value={positions}
+                        onChange={(e) => setPositions(e.target.value)}
+                        placeholder="Es. Voce, Chitarra, Batteria"
+                        />
                     </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="positions">Posizioni da ricoprire (separate da virgola)</Label>
-                  <Textarea 
-                      id="positions"
-                      value={positions}
-                      onChange={(e) => setPositions(e.target.value)}
-                      placeholder="Es. Voce, Chitarra, Batteria"
-                    />
+                
+                <div className="flex justify-center my-4">
+                <Button onClick={handleSuggestion} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                    Suggerisci Volontari
+                </Button>
                 </div>
-            </div>
-            
-            <div className="flex justify-center my-4">
-              <Button onClick={handleSuggestion} disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                Suggerisci Volontari
-              </Button>
-            </div>
 
-            {isLoading && (
-              <div className="flex items-center justify-center h-40">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            )}
-
-            {suggestions && (
-              <div className="animate-in fade-in-50">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> Suggerimenti dall'IA</CardTitle>
-                    <CardDescription>
-                      La nostra IA raccomanda i seguenti volontari per riempire i posti disponibili.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {suggestions.suggestions.length > 0 ? (
-                      <div className="space-y-4">
-                        {suggestions.suggestions.map((s, i) => (
-                          <div key={i} className="p-3 rounded-lg bg-accent/50">
-                            <h4 className="font-semibold text-accent-foreground">{s.position}: {s.volunteerName}</h4>
-                            <p className="text-sm text-muted-foreground">{s.reason}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-center text-sm text-muted-foreground py-4">{suggestions.message || "Nessun suggerimento disponibile per questa configurazione."}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-             {!isLoading && !suggestions && (
-                <div className="text-center text-sm text-muted-foreground py-6">
-                    <p>I suggerimenti dell'IA appariranno qui.</p>
+                {isLoading && (
+                <div className="flex items-center justify-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              )}
+                )}
 
-            <Accordion type="single" collapsible className="w-full mt-4">
-                <AccordionItem value="item-1">
-                    <AccordionTrigger>Visualizza l'elenco dei volontari di esempio</AccordionTrigger>
-                    <AccordionContent>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            L'IA userà questi dati di esempio per i suoi suggerimenti.
-                        </p>
-                        <ul className="space-y-2 text-sm max-h-32 overflow-y-auto pr-2">
-                            {volunteerPool.map((v, i) => (
-                                <li key={i}><strong>{v.volunteerName}</strong> - {v.skills} ({v.availability})</li>
+                {suggestions && (
+                <div className="animate-in fade-in-50">
+                    <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> Suggerimenti dall'IA</CardTitle>
+                        <CardDescription>
+                        La nostra IA raccomanda i seguenti volontari per riempire i posti disponibili.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {suggestions.suggestions.length > 0 ? (
+                        <div className="space-y-4">
+                            {suggestions.suggestions.map((s, i) => (
+                            <div key={i} className="p-3 rounded-lg bg-accent/50">
+                                <h4 className="font-semibold text-accent-foreground">{s.position}: {s.volunteerName}</h4>
+                                <p className="text-sm text-muted-foreground">{s.reason}</p>
+                            </div>
                             ))}
-                        </ul>
-                    </AccordionContent>
-                </AccordionItem>
-            </Accordion>
-          </ScrollArea>
+                        </div>
+                        ) : (
+                        <p className="text-center text-sm text-muted-foreground py-4">{suggestions.message || "Nessun suggerimento disponibile per questa configurazione."}</p>
+                        )}
+                    </CardContent>
+                    </Card>
+                </div>
+                )}
+
+                {!isLoading && !suggestions && (
+                    <div className="text-center text-sm text-muted-foreground py-6">
+                        <p>I suggerimenti dell'IA appariranno qui.</p>
+                    </div>
+                )}
+
+                <Accordion type="single" collapsible className="w-full mt-4">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger>Visualizza l'elenco dei volontari di esempio</AccordionTrigger>
+                        <AccordionContent>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                L'IA userà questi dati di esempio per i suoi suggerimenti.
+                            </p>
+                            <ul className="space-y-2 text-sm max-h-32 overflow-y-auto pr-2">
+                                {volunteerPool.map((v, i) => (
+                                    <li key={i}><strong>{v.volunteerName}</strong> - {v.skills} ({v.availability})</li>
+                                ))}
+                            </ul>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
+            </ScrollArea>
+          </div>
       </DialogContent>
     </Dialog>
   );

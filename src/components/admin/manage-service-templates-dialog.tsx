@@ -123,75 +123,79 @@ function ServiceTemplateForm({ template, onSave, onCancel }: { template: RecordM
   };
 
   return (
-    <ScrollArea className="h-[70vh]">
-        <form onSubmit={handleSubmit} className="space-y-4 py-4 pr-4">
-        <div>
-            <Label htmlFor="template-name">Nome Tipo di Servizio</Label>
-            <Input 
-            id="template-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isPending}
-            placeholder="Es. Team Lode"
-            required
-            />
+    <>
+        <div className="flex-grow min-h-0 px-6">
+            <ScrollArea className="h-full -mx-6 px-6">
+                <form onSubmit={handleSubmit} className="space-y-4 py-4">
+                <div>
+                    <Label htmlFor="template-name">Nome Tipo di Servizio</Label>
+                    <Input 
+                    id="template-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={isPending}
+                    placeholder="Es. Team Lode"
+                    required
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="church-select">Chiesa/e</Label>
+                    <MultiSelect
+                        id="church-select"
+                        options={churchOptions}
+                        selected={churchIds}
+                        onChange={handleChurchChange}
+                        placeholder={dataLoading ? "Caricamento..." : "Seleziona una o più chiese"}
+                        disabled={isPending || dataLoading}
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="template-description">Descrizione (Opzionale)</Label>
+                    <Textarea 
+                    id="template-description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    disabled={isPending}
+                    placeholder="Breve descrizione del servizio"
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="template-positions">Posizioni del Team</Label>
+                    <Textarea 
+                    id="template-positions"
+                    value={positions}
+                    onChange={(e) => setPositions(e.target.value)}
+                    disabled={isPending}
+                    placeholder="Elenco di posizioni separate da virgola (es. Voce, Chitarra, Batteria)"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                    Inserisci le posizioni richieste per questo servizio, separate da una virgola.
+                    </p>
+                </div>
+                <div>
+                    <Label htmlFor="leader-select">Leader Predefinito (Opzionale)</Label>
+                    <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading || churchIds.length === 0 || leaders.length === 0}>
+                        <SelectTrigger id="leader-select">
+                            <SelectValue placeholder={churchIds.length === 0 ? "Prima seleziona una chiesa" : "Seleziona un leader..."} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="unassign">Nessun leader predefinito</SelectItem>
+                            {leaders.map((l) => (
+                                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                </form>
+            </ScrollArea>
         </div>
-        <div>
-            <Label htmlFor="church-select">Chiesa/e</Label>
-            <MultiSelect
-                id="church-select"
-                options={churchOptions}
-                selected={churchIds}
-                onChange={handleChurchChange}
-                placeholder={dataLoading ? "Caricamento..." : "Seleziona una o più chiese"}
-                disabled={isPending || dataLoading}
-            />
-        </div>
-        <div>
-            <Label htmlFor="template-description">Descrizione (Opzionale)</Label>
-            <Textarea 
-            id="template-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            disabled={isPending}
-            placeholder="Breve descrizione del servizio"
-            />
-        </div>
-        <div>
-            <Label htmlFor="template-positions">Posizioni del Team</Label>
-            <Textarea 
-            id="template-positions"
-            value={positions}
-            onChange={(e) => setPositions(e.target.value)}
-            disabled={isPending}
-            placeholder="Elenco di posizioni separate da virgola (es. Voce, Chitarra, Batteria)"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-            Inserisci le posizioni richieste per questo servizio, separate da una virgola.
-            </p>
-        </div>
-        <div>
-            <Label htmlFor="leader-select">Leader Predefinito (Opzionale)</Label>
-            <Select onValueChange={setLeaderId} value={leaderId} disabled={isPending || dataLoading || churchIds.length === 0 || leaders.length === 0}>
-                <SelectTrigger id="leader-select">
-                    <SelectValue placeholder={churchIds.length === 0 ? "Prima seleziona una chiesa" : "Seleziona un leader..."} />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="unassign">Nessun leader predefinito</SelectItem>
-                    {leaders.map((l) => (
-                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
-        </div>
-        <DialogFooter className="sticky bottom-0 bg-background pt-4 -mx-4 px-4 pb-0">
+        <DialogFooter>
             <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Annulla</Button>
-            <Button type="submit" disabled={isPending || dataLoading}>
+            <Button type="submit" onClick={handleSubmit} disabled={isPending || dataLoading}>
             {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
             </Button>
         </DialogFooter>
-        </form>
-    </ScrollArea>
+    </>
   )
 }
 
@@ -316,7 +320,7 @@ export function ManageServiceTemplatesDialog() {
             Gestisci Tipi Servizio
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{getDialogTitle()}</DialogTitle>
              {view === 'list' && (
@@ -327,8 +331,8 @@ export function ManageServiceTemplatesDialog() {
           </DialogHeader>
 
           {view === 'list' ? (
-             <div className="space-y-4 py-4">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+             <>
+                <div className="px-6 flex flex-col md:flex-row justify-between items-center gap-4">
                      <Input
                         placeholder="Cerca tipi di servizio..."
                         value={searchTerm}
@@ -337,70 +341,69 @@ export function ManageServiceTemplatesDialog() {
                     />
                     <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Tipo</Button>
                 </div>
-                <ScrollArea className="h-[60vh] rounded-md border">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-40">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                ) : (
-                    <Table className="table-fixed">
-                    <TableHeader className="sticky top-0 bg-background z-10">
-                        <TableRow>
-                          <TableHead className="w-1/3 px-2">
-                             <span className="hidden md:inline-flex">
-                                <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
-                                    Nome
-                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                             </span>
-                             <span className="md:hidden">Nome</span>
-                          </TableHead>
-                          <TableHead className="w-1/3 px-2">Chiesa</TableHead>
-                           <TableHead className="w-1/3 px-2">Leader Predefinito</TableHead>
-                          <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {processedTemplates.length > 0 ? processedTemplates.map((template) => (
-                        <TableRow key={template.id}>
-                            <TableCell className="font-medium p-2 whitespace-nowrap">{template.name}</TableCell>
-                             <TableCell className="p-2 whitespace-nowrap">{template.expand?.church?.map((c: RecordModel) => c.name).join(', ') || 'N/A'}</TableCell>
-                            <TableCell className="p-2 whitespace-nowrap">{template.expand?.leader?.name || 'Nessuno'}</TableCell>
-                            <TableCell className="text-right p-2">
-                                <div className="flex gap-2 justify-end">
-                                    <Button size="icon" variant="ghost" onClick={() => handleEdit(template)}>
-                                        <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setTemplateToDelete(template)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                        )) : (
-                        <TableRow>
-                            <TableCell colSpan={4} className="text-center h-24">Nessun tipo di servizio trovato.</TableCell>
-                        </TableRow>
+                <div className="flex-grow min-h-0 px-6">
+                    <ScrollArea className="h-full">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center h-40">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            </div>
+                        ) : (
+                            <Table className="table-fixed">
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                <TableHead className="w-1/3 px-2">
+                                    <span className="hidden md:inline-flex">
+                                        <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                            Nome
+                                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </span>
+                                    <span className="md:hidden">Nome</span>
+                                </TableHead>
+                                <TableHead className="w-1/3 px-2">Chiesa</TableHead>
+                                <TableHead className="w-1/3 px-2">Leader Predefinito</TableHead>
+                                <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {processedTemplates.length > 0 ? processedTemplates.map((template) => (
+                                <TableRow key={template.id}>
+                                    <TableCell className="font-medium p-2 whitespace-nowrap">{template.name}</TableCell>
+                                    <TableCell className="p-2 whitespace-nowrap">{template.expand?.church?.map((c: RecordModel) => c.name).join(', ') || 'N/A'}</TableCell>
+                                    <TableCell className="p-2 whitespace-nowrap">{template.expand?.leader?.name || 'Nessuno'}</TableCell>
+                                    <TableCell className="text-right p-2">
+                                        <div className="flex gap-2 justify-end">
+                                            <Button size="icon" variant="ghost" onClick={() => handleEdit(template)}>
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setTemplateToDelete(template)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                                )) : (
+                                <TableRow>
+                                    <TableCell colSpan={4} className="text-center h-24">Nessun tipo di servizio trovato.</TableCell>
+                                </TableRow>
+                                )}
+                            </TableBody>
+                            </Table>
                         )}
-                    </TableBody>
-                    </Table>
-                )}
-                </ScrollArea>
-             </div>
+                    </ScrollArea>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                    <Button variant="outline">Chiudi</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </>
           ) : (
             <ServiceTemplateForm 
               template={templateToEdit}
               onSave={handleBackToList}
               onCancel={() => setView('list')}
             />
-          )}
-
-          {view === 'list' && (
-            <DialogFooter>
-                <DialogClose asChild>
-                <Button variant="outline">Chiudi</Button>
-                </DialogClose>
-            </DialogFooter>
           )}
 
         </DialogContent>
