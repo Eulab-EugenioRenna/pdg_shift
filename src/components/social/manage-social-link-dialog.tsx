@@ -10,7 +10,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -29,7 +28,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ScrollArea } from '../ui/scroll-area';
 
 interface ManageSocialLinkDialogProps {
   isOpen: boolean;
@@ -126,7 +124,7 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, userChurches, 
               Compila i dettagli del link. Verrà visualizzato nella pagina Social per le chiese selezionate.
             </DialogDescription>
           </DialogHeader>
-            <ScrollArea>
+            <div className="p-6 pt-0 overflow-y-auto">
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
                     <Label htmlFor="link-name">Nome</Label>
@@ -179,24 +177,24 @@ export function ManageSocialLinkDialog({ isOpen, setIsOpen, link, userChurches, 
                         </SelectContent>
                     </Select>
                     </div>
+                    <div className="flex flex-row justify-between pt-4">
+                        <div>
+                            {link && (
+                                <Button type="button" variant="destructive" onClick={() => setIsDeleteAlertOpen(true)} disabled={isPending}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Elimina
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
+                            <Button type="submit" onClick={handleSubmit} disabled={isPending}>
+                            {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
+                            </Button>
+                        </div>
+                    </div>
                 </form>
-            </ScrollArea>
-            <DialogFooter className="flex-row justify-between pt-4">
-            <div>
-                {link && (
-                    <Button type="button" variant="destructive" onClick={() => setIsDeleteAlertOpen(true)} disabled={isPending}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Elimina
-                    </Button>
-                )}
             </div>
-            <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                <Button type="submit" onClick={handleSubmit} disabled={isPending}>
-                {isPending ? <Loader2 className="animate-spin" /> : 'Salva'}
-                </Button>
-            </div>
-            </DialogFooter>
         </DialogContent>
       </Dialog>
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>

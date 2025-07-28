@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -23,9 +22,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import type { SuggestTeamOutput } from '@/ai/flows/smart-team-builder';
 import { useAuth } from '@/hooks/useAuth';
 import { ManageUsersDialog } from '../admin/manage-users-dialog';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '../ui/scroll-area';
-
 
 interface ManageServiceDialogProps {
   isOpen: boolean;
@@ -257,7 +253,7 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                     Modifica i dettagli, assegna un leader e componi il team per ogni posizione.
                 </DialogDescription>
                 </DialogHeader>
-                <ScrollArea>
+                <div className="p-6 pt-0 overflow-y-auto">
                     <form onSubmit={handleSubmit} className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label htmlFor="service-name">Nome Servizio</Label>
@@ -391,15 +387,15 @@ export function ManageServiceDialog({ isOpen, setIsOpen, service, churchId, even
                                 )}
                             </CardContent>
                         </Card>
+                        <div className="flex justify-end gap-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
+                            <Button type="submit" onClick={handleSubmit} disabled={isPending || dataLoading}>
+                                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Salva Modifiche
+                            </Button>
+                        </div>
                     </form>
-                </ScrollArea>
-                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>Annulla</Button>
-                    <Button type="submit" onClick={handleSubmit} disabled={isPending || dataLoading}>
-                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Salva Modifiche
-                    </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );

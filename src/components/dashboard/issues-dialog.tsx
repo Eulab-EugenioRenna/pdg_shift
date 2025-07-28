@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -8,10 +9,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { AlertTriangle, UserCheck, UserX, Briefcase, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
@@ -84,8 +83,8 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
             </DialogDescription>
           </DialogHeader>
           
+          <div className="p-6 pt-0 overflow-y-auto">
             {issues.length > 0 ? (
-              <ScrollArea>
                 <Accordion type="multiple" className="w-full space-y-4 py-4">
                     {Object.values(groupedIssues).map(({ event, issues: eventIssues }) => {
                         const eventKey = event.isRecurringInstance ? `${event.id}-${event.start_date}` : event.id;
@@ -122,7 +121,6 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
                         )
                     })}
                 </Accordion>
-              </ScrollArea>
             ) : (
                 <div className="h-60 flex flex-col items-center justify-center text-center text-muted-foreground">
                     <AlertTriangle className="h-10 w-10 mb-2 text-green-500"/>
@@ -130,12 +128,12 @@ export function IssuesDialog({ isOpen, setIsOpen, issues, onIssueHandled }: Issu
                     <p className="text-xs">Tutti i turni sono coperti e non ci sono conflitti.</p>
                 </div>
             )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Chiudi
-            </Button>
-          </DialogFooter>
+            <div className="flex justify-end pt-4">
+                <Button variant="outline" onClick={() => setIsOpen(false)}>
+                Chiudi
+                </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

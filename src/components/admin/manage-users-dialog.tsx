@@ -237,47 +237,46 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
              )}
           </DialogHeader>
 
-          {view === 'list' ? (
-             <div className="flex-grow min-h-0 flex flex-col">
-                <div className="px-6 space-y-4 border-b pb-4">
-                    <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-                        <Input
-                            placeholder="Cerca per nome o email..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="max-w-sm"
-                        />
-                        <div className='flex flex-col sm:flex-row gap-2 w-full md:w-auto'>
-                        <Select value={churchFilter} onValueChange={setChurchFilter}>
-                            <SelectTrigger className="w-full sm:w-[180px]">
-                                <SelectValue placeholder="Filtra per chiesa" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Tutte le chiese</SelectItem>
-                                {allChurches.map(church => (
-                                    <SelectItem key={church.id} value={church.id}>{church.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select value={roleFilter} onValueChange={setRoleFilter}>
-                            <SelectTrigger className="w-full sm:w-[150px]">
-                                <SelectValue placeholder="Filtra per ruolo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Tutti i ruoli</SelectItem>
-                                {currentUser?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
-                                {(currentUser?.role === 'superuser' || currentUser?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
-                                <SelectItem value="leader">Leader</SelectItem>
-                                <SelectItem value="volontario">Volontario</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        </div>
-                        <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
-                    </div>
-                </div>
-                <div className="flex-grow min-h-0">
-                  <ScrollArea className="h-full">
-                    <div className="p-6">
+          <div className="p-6 pt-0 overflow-y-auto">
+            {view === 'list' ? (
+              <div className="flex-grow min-h-0 flex flex-col">
+                  <div className="space-y-4 border-b pb-4">
+                      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+                          <Input
+                              placeholder="Cerca per nome o email..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="max-w-sm"
+                          />
+                          <div className='flex flex-col sm:flex-row gap-2 w-full md:w-auto'>
+                          <Select value={churchFilter} onValueChange={setChurchFilter}>
+                              <SelectTrigger className="w-full sm:w-[180px]">
+                                  <SelectValue placeholder="Filtra per chiesa" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="all">Tutte le chiese</SelectItem>
+                                  {allChurches.map(church => (
+                                      <SelectItem key={church.id} value={church.id}>{church.name}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                          </Select>
+                          <Select value={roleFilter} onValueChange={setRoleFilter}>
+                              <SelectTrigger className="w-full sm:w-[150px]">
+                                  <SelectValue placeholder="Filtra per ruolo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="all">Tutti i ruoli</SelectItem>
+                                  {currentUser?.role === 'superuser' && <SelectItem value="superuser">Superuser</SelectItem>}
+                                  {(currentUser?.role === 'superuser' || currentUser?.role === 'coordinatore') && <SelectItem value="coordinatore">Coordinatore</SelectItem>}
+                                  <SelectItem value="leader">Leader</SelectItem>
+                                  <SelectItem value="volontario">Volontario</SelectItem>
+                              </SelectContent>
+                          </Select>
+                          </div>
+                          <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
+                      </div>
+                  </div>
+                  <div className="flex-grow min-h-0 py-4">
                       {isLoading ? (
                           <div className="flex items-center justify-center h-full py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
                       ) : (
@@ -370,20 +369,19 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                             </Table>
                         </>
                       )}
-                    </div>
-                  </ScrollArea>
-                </div>
-                <DialogFooter>
+                  </div>
+                  <div className="pt-4 flex justify-end">
                     <DialogClose asChild><Button variant="outline">Chiudi</Button></DialogClose>
-                </DialogFooter>
-             </div>
-          ) : (
-             <UserForm 
-                user={userToEdit}
-                onSave={handleBackToList}
-                onCancel={() => setView('list')}
-            />
-          )}
+                  </div>
+              </div>
+            ) : (
+              <UserForm 
+                  user={userToEdit}
+                  onSave={handleBackToList}
+                  onCancel={() => setView('list')}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
       <AlertDialog open={!!userToDelete} onOpenChange={(isOpen) => !isOpen && setUserToDelete(null)}>

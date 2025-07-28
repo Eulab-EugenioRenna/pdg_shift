@@ -12,10 +12,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Trash2, Check, CheckCheck, BellOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -96,7 +94,7 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
             Qui trovi tutti gli aggiornamenti che ti riguardano.
           </DialogDescription>
         </DialogHeader>
-        <div className="relative">
+        <div className="relative p-6 pt-0 overflow-y-auto">
             {isUpdating && (
                 <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
                     <Loader2 className="h-6 w-6 animate-spin" />
@@ -107,7 +105,6 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
             ) : notifications.length > 0 ? (
-            <ScrollArea>
                 <div className="space-y-3 py-4">
                 {notifications.map((n) => (
                     <div
@@ -149,7 +146,6 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
                     </div>
                 ))}
                 </div>
-            </ScrollArea>
             ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground">
                     <BellOff className="h-10 w-10 mb-2"/>
@@ -157,20 +153,20 @@ export function NotificationsDialog({ isOpen, setIsOpen, onNotificationsHandled 
                     <p className="text-xs">Quando ci saranno novità, le troverai qui.</p>
                 </div>
             )}
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 pt-4">
+                <Button 
+                    variant="ghost"
+                    onClick={handleMarkAllAsRead}
+                    disabled={isUpdating || isLoading || notifications.every(n => n.read)}
+                >
+                    <CheckCheck className="mr-2 h-4 w-4" />
+                    Segna tutte come lette
+                </Button>
+                <Button variant="outline" onClick={() => setIsOpen(false)}>
+                    Chiudi
+                </Button>
+            </div>
         </div>
-        <DialogFooter className="sm:justify-between gap-2">
-            <Button 
-                variant="ghost"
-                onClick={handleMarkAllAsRead}
-                disabled={isUpdating || isLoading || notifications.every(n => n.read)}
-            >
-                <CheckCheck className="mr-2 h-4 w-4" />
-                Segna tutte come lette
-            </Button>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-                Chiudi
-            </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

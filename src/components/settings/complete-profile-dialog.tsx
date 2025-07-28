@@ -9,7 +9,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +22,6 @@ import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import type { RecordModel } from 'pocketbase';
 import { sendNotification } from '@/lib/notifications';
-import { ScrollArea } from '../ui/scroll-area';
 
 interface CompleteProfileDialogProps {
     isOpen: boolean;
@@ -190,7 +188,7 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
             Benvenuto in Grace Services! Per continuare, ti chiediamo di completare il tuo profilo. Questo ci aiuterà a suggerirti i turni più adatti a te.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea>
+        <div className="p-6 pt-0 overflow-y-auto">
             <form onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="flex flex-col items-center gap-4">
                 <Avatar className="w-24 h-24">
@@ -249,13 +247,13 @@ export function CompleteProfileDialog({ isOpen, onProfileCompleted }: CompletePr
                     disabled={dataLoading || isPending || formData.church.length === 0}
                 />
             </div>
+            <div className="flex justify-end pt-4">
+                <Button type="submit" onClick={handleSubmit} disabled={isPending || dataLoading}>
+                {isPending ? <Loader2 className="animate-spin" /> : 'Salva e Continua'}
+                </Button>
+            </div>
             </form>
-        </ScrollArea>
-        <DialogFooter>
-            <Button type="submit" onClick={handleSubmit} disabled={isPending || dataLoading}>
-            {isPending ? <Loader2 className="animate-spin" /> : 'Salva e Continua'}
-            </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

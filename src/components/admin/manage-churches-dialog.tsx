@@ -167,10 +167,10 @@ export function ManageChurchesDialog() {
                 </DialogDescription>
              )}
           </DialogHeader>
-
+            
           {view === 'list' ? (
-             <div className="flex-grow min-h-0 flex flex-col">
-                <div className="px-6 space-y-4">
+             <div className="flex-grow min-h-0 flex flex-col p-6 pt-0">
+                <div className="space-y-4">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <Input
                             placeholder="Cerca chiese..."
@@ -183,7 +183,7 @@ export function ManageChurchesDialog() {
                 </div>
                  <div className="flex-grow min-h-0 py-4">
                     <ScrollArea className="h-full">
-                        <div className="px-6">
+                        <div className="">
                             {isLoading ? (
                                 <div className="flex items-center justify-center h-40">
                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -237,18 +237,20 @@ export function ManageChurchesDialog() {
                         </div>
                     </ScrollArea>
                  </div>
-                <DialogFooter>
+                <div className="pt-4 flex justify-end">
                     <DialogClose asChild>
                     <Button variant="outline">Chiudi</Button>
                     </DialogClose>
-                </DialogFooter>
+                </div>
             </div>
           ) : (
-            <ChurchForm 
-                church={churchToEdit}
-                onSave={handleBackToList}
-                onCancel={() => setView('list')}
-            />
+             <div className="p-6 pt-0">
+                <ChurchForm 
+                    church={churchToEdit}
+                    onSave={handleBackToList}
+                    onCancel={() => setView('list')}
+                />
+            </div>
           )}
         </DialogContent>
       </Dialog>

@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { addUnavailability, updateUnavailability } from '@/app/actions';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
-import { ScrollArea } from '../ui/scroll-area';
 
 interface ManageUnavailabilityDialogProps {
     isOpen: boolean;
@@ -87,7 +86,7 @@ export function ManageUnavailabilityDialog({ isOpen, setIsOpen, period, onSave }
                         Seleziona le date in cui non sarai disponibile. Se è solo un giorno, seleziona la stessa data due volte.
                     </DialogDescription>
                 </DialogHeader>
-                <ScrollArea>
+                <div className="p-6 pt-0 overflow-y-auto">
                     <form onSubmit={handleSubmit} className="space-y-6 py-4">
                         <div>
                             <Label htmlFor="unavailability-date-range">Date</Label>
@@ -140,17 +139,17 @@ export function ManageUnavailabilityDialog({ isOpen, setIsOpen, period, onSave }
                                 disabled={isPending}
                             />
                         </div>
+                        <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>
+                                Annulla
+                            </Button>
+                            <Button type="submit" onClick={handleSubmit} disabled={isPending}>
+                                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Salva
+                            </Button>
+                        </div>
                     </form>
-                </ScrollArea>
-                <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isPending}>
-                        Annulla
-                    </Button>
-                    <Button type="submit" onClick={handleSubmit} disabled={isPending}>
-                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Salva
-                    </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );

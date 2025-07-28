@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,7 +22,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Textarea } from '../ui/textarea';
 import { MultiSelect, type Option } from '../ui/multi-select';
 import type { RecordModel } from 'pocketbase';
-import { ScrollArea } from '../ui/scroll-area';
 
 export function ManageProfileDialog() {
   const { user, refreshUser } = useAuth();
@@ -156,7 +154,7 @@ export function ManageProfileDialog() {
             Aggiorna le tue informazioni personali. Lascia i campi password vuoti per non modificarla.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea>
+        <div className="p-6 pt-0 overflow-y-auto">
             <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="flex flex-col items-center gap-4">
                     <Avatar className="w-24 h-24">
@@ -219,14 +217,15 @@ export function ManageProfileDialog() {
                         <Input id="passwordConfirm" name="passwordConfirm" type="password" value={formData.passwordConfirm} onChange={handleChange} disabled={isPending} />
                     </div>
                 </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Annulla</Button>
+                    <Button type="submit" onClick={handleSubmit} disabled={isPending || templatesLoading}>
+                    {isPending ? <Loader2 className="animate-spin" /> : 'Salva Modifiche'}
+                    </Button>
+                </div>
             </form>
-        </ScrollArea>
-        <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>Annulla</Button>
-            <Button type="submit" onClick={handleSubmit} disabled={isPending || templatesLoading}>
-            {isPending ? <Loader2 className="animate-spin" /> : 'Salva Modifiche'}
-            </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
