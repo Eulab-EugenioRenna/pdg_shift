@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -168,8 +169,8 @@ export function ManageChurchesDialog() {
           </DialogHeader>
 
           {view === 'list' ? (
-             <>
-                <div className="space-y-4">
+             <div className="flex-grow min-h-0 flex flex-col">
+                <div className="px-6 space-y-4">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <Input
                             placeholder="Cerca chiese..."
@@ -180,66 +181,68 @@ export function ManageChurchesDialog() {
                         <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Chiesa</Button>
                     </div>
                 </div>
-                 <ScrollArea>
-                    <div className="flex-grow min-h-0">
-                        {isLoading ? (
-                            <div className="flex items-center justify-center h-40">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                        ) : (
-                            <Table>
-                            <TableHeader className="sticky top-0 bg-background z-10">
-                                <TableRow>
-                                <TableHead className="w-[60px] px-2">Logo</TableHead>
-                                <TableHead className="px-2">
-                                    <span className="hidden md:inline-flex">
-                                        <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
-                                            Nome Chiesa
-                                            <ArrowUpDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </span>
-                                    <span className="md:hidden">Nome Chiesa</span>
-                                </TableHead>
-                                <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {processedChurches.length > 0 ? processedChurches.map((church) => (
-                                <TableRow key={church.id}>
-                                    <TableCell className="p-2">
-                                        <Avatar>
-                                            <AvatarImage src={church.logo ? pb.getFileUrl(church, church.logo, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={church.name} />
-                                            <AvatarFallback>{church.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                    </TableCell>
-                                    <TableCell className="font-medium p-2 whitespace-nowrap">{church.name}</TableCell>
-                                    <TableCell className="text-right p-2">
-                                        <div className="flex gap-2 justify-end">
-                                            <Button size="icon" variant="ghost" onClick={() => handleEdit(church)}>
-                                                <Edit className="h-4 w-4" />
+                 <div className="flex-grow min-h-0 py-4">
+                    <ScrollArea className="h-full">
+                        <div className="px-6">
+                            {isLoading ? (
+                                <div className="flex items-center justify-center h-40">
+                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            ) : (
+                                <Table>
+                                <TableHeader className="sticky top-0 bg-background z-10">
+                                    <TableRow>
+                                    <TableHead className="w-[60px] px-2">Logo</TableHead>
+                                    <TableHead className="px-2">
+                                        <span className="hidden md:inline-flex">
+                                            <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                                Nome Chiesa
+                                                <ArrowUpDown className="ml-2 h-4 w-4" />
                                             </Button>
-                                            <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setChurchToDelete(church)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                                )) : (
-                                <TableRow>
-                                    <TableCell colSpan={3} className="text-center h-24">Nessuna chiesa trovata.</TableCell>
-                                </TableRow>
-                                )}
-                            </TableBody>
-                            </Table>
-                        )}
-                    </div>
-                 </ScrollArea>
+                                        </span>
+                                        <span className="md:hidden">Nome Chiesa</span>
+                                    </TableHead>
+                                    <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {processedChurches.length > 0 ? processedChurches.map((church) => (
+                                    <TableRow key={church.id}>
+                                        <TableCell className="p-2">
+                                            <Avatar>
+                                                <AvatarImage src={church.logo ? pb.getFileUrl(church, church.logo, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={church.name} />
+                                                <AvatarFallback>{church.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                        </TableCell>
+                                        <TableCell className="font-medium p-2 whitespace-nowrap">{church.name}</TableCell>
+                                        <TableCell className="text-right p-2">
+                                            <div className="flex gap-2 justify-end">
+                                                <Button size="icon" variant="ghost" onClick={() => handleEdit(church)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setChurchToDelete(church)}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                    )) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="text-center h-24">Nessuna chiesa trovata.</TableCell>
+                                    </TableRow>
+                                    )}
+                                </TableBody>
+                                </Table>
+                            )}
+                        </div>
+                    </ScrollArea>
+                 </div>
                 <DialogFooter>
                     <DialogClose asChild>
                     <Button variant="outline">Chiudi</Button>
                     </DialogClose>
                 </DialogFooter>
-            </>
+            </div>
           ) : (
             <ChurchForm 
                 church={churchToEdit}

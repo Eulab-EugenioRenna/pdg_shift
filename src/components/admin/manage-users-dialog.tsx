@@ -238,8 +238,8 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
           </DialogHeader>
 
           {view === 'list' ? (
-             <>
-                <div className="space-y-4 border-b pb-4">
+             <div className="flex-grow min-h-0 flex flex-col">
+                <div className="px-6 space-y-4 border-b pb-4">
                     <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                         <Input
                             placeholder="Cerca per nome o email..."
@@ -275,104 +275,108 @@ export function ManageUsersDialog({ triggerButton, onUsersUpdated }: ManageUsers
                         <Button onClick={handleAdd} className="w-full md:w-auto"><PlusCircle className="mr-2 h-4 w-4" /> Aggiungi Utente</Button>
                     </div>
                 </div>
-                <ScrollArea className="max-h-[50vh]">
-                  {isLoading ? (
-                      <div className="flex items-center justify-center h-full py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-                  ) : (
-                    <>
-                      {/* Mobile View */}
-                      <div className="md:hidden space-y-3 py-4">
-                        {processedUsers.length > 0 ? processedUsers.map(user => {
-                          const canManage = canManageUser(user);
-                          return (
-                            <div key={user.id} className="border rounded-lg p-3 flex flex-col space-y-2">
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-3">
-                                  <Avatar>
-                                      <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
-                                      <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <p className="font-semibold">{user.name}</p>
-                                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                <div className="flex-grow min-h-0">
+                  <ScrollArea className="h-full">
+                    <div className="p-6">
+                      {isLoading ? (
+                          <div className="flex items-center justify-center h-full py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                      ) : (
+                        <>
+                          {/* Mobile View */}
+                          <div className="md:hidden space-y-3">
+                            {processedUsers.length > 0 ? processedUsers.map(user => {
+                              const canManage = canManageUser(user);
+                              return (
+                                <div key={user.id} className="border rounded-lg p-3 flex flex-col space-y-2">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <Avatar>
+                                          <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
+                                          <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <p className="font-semibold">{user.name}</p>
+                                        <p className="text-xs text-muted-foreground">{user.email}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per modificare questo utente" : "Modifica utente"}><Edit className="h-4 w-4" /></Button>
+                                        <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per eliminare questo utente" : "Elimina utente"}><Trash2 className="h-4 w-4" /></Button>
+                                    </div>
+                                  </div>
+                                  <div className="text-xs space-y-1 pl-12">
+                                      <p><span className="font-medium">Ruolo:</span> <span className="capitalize">{user.role}</span></p>
+                                      <div className="flex items-start"><span className="font-medium w-12 shrink-0">Chiese:</span> <ChurchList user={user} /></div>
                                   </div>
                                 </div>
-                                <div className="flex gap-1">
-                                    <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per modificare questo utente" : "Modifica utente"}><Edit className="h-4 w-4" /></Button>
-                                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per eliminare questo utente" : "Elimina utente"}><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                              </div>
-                              <div className="text-xs space-y-1 pl-12">
-                                  <p><span className="font-medium">Ruolo:</span> <span className="capitalize">{user.role}</span></p>
-                                  <div className="flex items-start"><span className="font-medium w-12 shrink-0">Chiese:</span> <ChurchList user={user} /></div>
-                              </div>
-                            </div>
-                          )
-                        }) : (
-                          <div className="text-center py-10 text-muted-foreground">Nessun utente trovato.</div>
-                        )}
-                      </div>
+                              )
+                            }) : (
+                              <div className="text-center py-10 text-muted-foreground">Nessun utente trovato.</div>
+                            )}
+                          </div>
 
-                      {/* Desktop View */}
-                      <Table className="hidden md:table">
-                        <TableHeader className="sticky top-0 bg-background z-10">
-                            <TableRow>
-                            <TableHead className="w-[60px] px-2">Avatar</TableHead>
-                            <TableHead className="w-1/4 px-2">
-                                <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
-                                    Nome
-                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead className="w-1/4 px-2">
-                                <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
-                                    Email
-                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead className="w-1/4 px-2">Chiesa</TableHead>
-                            <TableHead className="w-1/4 px-2">
-                                <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
-                                    Ruolo
-                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                </Button>
-                            </TableHead>
-                            <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {processedUsers.map((user) => {
-                                const canManage = canManageUser(user);
-                                return (
-                                    <TableRow key={user.id}>
-                                        <TableCell className="p-2">
-                                            <Avatar>
-                                                <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
-                                                <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                                            </Avatar>
-                                        </TableCell>
-                                        <TableCell className="font-medium p-2 whitespace-nowrap">{user.name}</TableCell>
-                                        <TableCell className="p-2 whitespace-nowrap truncate">{user.email}</TableCell>
-                                        <TableCell className="p-2 whitespace-nowrap"><ChurchList user={user} /></TableCell>
-                                        <TableCell className="capitalize p-2 whitespace-nowrap">{user.role}</TableCell>
-                                        <TableCell className="text-right p-2">
-                                            <div className="flex gap-2 justify-end">
-                                                <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per modificare questo utente" : "Modifica utente"}><Edit className="h-4 w-4" /></Button>
-                                                <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per eliminare questo utente" : "Elimina utente"}><Trash2 className="h-4 w-4" /></Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })}
-                        </TableBody>
-                        </Table>
-                    </>
-                  )}
-                </ScrollArea>
+                          {/* Desktop View */}
+                          <Table className="hidden md:table">
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                <TableHead className="w-[60px] px-2">Avatar</TableHead>
+                                <TableHead className="w-1/4 px-2">
+                                    <Button variant="ghost" onClick={() => requestSort('name')} className="px-0 hover:bg-transparent">
+                                        Nome
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
+                                <TableHead className="w-1/4 px-2">
+                                    <Button variant="ghost" onClick={() => requestSort('email')} className="px-0 hover:bg-transparent">
+                                        Email
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
+                                <TableHead className="w-1/4 px-2">Chiesa</TableHead>
+                                <TableHead className="w-1/4 px-2">
+                                    <Button variant="ghost" onClick={() => requestSort('role')} className="px-0 hover:bg-transparent">
+                                        Ruolo
+                                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </TableHead>
+                                <TableHead className="text-right w-[120px] px-2">Azioni</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {processedUsers.map((user) => {
+                                    const canManage = canManageUser(user);
+                                    return (
+                                        <TableRow key={user.id}>
+                                            <TableCell className="p-2">
+                                                <Avatar>
+                                                    <AvatarImage src={user.avatar ? pb.getFileUrl(user, user.avatar, { thumb: '100x100' }) : `https://placehold.co/40x40.png`} alt={user.name} />
+                                                    <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                                                </Avatar>
+                                            </TableCell>
+                                            <TableCell className="font-medium p-2 whitespace-nowrap">{user.name}</TableCell>
+                                            <TableCell className="p-2 whitespace-nowrap truncate">{user.email}</TableCell>
+                                            <TableCell className="p-2 whitespace-nowrap"><ChurchList user={user} /></TableCell>
+                                            <TableCell className="capitalize p-2 whitespace-nowrap">{user.role}</TableCell>
+                                            <TableCell className="text-right p-2">
+                                                <div className="flex gap-2 justify-end">
+                                                    <Button size="icon" variant="ghost" onClick={() => handleEdit(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per modificare questo utente" : "Modifica utente"}><Edit className="h-4 w-4" /></Button>
+                                                    <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setUserToDelete(user)} disabled={!canManage} title={!canManage ? "Non hai i permessi per eliminare questo utente" : "Elimina utente"}><Trash2 className="h-4 w-4" /></Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                            </Table>
+                        </>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
                 <DialogFooter>
                     <DialogClose asChild><Button variant="outline">Chiudi</Button></DialogClose>
                 </DialogFooter>
-             </>
+             </div>
           ) : (
              <UserForm 
                 user={userToEdit}
